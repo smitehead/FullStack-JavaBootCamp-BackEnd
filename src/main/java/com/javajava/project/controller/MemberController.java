@@ -1,7 +1,8 @@
 package com.javajava.project.controller;
 
+import com.javajava.project.dto.MemberRequestDto;
 import com.javajava.project.entity.Member;
-import com.javajava.project.service.MemberService; // 인터페이스 임포트
+import com.javajava.project.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,12 +12,12 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class MemberController {
 
-    // MemberServiceImpl이 아닌 MemberService 인터페이스를 주입받음
     private final MemberService memberService;
 
-    @PostMapping("/join")
-    public ResponseEntity<Long> join(@RequestBody Member member) {
-        return ResponseEntity.ok(memberService.join(member));
+    // RESTful: /join 제거, POST /api/members 자체가 생성을 의미
+    @PostMapping
+    public ResponseEntity<Long> join(@RequestBody MemberRequestDto memberDto) {
+        return ResponseEntity.ok(memberService.join(memberDto));
     }
 
     @GetMapping("/{id}")
