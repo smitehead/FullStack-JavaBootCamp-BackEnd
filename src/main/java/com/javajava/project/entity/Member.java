@@ -46,7 +46,7 @@ public class Member {
     @Column(name = "PROFILE_IMG_NO")
     private Long profileImgNo; // 이미지번호 (FK, Nullable)
 
-    @Column(name = "MANNER_TEMP", nullable = false, precision = 4, scale = 1)
+    @Column(name = "MANNER_TEMP", nullable = false)
     private Double mannerTemp = 36.5;
 
     @Column(nullable = false)
