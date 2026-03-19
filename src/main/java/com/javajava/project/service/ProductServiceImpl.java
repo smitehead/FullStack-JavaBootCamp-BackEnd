@@ -5,6 +5,7 @@ import com.javajava.project.dto.ProductResponseDto;
 import com.javajava.project.entity.Product;
 import com.javajava.project.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +31,7 @@ public class ProductServiceImpl implements ProductService {
                 .tradeEmdNo(dto.getTradeEmdNo())
                 .tradeAddrDetail(dto.getTradeAddrDetail())
                 .startPrice(dto.getStartPrice())
-                .currentPrice(dto.getStartPrice())
+                .currentPrice(dto.getStartPrice()) // 초기가는 시작가와 동일
                 .buyoutPrice(dto.getBuyoutPrice())
                 .minBidUnit(dto.getMinBidUnit())
                 .endTime(dto.getEndTime())
@@ -44,19 +45,27 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public List<ProductResponseDto> findAllActive() {
-        // 1. DB에서 활성 상품 엔티티들을 가져옴
-        List<Product> products = productRepository.findByIsActiveAndIsDeleted(1, 0);
+    public List<ProductResponseDto> findAllActive(String sortOption) {
+        // 1. 프론트엔드 버튼 클릭에 따른 정렬 기준 설정
+        Sort sort = switch (sortOption) {
+            case "popular" -> Sort.by(Sort.Direction.DESC, "viewCount"); // 인기순
+            case "ending" -> Sort.by(Sort.Direction.ASC, "endTime");     // 종료임박순
+            case "latest" -> Sort.by(Sort.Direction.DESC, "createdAt");  // 최신순
+            default -> Sort.by(Sort.Direction.DESC, "createdAt");
+        };
 
-        // 2. 엔티티를 DTO로 변환(조립)하여 리스트로 반환
+        // 2. DB에서 데이터 조회 (활성 상태인 것만)
+        List<Product> products = productRepository.findByIsActiveAndIsDeleted(1, 0, sort);
+
+        // 3. Entity를 ProductResponseDto(조립 박스)로 변환
         return products.stream().map(product -> ProductResponseDto.builder()
                 .productNo(product.getProductNo())
-                .title(product.getTitle())                      // [상품이름]
-                .currentPrice(product.getCurrentPrice())        // [현재 최고가]
-                .location(product.getTradeAddrDetail())         // [주소]
-                .endTime(product.getEndTime())                  // [남은시간 계산용]
+                .title(product.getTitle())
+                .currentPrice(product.getCurrentPrice())
+                .location(product.getTradeAddrDetail()) // 추후 주소 가공 가능
+                .endTime(product.getEndTime())
                 .isActive(product.getIsActive())
-                .mainImageUrl("/api/images/sample.jpg")         // [상품사진] 임시 경로
+                .mainImageUrl("/api/images/sample.jpg") // 임시 이미지 경로
                 .build()
         ).collect(Collectors.toList());
     }
@@ -66,7 +75,6 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findById(productNo)
                 .orElseThrow(() -> new IllegalArgumentException("해당 상품이 없습니다. ID: " + productNo));
         
-        // 엔티티를 DTO로 변환하여 반환
         return ProductResponseDto.builder()
                 .productNo(product.getProductNo())
                 .title(product.getTitle())
@@ -80,7 +88,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public List<ProductResponseDto> findByCategory(Long categoryNo) {
-        // 카테고리 필터 조회 로직 (추후 Repository 확장 필요)
-        return findAllActive(); 
+        // 기본 전체 조회 로직 호출 (추후 카테고리 필터링 추가 가능)
+        return findAllActive("latest");
     }
 }

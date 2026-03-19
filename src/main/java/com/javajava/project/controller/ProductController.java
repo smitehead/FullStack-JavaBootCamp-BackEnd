@@ -22,8 +22,10 @@ public class ProductController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ProductResponseDto>> getProducts() {
-        return ResponseEntity.ok(productService.findAllActive());
+    public ResponseEntity<List<ProductResponseDto>> getProducts(
+            @RequestParam(name = "sort", defaultValue = "latest") String sort) {
+        // 정렬 옵션을 받아 서비스 호출
+        return ResponseEntity.ok(productService.findAllActive(sort));
     }
 
     @GetMapping("/{id}")
