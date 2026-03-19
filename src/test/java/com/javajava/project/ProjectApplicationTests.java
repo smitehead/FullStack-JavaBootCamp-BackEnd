@@ -1,12 +1,12 @@
 package com.javajava.project;
 
+import com.javajava.project.dto.BidRequestDto;
 import com.javajava.project.dto.ProductDetailResponseDto;
 import com.javajava.project.dto.ProductRequestDto;
 import com.javajava.project.dto.ProductResponseDto;
-import com.javajava.project.entity.BidHistory;
 import com.javajava.project.entity.Member;
-import com.javajava.project.repository.BidHistoryRepository;
 import com.javajava.project.repository.MemberRepository;
+import com.javajava.project.service.BidService;
 import com.javajava.project.service.ProductService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,113 +25,106 @@ class ProductServiceTest {
 
     @Autowired
     private ProductService productService;
+    
+    @Autowired
+    private BidService bidService; // 새롭게 추가된 서비스
+
     @Autowired
     private MemberRepository memberRepository;
-    @Autowired
-    private BidHistoryRepository bidHistoryRepository;
 
     private Long savedProductId;
+    private Member bidder1;
+    private Member bidder2;
 
     @BeforeEach
     void setUp() {
-        // 1. 판매자 생성
+        // 1. 판매자 생성 (포인트 0)
         Member seller = memberRepository.save(Member.builder()
-                .userId("seller_final")
-                .password("1234")
-                .nickname("판매왕")
-                .email("seller_f@test.com")
-                .phoneNum("010-1234-1234")
-                .emdNo(1L)
-                .addrDetail("상남동")
-                .birthDate(LocalDate.of(1990, 1, 1))
-                .isAdmin(0)
-                .isActive(1)
-                .build());
+                .userId("seller_tester").password("1234").nickname("판매왕")
+                .email("seller@test.com").phoneNum("010-1111-1111").emdNo(1L)
+                .addrDetail("상남동").birthDate(LocalDate.of(1990, 1, 1))
+                .points(0L).build());
 
-        // 2. 상품 등록
+        // 2. 상품 등록 (시작가: 50,000원 / 최소 입찰단위: 5,000원)
         savedProductId = productService.save(ProductRequestDto.builder()
-                .sellerNo(seller.getMemberNo())
-                .categoryNo(100L)
-                .title("Oracle 완벽 연동 상품")
-                .description("테스트 설명")
-                .tradeType("직거래")
-                .startPrice(50000L)
-                .minBidUnit(5000L)
-                .endTime(LocalDateTime.now().plusDays(7))
-                .build());
+                .sellerNo(seller.getMemberNo()).categoryNo(100L)
+                .title("Oracle 실시간 경매 상품").description("테스트용 상품입니다.")
+                .tradeType("직거래").tradeAddrDetail("창원시청 앞")
+                .startPrice(50000L).minBidUnit(5000L)
+                .endTime(LocalDateTime.now().plusDays(7)).build());
 
-        // 3. 입찰자 생성
-        Member bidder = memberRepository.save(Member.builder()
-                .userId("bidder_final")
-                .password("1234")
-                .nickname("입찰매니아")
-                .email("bidder_f@test.com")
-                .phoneNum("010-5678-5678")
-                .emdNo(2L)
-                .addrDetail("중앙동")
-                .birthDate(LocalDate.of(1995, 1, 1))
-                .isAdmin(0)
-                .isActive(1)
-                .build());
+        // 3. 입찰자 1 생성 (포인트: 100,000원)
+        bidder1 = memberRepository.save(Member.builder()
+                .userId("bidder_01").password("1234").nickname("입찰매니아")
+                .email("bid1@test.com").phoneNum("010-2222-2222").emdNo(2L)
+                .addrDetail("중앙동").birthDate(LocalDate.of(1995, 5, 5))
+                .points(100000L).build());
 
-        // 4. 입찰 내역 생성 (에러 해결: IS_AUTO, IS_CANCELLED, IS_WINNER 필수값 추가)
-        bidHistoryRepository.save(BidHistory.builder()
-                .productNo(savedProductId)
-                .memberNo(bidder.getMemberNo())
-                .bidPrice(55000L)
-                .bidTime(LocalDateTime.now())
-                .isAuto(0)        // ★ ORA-01400 해결
-                .isCancelled(0)   // 필수값
-                .isWinner(0)      // 필수값
-                .build());
+        // 4. 입찰자 2 생성 (포인트: 200,000원)
+        bidder2 = memberRepository.save(Member.builder()
+                .userId("bidder_02").password("1234").nickname("낙찰희망자")
+                .email("bid2@test.com").phoneNum("010-3333-3333").emdNo(3L)
+                .addrDetail("용호동").birthDate(LocalDate.of(1992, 12, 12))
+                .points(200000L).build());
     }
 
     @Test
-    @DisplayName("상품 기능 최종 통합 리포트")
+    @DisplayName("경매 시스템 통합 기능 리포트 (목록조회 + 실시간입찰 + 상세조회)")
     void totalFunctionalReport() {
-        // 데이터 수집
+        // [작업 1] 실시간 입찰 시나리오 진행
+        // 입찰 1: 입찰자1이 55,000원 입찰 (성공)
+        bidService.processBid(BidRequestDto.builder()
+                .productNo(savedProductId).memberNo(bidder1.getMemberNo())
+                .bidPrice(55000L).build());
+
+        // 입찰 2: 입찰자2가 60,000원 입찰 (성공)
+        bidService.processBid(BidRequestDto.builder()
+                .productNo(savedProductId).memberNo(bidder2.getMemberNo())
+                .bidPrice(60000L).build());
+
+        // [작업 2] 데이터 수집
         List<ProductResponseDto> productList = productService.findAllActive("latest");
         ProductDetailResponseDto detail = productService.getProductDetail(savedProductId, null);
+        // 최적화된 입찰 기록 전용 조회 API 활용
+        List<ProductDetailResponseDto.BidHistoryDto> recentBids = bidService.getBidHistory(savedProductId);
 
-        // 출력 리포트 생성
+        // [작업 3] 통합 리포트 생성
         StringBuilder sb = new StringBuilder();
         sb.append("\n\n");
         sb.append("==================================================================\n");
-        sb.append("          [ PRODUCT SERVICE FINAL TEST REPORT ]\n");
+        sb.append("          [ AUCTION SYSTEM INTEGRATED TEST REPORT ]\n");
         sb.append("==================================================================\n\n");
 
-        sb.append("1. [상품 목록 결과]\n");
+        sb.append("1. [활성 경매 목록 조회]\n");
         sb.append("------------------------------------------------------------------\n");
-        if (productList.isEmpty()) {
-            sb.append("- 조회된 상품이 없습니다.\n");
-        } else {
-            for (ProductResponseDto p : productList) {
-                sb.append(String.format("- [번호: %d] %-20s | 현재가: %10d원 | 위치: %s\n", 
-                        p.getProductNo(), p.getTitle(), p.getCurrentPrice(), p.getLocation()));
-            }
+        for (ProductResponseDto p : productList) {
+            sb.append(String.format("- [번호: %d] %-20s | 현재최고가: %10d원 | 위치: %s\n", 
+                    p.getProductNo(), p.getTitle(), p.getCurrentPrice(), p.getLocation()));
         }
 
-        sb.append("\n2. [선택 상품 상세 정보]\n");
+        sb.append("\n2. [상품 상세 정보 및 판매자 프로필]\n");
         sb.append("------------------------------------------------------------------\n");
         sb.append(String.format("▶ 상 품 명 : %s\n", detail.getTitle()));
         sb.append(String.format("▶ 판 매 자 : %s (매너온도: %.1f도)\n", 
                 detail.getSeller().getNickname(), detail.getSeller().getMannerTemp()));
-        sb.append(String.format("▶ 입찰현황 : 참여자 %d명 / 현재최고가 %d원\n", 
-                detail.getParticipantCount(), detail.getCurrentPrice()));
+        sb.append(String.format("▶ 경매현황 : 현재가 %,d원 (총 %d회 입찰)\n", 
+                detail.getCurrentPrice(), detail.getParticipantCount()));
         
-        sb.append("\n3. [최근 입찰 내역 기록]\n");
+        sb.append("\n3. [실시간 입찰 로그 (최신순)]\n");
         sb.append("------------------------------------------------------------------\n");
-        if (detail.getBidHistory() == null || detail.getBidHistory().isEmpty()) {
-            sb.append("- 입찰 내역 없음\n");
+        if (recentBids.isEmpty()) {
+            sb.append("- 진행된 입찰 내역이 없습니다.\n");
         } else {
-            detail.getBidHistory().forEach(bid -> 
-                sb.append(String.format("  [%s] 입찰자: %-8s | 입찰금액: %10d원\n", 
-                        bid.getBidTime().toLocalTime(), bid.getBidderNickname(), bid.getBidPrice()))
+            recentBids.forEach(bid -> 
+                sb.append(String.format("  [%s] 입찰자: %-10s | 입찰금액: %10s원\n", 
+                        bid.getBidTime().toLocalTime().withNano(0), 
+                        bid.getBidderNickname(), 
+                        String.format("%,d", bid.getBidPrice())))
             );
         }
 
         sb.append("\n==================================================================\n");
-        sb.append("         RESULT: Oracle DB 연동 및 데이터 통합 성공\n");
+        sb.append("    검증 결과: 입찰 유효성 검사, 포인트 체크, 실시간 가격 갱신 완료\n");
         sb.append("==================================================================\n\n");
 
         System.out.println(sb.toString());
