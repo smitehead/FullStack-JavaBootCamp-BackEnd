@@ -2,19 +2,18 @@ package com.javajava.project.service;
 
 import com.javajava.project.dto.ProductRequestDto;
 import com.javajava.project.dto.ProductResponseDto;
-import com.javajava.project.dto.ProductDetailResponseDto; // 별도로 생성한 DTO
+import com.javajava.project.dto.ProductDetailResponseDto;
 import com.javajava.project.entity.Member;
 import com.javajava.project.entity.Product;
 import com.javajava.project.repository.BidHistoryRepository;
 import com.javajava.project.repository.MemberRepository;
 import com.javajava.project.repository.ProductRepository;
-// import com.javajava.project.repository.ImageRepository;    // 추가 메서드 관련 주석
-// import com.javajava.project.repository.WishlistRepository; // 추가 메서드 관련 주석
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime; // 추가
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,9 +24,7 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
     private final MemberRepository memberRepository;
-    private final BidHistoryRepository bidHistoryRepository;
-    // private final ImageRepository imageRepository;       // 추가 레포지토리 주석
-    // private final WishlistRepository wishlistRepository; // 추가 레포지토리 주석
+    private final BidHistoryRepository bidHistoryRepository; // 타입 오타 수정 (bidHistoryRepository -> BidHistoryRepository)
 
     @Override
     @Transactional
@@ -41,10 +38,11 @@ public class ProductServiceImpl implements ProductService {
                 .tradeEmdNo(dto.getTradeEmdNo())
                 .tradeAddrDetail(dto.getTradeAddrDetail())
                 .startPrice(dto.getStartPrice())
-                .currentPrice(dto.getStartPrice()) // 초기가는 시작가와 동일 
+                .currentPrice(dto.getStartPrice()) 
                 .buyoutPrice(dto.getBuyoutPrice())
                 .minBidUnit(dto.getMinBidUnit())
                 .endTime(dto.getEndTime())
+                .createdAt(LocalDateTime.now()) // ★ ORA-01400 에러 해결을 위해 필수 추가
                 .viewCount(0L)
                 .bidCount(0L)
                 .isActive(1)
@@ -78,18 +76,17 @@ public class ProductServiceImpl implements ProductService {
         ).collect(Collectors.toList());
     }
 
-    // 신규 반영: 제품 상세 페이지를 위한 통합 조회 메서드
     @Override
     public ProductDetailResponseDto getProductDetail(Long productNo, Long currentMemberNo) {
         // 1. 상품 기본 정보 조회
         Product product = productRepository.findById(productNo)
                 .orElseThrow(() -> new IllegalArgumentException("해당 상품이 없습니다. ID: " + productNo));
 
-        // 2. 판매자 정보 조회 (닉네임, 매너온도 등) [cite: 143-146]
+        // 2. 판매자 정보 조회 (닉네임, 매너온도 등)
         Member seller = memberRepository.findById(product.getSellerNo())
                 .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
 
-        // 3. 입찰 기록 조회 (최신순) [cite: 168-173]
+        // 3. 입찰 기록 조회 (최신순)
         List<ProductDetailResponseDto.BidHistoryDto> bidHistory = bidHistoryRepository.findByProductNoOrderByBidTimeDesc(productNo)
                 .stream()
                 .map(bid -> {
@@ -101,18 +98,6 @@ public class ProductServiceImpl implements ProductService {
                             .bidTime(bid.getBidTime())
                             .build();
                 }).collect(Collectors.toList());
-
-        /* * 추가 메서드 및 레포지토리 미구현으로 인한 주석 처리 부분
-         * // 4. 이미지 조회 (ImageRepository 구현 후 사용)
-        List<String> imageUrls = imageRepository.findByProductNo(productNo)
-                .stream().map(Image::getImgName).collect(Collectors.toList());
-
-        // 5. 찜 여부 확인 (WishlistRepository 구현 후 사용)
-        boolean isWishlisted = false;
-        if (currentMemberNo != null) {
-            isWishlisted = wishlistRepository.existsByMemberNoAndProductNo(currentMemberNo, productNo);
-        }
-        */
 
         // 6. 상세 데이터 조립
         return ProductDetailResponseDto.builder()
@@ -126,8 +111,6 @@ public class ProductServiceImpl implements ProductService {
                 .minBidUnit(product.getMinBidUnit())
                 .endTime(product.getEndTime())
                 .participantCount(product.getBidCount())
-                // .imageUrls(imageUrls) // 주석 처리
-                // .isWishlisted(isWishlisted) // 주석 처리
                 .seller(ProductDetailResponseDto.SellerInfoDto.builder()
                         .sellerNo(seller.getMemberNo())
                         .nickname(seller.getNickname())

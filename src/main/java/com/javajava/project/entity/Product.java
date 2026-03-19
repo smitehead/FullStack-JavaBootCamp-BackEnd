@@ -19,35 +19,40 @@ public class Product {
     private Long productNo;
 
     @Column(name = "SELLER_NO", nullable = false)
-    private Long sellerNo; // 판매자 회원번호 (FK)
+    private Long sellerNo;
 
     @Column(name = "CATEGORY_NO", nullable = false)
-    private Long categoryNo; // 카테고리 번호 (FK)
+    private Long categoryNo;
 
     @Column(nullable = false, length = 100)
     private String title;
 
-    @Lob // CLOB 타입 대응
+    @Lob
     @Column(nullable = false)
     private String description;
 
     @Column(name = "TRADE_TYPE", nullable = false, length = 10)
-    private String tradeType; // 택배/직거래/혼합
+    private String tradeType;
 
     @Column(name = "TRADE_EMD_NO")
-    private Long tradeEmdNo; // 직거래 위치 읍면동번호 (FK)
+    private Long tradeEmdNo;
 
     @Column(name = "TRADE_ADDR_DETAIL", length = 255)
     private String tradeAddrDetail;
 
+    // ★ Builder 사용 시에도 기본값 0L이 들어가도록 설정
+    @Builder.Default
     @Column(name = "VIEW_COUNT", nullable = false)
     private Long viewCount = 0L;
 
+    // ★ 중요: Builder 사용 시 현재 시간이 자동으로 들어가도록 설정
+    @Builder.Default
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Builder.Default
     @Column(name = "IS_DELETED", nullable = false)
-    private Integer isDeleted = 0; // 1이면 삭제
+    private Integer isDeleted = 0;
 
     @Column(name = "START_PRICE", nullable = false)
     private Long startPrice;
@@ -56,17 +61,19 @@ public class Product {
     private Long currentPrice;
 
     @Column(name = "BUYOUT_PRICE")
-    private Long buyoutPrice; // 즉시구매가 (Nullable)
+    private Long buyoutPrice;
 
     @Column(name = "MIN_BID_UNIT", nullable = false)
     private Long minBidUnit;
 
+    @Builder.Default
     @Column(name = "BID_COUNT", nullable = false)
     private Long bidCount = 0L;
 
     @Column(name = "END_TIME", nullable = false)
     private LocalDateTime endTime;
 
+    @Builder.Default
     @Column(name = "IS_ACTIVE", nullable = false)
-    private Integer isActive = 1; // 0이면 경매 마감
+    private Integer isActive = 1;
 }

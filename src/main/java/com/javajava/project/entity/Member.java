@@ -22,7 +22,7 @@ public class Member {
     @Column(name = "USER_ID", nullable = false, unique = true, length = 20)
     private String userId;
 
-    @Column(nullable = false, length = 255) // bcrypt 암호화 고려
+    @Column(nullable = false)
     private String password;
 
     @Column(nullable = false, unique = true, length = 15)
@@ -35,7 +35,7 @@ public class Member {
     private String phoneNum;
 
     @Column(name = "EMD_NO", nullable = false)
-    private Long emdNo; // 읍면동번호 (FK)
+    private Long emdNo;
 
     @Column(name = "ADDR_DETAIL", nullable = false, length = 255)
     private String addrDetail;
@@ -44,32 +44,40 @@ public class Member {
     private LocalDate birthDate;
 
     @Column(name = "PROFILE_IMG_NO")
-    private Long profileImgNo; // 이미지번호 (FK, Nullable)
+    private Long profileImgNo;
 
+    @Builder.Default
     @Column(name = "MANNER_TEMP", nullable = false)
     private Double mannerTemp = 36.5;
 
+    @Builder.Default
     @Column(nullable = false)
     private Long points = 0L;
 
+    @Builder.Default
     @Column(name = "JOINED_AT", nullable = false, updatable = false)
     private LocalDateTime joinedAt = LocalDateTime.now();
 
+    @Builder.Default
     @Column(name = "IS_ACTIVE", nullable = false)
-    private Integer isActive = 1; // 1: 활성, 0: 탈퇴
+    private Integer isActive = 1;
 
+    @Builder.Default
     @Column(name = "IS_ADMIN", nullable = false)
-    private Integer isAdmin = 0; // 1: 관리자
+    private Integer isAdmin = 0; // ★ 이 부분에 @Builder.Default가 없어서 에러가 발생했습니다.
 
+    @Builder.Default
     @Column(name = "IS_SUSPENDED", nullable = false)
-    private Integer isSuspended = 0; // 1: 정지
+    private Integer isSuspended = 0;
 
     @Column(name = "SUSPEND_UNTIL")
     private LocalDateTime suspendUntil;
 
+    @Builder.Default
     @Column(name = "NOTIFY_ON", nullable = false)
     private Integer notifyOn = 1;
 
+    @Builder.Default
     @Column(name = "MARKETING_AGREE", nullable = false)
     private Integer marketingAgree = 0;
 }
