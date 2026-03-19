@@ -37,4 +37,10 @@ public class ProductController {
         // 로그인 기능 연동 전이므로 memberNo는 파라미터로 받거나 null 처리가 가능하도록 설계
         return ResponseEntity.ok(productService.getProductDetail(productNo, currentMemberNo));
     }
+    //입찰 기록 탭을 위한 전용 API
+    @GetMapping("/{id}/bids")
+    public ResponseEntity<List<ProductDetailResponseDto.BidHistoryDto>> getProductBids(
+            @PathVariable("id") Long productNo) {
+        return ResponseEntity.ok(productService.getBidHistory(productNo));
+    }
 }

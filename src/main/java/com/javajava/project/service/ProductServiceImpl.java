@@ -140,6 +140,23 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    public List<ProductDetailResponseDto.BidHistoryDto> getBidHistory(Long productNo) {
+        // 최적화된 JOIN 쿼리로 입찰 기록과 닉네임을 한 번에 조회
+        List<Object[]> results = bidHistoryRepository.findBidHistoryWithNickname(productNo);
+        
+        return results.stream().map(result -> {
+            BidHistory bid = (BidHistory) result[0];
+            String nickname = (String) result[1];
+            
+            return ProductDetailResponseDto.BidHistoryDto.builder()
+                    .bidderNickname(nickname)
+                    .bidPrice(bid.getBidPrice())
+                    .bidTime(bid.getBidTime())
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    @Override
     public List<ProductResponseDto> findByCategory(Long categoryNo) {
         // 카테고리 기능은 현재 전체 조회로 대체 (추후 구현 가능)
         return findAllActive("latest");
