@@ -2,6 +2,7 @@ package com.javajava.project.controller;
 
 import com.javajava.project.dto.ProductRequestDto;
 import com.javajava.project.dto.ProductResponseDto;
+import com.javajava.project.dto.ProductDetailResponseDto; // 추가
 import com.javajava.project.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -24,12 +25,16 @@ public class ProductController {
     @GetMapping
     public ResponseEntity<List<ProductResponseDto>> getProducts(
             @RequestParam(name = "sort", defaultValue = "latest") String sort) {
-        // 정렬 옵션을 받아 서비스 호출
         return ResponseEntity.ok(productService.findAllActive(sort));
     }
 
+    // 업데이트: 상세 페이지 전용 데이터를 반환하도록 변경
     @GetMapping("/{id}")
-    public ResponseEntity<ProductResponseDto> getProductDetail(@PathVariable("id") Long productNo) {
-        return ResponseEntity.ok(productService.findById(productNo));
+    public ResponseEntity<ProductDetailResponseDto> getProductDetail(
+            @PathVariable("id") Long productNo,
+            @RequestParam(name = "memberNo", required = false) Long currentMemberNo) {
+        
+        // 로그인 기능 연동 전이므로 memberNo는 파라미터로 받거나 null 처리가 가능하도록 설계
+        return ResponseEntity.ok(productService.getProductDetail(productNo, currentMemberNo));
     }
 }
