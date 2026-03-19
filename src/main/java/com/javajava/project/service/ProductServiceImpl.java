@@ -3,6 +3,7 @@ package com.javajava.project.service;
 import com.javajava.project.dto.ProductRequestDto;
 import com.javajava.project.dto.ProductResponseDto;
 import com.javajava.project.dto.ProductDetailResponseDto;
+import com.javajava.project.entity.BidHistory;
 import com.javajava.project.entity.Member;
 import com.javajava.project.entity.Product;
 import com.javajava.project.repository.BidHistoryRepository;
@@ -13,7 +14,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime; // 추가
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,7 +25,7 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
     private final MemberRepository memberRepository;
-    private final BidHistoryRepository bidHistoryRepository; // 타입 오타 수정 (bidHistoryRepository -> BidHistoryRepository)
+    private final BidHistoryRepository bidHistoryRepository;
 
     @Override
     @Transactional
@@ -38,11 +39,11 @@ public class ProductServiceImpl implements ProductService {
                 .tradeEmdNo(dto.getTradeEmdNo())
                 .tradeAddrDetail(dto.getTradeAddrDetail())
                 .startPrice(dto.getStartPrice())
-                .currentPrice(dto.getStartPrice()) 
+                .currentPrice(dto.getStartPrice()) // 초기가는 시작가와 동일
                 .buyoutPrice(dto.getBuyoutPrice())
                 .minBidUnit(dto.getMinBidUnit())
                 .endTime(dto.getEndTime())
-                .createdAt(LocalDateTime.now()) // ★ ORA-01400 에러 해결을 위해 필수 추가
+                .createdAt(LocalDateTime.now()) // Oracle NOT NULL 제약 조건(ORA-01400) 해결
                 .viewCount(0L)
                 .bidCount(0L)
                 .isActive(1)
@@ -54,7 +55,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public List<ProductResponseDto> findAllActive(String sortOption) {
-        // 정렬 기준 설정 
+        // 정렬 기준 설정
         Sort sort = switch (sortOption) {
             case "popular" -> Sort.by(Sort.Direction.DESC, "viewCount");
             case "ending" -> Sort.by(Sort.Direction.ASC, "endTime");
@@ -71,7 +72,7 @@ public class ProductServiceImpl implements ProductService {
                 .location(product.getTradeAddrDetail())
                 .endTime(product.getEndTime())
                 .isActive(product.getIsActive())
-                .mainImageUrl("/api/images/sample.jpg")
+                .mainImageUrl("/api/images/sample.jpg") // 이미지 엔티티 연동 전 샘플 경로
                 .build()
         ).collect(Collectors.toList());
     }
@@ -86,12 +87,14 @@ public class ProductServiceImpl implements ProductService {
         Member seller = memberRepository.findById(product.getSellerNo())
                 .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
 
-        // 3. 입찰 기록 조회 (최신순)
-        List<ProductDetailResponseDto.BidHistoryDto> bidHistory = bidHistoryRepository.findByProductNoOrderByBidTimeDesc(productNo)
-                .stream()
-                .map(bid -> {
-                    String nickname = memberRepository.findById(bid.getMemberNo())
-                            .map(Member::getNickname).orElse("알 수 없음");
+        // 3. 최적화된 JOIN 쿼리로 입찰 기록 조회 (N+1 문제 해결)
+        List<Object[]> results = bidHistoryRepository.findBidHistoryWithNickname(productNo);
+        
+        List<ProductDetailResponseDto.BidHistoryDto> bidHistory = results.stream()
+                .map(result -> {
+                    BidHistory bid = (BidHistory) result[0];
+                    String nickname = (String) result[1];
+                    
                     return ProductDetailResponseDto.BidHistoryDto.builder()
                             .bidderNickname(nickname)
                             .bidPrice(bid.getBidPrice())
@@ -99,7 +102,7 @@ public class ProductServiceImpl implements ProductService {
                             .build();
                 }).collect(Collectors.toList());
 
-        // 6. 상세 데이터 조립
+        // 4. 상세 데이터 조립 및 반환
         return ProductDetailResponseDto.builder()
                 .productNo(product.getProductNo())
                 .title(product.getTitle())
@@ -138,7 +141,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public List<ProductResponseDto> findByCategory(Long categoryNo) {
-        // 카테고리는 원래 상태처럼 미구현 상태로 유지 (전체 조회 호출) 
+        // 카테고리 기능은 현재 전체 조회로 대체 (추후 구현 가능)
         return findAllActive("latest");
     }
 }
