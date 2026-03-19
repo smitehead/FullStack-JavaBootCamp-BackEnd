@@ -1,76 +1,117 @@
 package com.javajava.project;
 
-import com.javajava.project.dto.MemberRequestDto;
+import com.javajava.project.dto.ProductDetailResponseDto;
 import com.javajava.project.dto.ProductRequestDto;
-import com.javajava.project.entity.Product;
-import com.javajava.project.service.MemberService;
+import com.javajava.project.dto.ProductResponseDto;
+import com.javajava.project.entity.BidHistory;
+import com.javajava.project.entity.Member;
+import com.javajava.project.repository.BidHistoryRepository;
+import com.javajava.project.repository.MemberRepository;
 import com.javajava.project.service.ProductService;
+
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @SpringBootTest
-class ProjectApplicationTests {
+@Transactional // 테스트 완료 후 DB 데이터를 롤백하여 깨끗하게 유지합니다.
+class ProductServiceTest {
 
     @Autowired
     private ProductService productService;
 
     @Autowired
-    private MemberService memberService;
+    private MemberRepository memberRepository;
+
+    @Autowired
+    private BidHistoryRepository bidHistoryRepository;
+
+    private Member seller;
+    private Long savedProductId;
+
+    @BeforeEach
+    void setUp() {
+        // 1. 테스트용 판매자 생성
+        seller = memberRepository.save(Member.builder()
+                .userId("test_seller_01")
+                .nickname("장사천재")
+                .mannerTemp(42.5)
+                .build());
+
+        // 2. 테스트용 상품 등록
+        ProductRequestDto requestDto = ProductRequestDto.builder()
+                .sellerNo(seller.getMemberNo())
+                .title("테스트용 경매 상품")
+                .description("상세 페이지 테스트를 위한 상품 설명입니다.")
+                .tradeType("직거래")
+                .startPrice(100000L)
+                .minBidUnit(10000L)
+                .endTime(LocalDateTime.now().plusDays(3))
+                .build();
+        
+        savedProductId = productService.save(requestDto);
+
+        // 3. 테스트용 입찰 내역 추가
+        Member bidder = memberRepository.save(Member.builder().nickname("입찰열정남").build());
+        bidHistoryRepository.save(BidHistory.builder()
+                .productNo(savedProductId)
+                .memberNo(bidder.getMemberNo())
+                .bidPrice(120000L)
+                .bidTime(LocalDateTime.now())
+                .build());
+    }
 
     @Test
-    @Transactional // 테스트 완료 후 DB 데이터를 롤백하고 싶지 않다면 이 줄을 주석 처리하세요.
-    @DisplayName("상품 등록 및 DB 저장 확인 테스트")
-    void productSaveTest() {
-        // 1. 테스트용 판매자(회원) 등록
-        MemberRequestDto memberDto = MemberRequestDto.builder()
-                .userId("seller01")
-                .password("1234")
-                .nickname("경매장인")
-                .email("seller@test.com")
-                .phoneNum("010-1234-5678")
-                .emdNo(11110L)
-                .addrDetail("서울시 강남구")
-                .birthDate(LocalDate.of(1995, 5, 20))
-                .build();
+    @DisplayName("상품 목록 조회 및 정렬 결과 콘솔 출력")
+    void printProductList() {
+        System.out.println("\n==================== [1. 상품 목록 조회 결과] ====================");
         
-        Long memberNo = memberService.join(memberDto);
-        System.out.println(">>> [테스트] 판매자 등록 완료. 번호: " + memberNo);
+        // 'latest' 정렬 옵션으로 조회
+        List<ProductResponseDto> productList = productService.findAllActive("latest");
 
-        // 2. 테스트용 상품 데이터 생성 (ProductRequestDto 활용)
-        ProductRequestDto productDto = ProductRequestDto.builder()
-                .sellerNo(memberNo)
-                .categoryNo(1L) // 실제 DB에 CATEGORY 테이블 데이터가 없어도 Long 값으로 들어감
-                .title("테스트용 경매 상품")
-                .description("이것은 코드 연동 확인을 위한 테스트 상품입니다.")
-                .tradeType("택배")
-                .tradeEmdNo(11110L)
-                .tradeAddrDetail("강남역 5번 출구")
-                .startPrice(50000L)
-                .buyoutPrice(100000L)
-                .minBidUnit(5000L)
-                .endTime(LocalDateTime.now().plusDays(7)) // 7일 후 종료
-                .build();
+        productList.forEach(p -> {
+            System.out.println("상품번호: " + p.getProductNo());
+            System.out.println("상품명: " + p.getTitle());
+            System.out.println("현재가: " + p.getCurrentPrice() + "원");
+            System.out.println("위치: " + p.getLocation());
+            System.out.println("--------------------------------------------------");
+        });
+        System.out.println("===============================================================\n");
+    }
 
-        // 3. 서비스 호출하여 상품 저장
-        Long productNo = productService.save(productDto);
-        System.out.println(">>> [테스트] 상품 등록 완료. 번호: " + productNo);
-
-        // 4. DB에서 다시 조회하여 콘솔에 결과 출력
-        Product result = productService.findById(productNo);
+    @Test
+    @DisplayName("상품 상세 페이지 통합 정보 콘솔 출력")
+    void printProductDetail() {
+        System.out.println("\n==================== [2. 상품 상세 페이지 조회 결과] ====================");
         
-        System.out.println("\n===== [상품 등록 결과 확인] =====");
-        System.out.println("등록 번호: " + result.getProductNo());
-        System.out.println("상품 제목: " + result.getTitle());
-        System.out.println("판매자 번호: " + result.getSellerNo());
-        System.out.println("설정된 현재가: " + result.getCurrentPrice() + "원 (시작가와 동일 여부 확인)");
-        System.out.println("경매 종료 시간: " + result.getEndTime());
-        System.out.println("활성 상태: " + (result.getIsActive() == 1 ? "진행 중" : "종료"));
-        System.out.println("===============================\n");
+        // 상세 정보 조회 실행
+        ProductDetailResponseDto detail = productService.getProductDetail(savedProductId, null);
+
+        System.out.println("[상품 정보]");
+        System.out.println("- 제목: " + detail.getTitle());
+        System.out.println("- 설명: " + detail.getDescription());
+        System.out.println("- 시작가: " + detail.getStartPrice() + "원");
+        System.out.println("- 현재가: " + detail.getCurrentPrice() + "원");
+        System.out.println("- 종료시간: " + detail.getEndTime());
+
+        System.out.println("\n[판매자 정보]");
+        System.out.println("- 닉네임: " + detail.getSeller().getNickname());
+        System.out.println("- 매너온도: " + detail.getSeller().getMannerTemp() + "도");
+
+        System.out.println("\n[입찰 내역]");
+        if (detail.getBidHistory().isEmpty()) {
+            System.out.println("- 입찰 내역이 없습니다.");
+        } else {
+            detail.getBidHistory().forEach(bid -> 
+                System.out.println("- [" + bid.getBidTime() + "] " + bid.getBidderNickname() + " : " + bid.getBidPrice() + "원")
+            );
+        }
+        System.out.println("==================================================================\n");
     }
 }
