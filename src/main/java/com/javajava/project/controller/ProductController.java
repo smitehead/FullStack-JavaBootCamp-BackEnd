@@ -1,11 +1,12 @@
 package com.javajava.project.controller;
 
 import com.javajava.project.dto.ProductRequestDto;
-import com.javajava.project.entity.Product;
+import com.javajava.project.dto.ProductResponseDto;
 import com.javajava.project.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
@@ -21,12 +22,12 @@ public class ProductController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Product>> getProducts() {
+    public ResponseEntity<List<ProductResponseDto>> getProducts() {
         return ResponseEntity.ok(productService.findAllActive());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Product> getProductDetail(@PathVariable("id") Long productNo) {
+    public ResponseEntity<ProductResponseDto> getProductDetail(@PathVariable("id") Long productNo) {
         return ResponseEntity.ok(productService.findById(productNo));
     }
 }
