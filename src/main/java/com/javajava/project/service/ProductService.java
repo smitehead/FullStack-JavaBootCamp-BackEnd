@@ -1,5 +1,6 @@
 package com.javajava.project.service;
 
+import com.javajava.project.dto.ProductDetailResponseDto;
 import com.javajava.project.dto.ProductRequestDto;
 import com.javajava.project.dto.ProductResponseDto;
 import java.util.List;
@@ -16,4 +17,8 @@ public interface ProductService {
 
     // 카테고리별 상품 조회
     List<ProductResponseDto> findByCategory(Long categoryNo);
+
+    
+    ProductDetailResponseDto getProductDetail(Long productNo, Long currentMemberNo);
+    
 }
