@@ -45,7 +45,7 @@ public class BidHistory {
     @Column(name = "IS_AUTO", nullable = false)
     private Integer isAuto = 0;
 
-    // ★ Builder 사용 시 기본값 0(낙찰 아님)이 들어가도록 설정
+    //Builder 사용 시 기본값 0(낙찰 아님)이 들어가도록 설정
     @Builder.Default
     @Column(name = "IS_WINNER", nullable = false)
     private Integer isWinner = 0;

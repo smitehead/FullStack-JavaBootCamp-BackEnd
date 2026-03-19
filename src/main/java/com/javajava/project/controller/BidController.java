@@ -17,8 +17,7 @@ public class BidController {
     private final BidService bidService;
 
     /**
-     * 1. 실시간 입찰하기
-     * - 사용자가 입찰 금액을 입력하고 버튼을 눌렀을 때 호출됩니다.
+     * 1. 실시간 입찰버튼
      */
     @PostMapping
     public ResponseEntity<String> placeBid(@RequestBody BidRequestDto bidDto) {
@@ -36,7 +35,7 @@ public class BidController {
     /**
      * 2. 특정 상품의 입찰 기록 조회
      * - 상세 페이지의 '입찰 기록' 탭을 클릭했을 때 호출됩니다.
-     * - 닉네임이 포함된 최적화된 리스트를 반환합니다.
+     * - 닉네임이 포함된 최적화된 리스트를 반환
      */
     @GetMapping("/product/{productNo}")
     public ResponseEntity<List<ProductDetailResponseDto.BidHistoryDto>> getProductBidHistory(
