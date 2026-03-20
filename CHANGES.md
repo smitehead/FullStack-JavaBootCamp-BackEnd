@@ -9,6 +9,9 @@
 - `MethodArgumentNotValidException` → 400 (Bean Validation 실패, 어떤 필드가 왜 실패했는지 반환)
 - `IllegalStateException` → 409 (중복 아이디/닉네임/이메일 충돌)
 - `IllegalArgumentException` → 400 (만 14세 미만, 존재하지 않는 회원 등)
+- **`JwtException` → 401** (토큰 만료/변조 시 "토큰이 유효하지 않습니다." 반환)
+- **`Exception` → 500** (그 외 처리되지 않은 예외, "서버 오류가 발생했습니다." 반환)
+  - ⚠️ 처리되지 않은 예외가 이제 응답에 스택 트레이스 없이 500만 반환됨 → 디버깅 시 콘솔 로그 확인 필요
 
 ### `JwtUtil.java` (config 패키지)
 - JWT 토큰 생성/검증/파싱 유틸리티
@@ -42,6 +45,11 @@
 - `PasswordEncoder` (BCryptPasswordEncoder) 빈 등록 추가
 - `JwtAuthenticationFilter` 주입 및 `UsernamePasswordAuthenticationFilter` 앞에 등록
 - `SessionCreationPolicy.STATELESS` 설정 (JWT 방식이므로 세션 미사용)
+- **CORS 설정 추가** (`corsConfigurationSource()` 빈 등록)
+  - 허용 출처: 전체 (`*`) — 개발 단계, 운영 시 특정 도메인으로 제한 필요
+  - 허용 메서드: GET, POST, PUT, DELETE, PATCH, OPTIONS
+  - 허용 헤더: 전체 (Authorization 포함)
+  - allowCredentials: true
 
 ### `MemberRequestDto.java`
 - Bean Validation 어노테이션 추가 (DB insert 전 Java 레벨 사전 검증)

@@ -1,0 +1,20 @@
+package com.javajava.project.service;
+
+import com.javajava.project.dto.HeroBannerRequestDto;
+import com.javajava.project.dto.HeroBannerResponseDto;
+import java.util.List;
+
+public interface HeroBannerService {
+
+    // 활성 배너 목록 조회 (프론트용)
+    List<HeroBannerResponseDto> getActiveBanners();
+
+    // 배너 등록 (관리자)
+    Long create(HeroBannerRequestDto dto);
+
+    // 배너 수정 (관리자)
+    void update(Long bannerNo, HeroBannerRequestDto dto);
+
+    // 배너 삭제 (관리자)
+    void delete(Long bannerNo);
+}

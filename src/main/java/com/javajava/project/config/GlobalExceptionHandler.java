@@ -1,5 +1,6 @@
 package com.javajava.project.config;
 
+import io.jsonwebtoken.JwtException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -51,5 +52,27 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
         return ResponseEntity.badRequest()
                 .body(Map.of("error", ex.getMessage()));
+    }
+
+    /**
+     * JWT 토큰 오류 처리 (401 Unauthorized)
+     * 발생 시점: 토큰이 만료됐거나 변조된 경우
+     * 응답 형태: { "error": "토큰이 유효하지 않습니다." }
+     */
+    @ExceptionHandler(JwtException.class)
+    public ResponseEntity<Map<String, String>> handleJwtException(JwtException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", "토큰이 유효하지 않습니다."));
+    }
+
+    /**
+     * 그 외 처리되지 않은 예외 (500 Internal Server Error)
+     * 발생 시점: 예상치 못한 서버 오류
+     * 응답 형태: { "error": "서버 오류가 발생했습니다." }
+     */
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, String>> handleException(Exception ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "서버 오류가 발생했습니다."));
     }
 }
