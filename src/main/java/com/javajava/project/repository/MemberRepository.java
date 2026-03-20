@@ -2,11 +2,20 @@ package com.javajava.project.repository;
 
 import com.javajava.project.entity.Member;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 
 public interface MemberRepository extends JpaRepository<Member, Long> {
     Optional<Member> findByUserId(String userId);
-    boolean existsByUserId(String userId);
-    boolean existsByNickname(String nickname);
-    boolean existsByEmail(String email);
+
+    // Oracle 11g는 FETCH FIRST 문법 미지원 → COUNT 기반 커스텀 쿼리로 대체
+    @Query("SELECT COUNT(m) > 0 FROM Member m WHERE m.userId = :userId")
+    boolean existsByUserId(@Param("userId") String userId);
+
+    @Query("SELECT COUNT(m) > 0 FROM Member m WHERE m.nickname = :nickname")
+    boolean existsByNickname(@Param("nickname") String nickname);
+
+    @Query("SELECT COUNT(m) > 0 FROM Member m WHERE m.email = :email")
+    boolean existsByEmail(@Param("email") String email);
 }
