@@ -28,6 +28,7 @@ public class ChatMessage {
     private Integer isRead = 0; // 읽음 여부 (1: 읽음)
 
     @Column(name = "SENT_AT", nullable = false, updatable = false)
+    @Builder.Default
     private LocalDateTime sentAt = LocalDateTime.now(); // 전송일시
 
     @Column(name = "CONTENT", nullable = false, length = 1000)

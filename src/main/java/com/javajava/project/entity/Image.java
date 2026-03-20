@@ -44,5 +44,6 @@ public class Image {
     private Integer isMain = 0; // 대표이미지 여부 (1이면 썸네일)
 
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 }

@@ -25,5 +25,6 @@ public class Wishlist {
     private Long productNo; // 찜한 상품번호 (FK)
 
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 }

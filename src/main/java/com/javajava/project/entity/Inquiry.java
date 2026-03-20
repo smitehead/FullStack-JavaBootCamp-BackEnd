@@ -36,5 +36,6 @@ public class Inquiry {
     private String answer; // 관리자 답변 (Null이면 미답변 상태)
 
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 }

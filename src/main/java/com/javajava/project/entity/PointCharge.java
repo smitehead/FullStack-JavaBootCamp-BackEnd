@@ -43,5 +43,6 @@ public class PointCharge {
     private String pgTid; // PG사 거래번호
 
     @Column(name = "CHARGED_AT", nullable = false, updatable = false)
+    @Builder.Default
     private LocalDateTime chargedAt = LocalDateTime.now();
 }

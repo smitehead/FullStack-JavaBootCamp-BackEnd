@@ -34,5 +34,6 @@ public class Notification {
     private Integer isRead = 0; // 1이면 읽음
 
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 }

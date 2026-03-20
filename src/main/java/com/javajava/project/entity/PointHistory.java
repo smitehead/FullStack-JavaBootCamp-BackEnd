@@ -33,6 +33,7 @@ public class PointHistory {
     @Column(name = "REASON", length = 100)
     private String reason;
 
+    @Builder.Default
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 }

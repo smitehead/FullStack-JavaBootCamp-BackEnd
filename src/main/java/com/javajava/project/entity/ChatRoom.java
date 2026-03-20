@@ -31,5 +31,6 @@ public class ChatRoom {
     private String status = "활성"; // 채팅방 상태 (활성/종료/차단)
 
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 }

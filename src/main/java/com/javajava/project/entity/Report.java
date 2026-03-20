@@ -40,5 +40,6 @@ public class Report {
     private String penaltyMsg; // 제재 내용
 
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 }

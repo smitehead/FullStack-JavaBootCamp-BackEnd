@@ -37,5 +37,6 @@ public class Review {
     private Integer isHidden = 0; // 숨김여부 (1: 비공개)
 
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now(); // 작성일시
 }

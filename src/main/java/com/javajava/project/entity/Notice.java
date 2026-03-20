@@ -29,6 +29,7 @@ public class Notice {
     private String content;
 
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "IS_DELETED", nullable = false)
