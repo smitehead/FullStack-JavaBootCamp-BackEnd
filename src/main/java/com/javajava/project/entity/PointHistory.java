@@ -33,6 +33,9 @@ public class PointHistory {
     @Column(name = "REASON", length = 100)
     private String reason; // 변동 사유
 
+    @Builder.Default //빌더 사용 시 현재 시간 자동 할당
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    
 }

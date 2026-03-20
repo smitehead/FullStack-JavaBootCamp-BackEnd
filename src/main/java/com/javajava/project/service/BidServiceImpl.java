@@ -4,9 +4,11 @@ import com.javajava.project.dto.BidRequestDto;
 import com.javajava.project.dto.ProductDetailResponseDto;
 import com.javajava.project.entity.BidHistory;
 import com.javajava.project.entity.Member;
+import com.javajava.project.entity.PointHistory;
 import com.javajava.project.entity.Product;
 import com.javajava.project.repository.BidHistoryRepository;
 import com.javajava.project.repository.MemberRepository;
+import com.javajava.project.repository.PointHistoryRepository;
 import com.javajava.project.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -24,10 +27,10 @@ public class BidServiceImpl implements BidService {
     private final ProductRepository productRepository;
     private final MemberRepository memberRepository;
     private final BidHistoryRepository bidHistoryRepository;
+    private final PointHistoryRepository pointHistoryRepository; // 포인트 이력 관리를 위해 추가
 
     /**
-     * 입찰 프로세스 실행
-     * - 검증(포인트, 최소입찰가, 본인상품여부 등) + 상품 가격 갱신 + 입찰 기록 저장
+     * 입찰 프로세스 실행 (검증 + 포인트 환불/차감 + 상품 갱신 + 입찰 기록)
      */
     @Override
     @Transactional
@@ -36,40 +39,65 @@ public class BidServiceImpl implements BidService {
         Product product = productRepository.findByIdWithLock(bidDto.getProductNo())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상품입니다."));
 
-        // 2. 입찰자 정보 조회
-        Member bidder = memberRepository.findById(bidDto.getMemberNo())
+        // 2. 현재 입찰자 정보 조회
+        Member currentBidder = memberRepository.findById(bidDto.getMemberNo())
                 .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
 
         // 3. 유효성 검증
-        // - 경매 마감 여부 확인
         if (product.getIsActive() == 0 || product.getEndTime().isBefore(LocalDateTime.now())) {
             return "이미 종료된 경매입니다.";
         }
-
-        // - 본인 등록 상품 여부 확인
         if (product.getSellerNo().equals(bidDto.getMemberNo())) {
             return "본인이 등록한 상품에는 입찰할 수 없습니다.";
         }
-
-        // - 최소 입찰 금액 검증 (현재가 + 최소입찰단위)
         long minRequiredBid = product.getCurrentPrice() + product.getMinBidUnit();
         if (bidDto.getBidPrice() < minRequiredBid) {
             return "최소 입찰 가능 금액은 " + minRequiredBid + "원입니다.";
         }
-
-        // - 보유 포인트 확인
-        if (bidder.getPoints() < bidDto.getBidPrice()) {
+        if (currentBidder.getPoints() < bidDto.getBidPrice()) {
             return "보유 포인트가 부족합니다.";
         }
 
-        // 4. 상품 현재가 및 입찰 수 업데이트
+        // --- 4. 기존 최고 입찰자 환불 로직 (중요) ---
+        Optional<BidHistory> lastBidOpt = bidHistoryRepository
+                .findFirstByProductNoAndIsCancelledOrderByBidPriceDesc(product.getProductNo(), 0);
+
+        if (lastBidOpt.isPresent()) {
+            BidHistory lastBid = lastBidOpt.get();
+            // 이전 입찰자가 현재 입찰자와 다른 경우에만 환불 진행
+            if (!lastBid.getMemberNo().equals(currentBidder.getMemberNo())) {
+                Member previousBidder = memberRepository.findById(lastBid.getMemberNo())
+                        .orElseThrow(() -> new IllegalStateException("이전 입찰자 정보를 찾을 수 없습니다."));
+
+                // 포인트 환불 및 이력 저장
+                previousBidder.setPoints(previousBidder.getPoints() + lastBid.getBidPrice());
+                pointHistoryRepository.save(PointHistory.builder()
+                        .memberNo(previousBidder.getMemberNo())
+                        .type("입찰환불")
+                        .amount(lastBid.getBidPrice())
+                        .balance(previousBidder.getPoints())
+                        .reason("[" + product.getTitle() + "] 상위 입찰 발생으로 인한 자동 환불")
+                        .build());
+            }
+        }
+
+        // --- 5. 현재 입찰자 포인트 차감 로직 ---
+        currentBidder.setPoints(currentBidder.getPoints() - bidDto.getBidPrice());
+        pointHistoryRepository.save(PointHistory.builder()
+                .memberNo(currentBidder.getMemberNo())
+                .type("입찰차감")
+                .amount(-bidDto.getBidPrice())
+                .balance(currentBidder.getPoints())
+                .reason("[" + product.getTitle() + "] 경매 입찰 참여")
+                .build());
+
+        // 6. 상품 및 입찰 기록 업데이트
         product.setCurrentPrice(bidDto.getBidPrice());
         product.setBidCount(product.getBidCount() + 1);
 
-        // 5. 입찰 기록 저장 (엔티티에 @Builder.Default 설정 필수)
-        BidHistory bidHistory = BidHistory.builder()
+        BidHistory newBid = BidHistory.builder()
                 .productNo(product.getProductNo())
-                .memberNo(bidder.getMemberNo())
+                .memberNo(currentBidder.getMemberNo())
                 .bidPrice(bidDto.getBidPrice())
                 .bidTime(LocalDateTime.now())
                 .isAuto(0)
@@ -77,14 +105,13 @@ public class BidServiceImpl implements BidService {
                 .isWinner(0)
                 .build();
 
-        bidHistoryRepository.save(bidHistory);
+        bidHistoryRepository.save(newBid);
 
         return "SUCCESS";
     }
 
     /**
      * 입찰 기록 조회 (상세 페이지 탭 전용)
-     * - JOIN 쿼리를 활용해 입찰 정보와 닉네임을 한 번에 가져옴 (N+1 문제 해결)
      */
     @Override
     public List<ProductDetailResponseDto.BidHistoryDto> getBidHistory(Long productNo) {
@@ -103,7 +130,7 @@ public class BidServiceImpl implements BidService {
     }
 
     /**
-     * 특정 입찰 건 취소 로직
+     * 입찰 취소 로직
      */
     @Override
     @Transactional
@@ -111,23 +138,18 @@ public class BidServiceImpl implements BidService {
         BidHistory bid = bidHistoryRepository.findById(bidNo)
                 .orElseThrow(() -> new IllegalArgumentException("입찰 기록을 찾을 수 없습니다."));
 
-        bid.setIsCancelled(1); // 1: 취소됨
+        bid.setIsCancelled(1);
         bid.setCancelReason(reason);
-        // 필요 시 상품의 currentPrice를 이전 입찰가로 되돌리는 로직 추가 가능
+        
+        // 실제 서비스에서는 취소 시 포인트 환불 로직이 추가되어야 함
     }
 
-    /**
-     * 단순 입찰 저장 (엔티티 기반)
-     */
     @Override
     @Transactional
     public void placeBid(BidHistory bid) {
         bidHistoryRepository.save(bid);
     }
 
-    /**
-     * 특정 상품의 모든 입찰 내역 조회 (엔티티 기반)
-     */
     @Override
     public List<BidHistory> getHistoryByProduct(Long productNo) {
         return bidHistoryRepository.findByProductNoOrderByBidTimeDesc(productNo);
