@@ -19,23 +19,20 @@ public class PointHistory {
     private Long pointNo;
 
     @Column(name = "MEMBER_NO", nullable = false)
-    private Long memberNo; // 회원번호 (FK)
+    private Long memberNo;
 
     @Column(name = "TYPE", nullable = false, length = 20)
-    private String type; // 변동 유형 (충전/낙찰차감/판매정산 등)
+    private String type;
 
     @Column(name = "AMOUNT", nullable = false)
-    private Long amount; // 변동 포인트 (+/-)
+    private Long amount;
 
     @Column(name = "BALANCE", nullable = false)
-    private Long balance; // 변동 후 잔액 스냅샷
+    private Long balance;
 
     @Column(name = "REASON", length = 100)
-    private String reason; // 변동 사유
+    private String reason;
 
-    @Builder.Default //빌더 사용 시 현재 시간 자동 할당
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
-
-    
 }

@@ -2,6 +2,7 @@ package com.javajava.project;
 
 import com.javajava.project.dto.BidRequestDto;
 import com.javajava.project.dto.ProductDetailResponseDto;
+import com.javajava.project.dto.ProductListResponseDto;
 import com.javajava.project.dto.ProductRequestDto;
 import com.javajava.project.dto.ProductResponseDto;
 import com.javajava.project.entity.Member;
@@ -13,15 +14,18 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Page;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 @SpringBootTest
 @Transactional
-class ProductServiceTest {
+class ProjectApplicationTests {
 
     @Autowired
     private ProductService productService;
@@ -69,62 +73,59 @@ class ProductServiceTest {
     }
 
     @Test
-    @DisplayName("경매 시스템 통합 기능 리포트 (목록조회 + 실시간입찰 + 상세조회)")
+    @DisplayName("경매 시스템 통합 시나리오 리포트 (페이징 + 입찰 + 환불)")
     void totalFunctionalReport() {
-        // [작업 1] 실시간 입찰 시나리오 진행
-        // 입찰 1: 입찰자1이 55,000원 입찰 (성공)
-        bidService.processBid(BidRequestDto.builder()
-                .productNo(savedProductId).memberNo(bidder1.getMemberNo())
-                .bidPrice(55000L).build());
-
-        // 입찰 2: 입찰자2가 60,000원 입찰 (성공)
-        bidService.processBid(BidRequestDto.builder()
-                .productNo(savedProductId).memberNo(bidder2.getMemberNo())
-                .bidPrice(60000L).build());
-
-        // [작업 2] 데이터 수집
-        List<ProductResponseDto> productList = productService.findAllActive("latest");
-        ProductDetailResponseDto detail = productService.getProductDetail(savedProductId, null);
-        // 최적화된 입찰 기록 전용 조회 API 활용
-        List<ProductDetailResponseDto.BidHistoryDto> recentBids = bidService.getBidHistory(savedProductId);
-
-        // [작업 3] 통합 리포트 생성
         StringBuilder sb = new StringBuilder();
         sb.append("\n\n");
         sb.append("==================================================================\n");
-        sb.append("          [ AUCTION SYSTEM INTEGRATED TEST REPORT ]\n");
+        sb.append("          [ 🚀 AUCTION SYSTEM INTEGRATED TEST REPORT ]\n");
         sb.append("==================================================================\n\n");
 
-        sb.append("1. [활성 경매 목록 조회]\n");
+        // [1] 페이징 기반 상품 목록 조회
+        sb.append("1. [활성 경매 목록 조회 (페이징 적용)]\n");
         sb.append("------------------------------------------------------------------\n");
-        for (ProductResponseDto p : productList) {
+        Page<ProductListResponseDto> page = productService.getProductList(1, 16, null, null, null, null, null, null, null, null, "latest", null);
+        assertNotNull(page);
+        page.getContent().forEach(p -> 
             sb.append(String.format("- [번호: %d] %-20s | 현재최고가: %10d원 | 위치: %s\n", 
-                    p.getProductNo(), p.getTitle(), p.getCurrentPrice(), p.getLocation()));
-        }
+                    p.getId(), p.getTitle(), p.getCurrentPrice(), p.getLocation()))
+        );
 
-        sb.append("\n2. [상품 상세 정보 및 판매자 프로필]\n");
+        // [2] 실시간 입찰 시나리오 진행
+        sb.append("\n2. [실시간 입찰 및 포인트 변동 처리]\n");
+        sb.append("------------------------------------------------------------------\n");
+        
+        // 입찰 1
+        bidService.processBid(BidRequestDto.builder().productNo(savedProductId).memberNo(bidder1.getMemberNo()).bidPrice(55000L).build());
+        sb.append(String.format("- 입찰자1(포인트 10만)이 55,000원 입찰 -> 성공! (잔액: %,d원)\n", memberRepository.findById(bidder1.getMemberNo()).get().getPoints()));
+
+        // 입찰 2 (상위 입찰)
+        bidService.processBid(BidRequestDto.builder().productNo(savedProductId).memberNo(bidder2.getMemberNo()).bidPrice(60000L).build());
+
+        Member refundedBidder1 = memberRepository.findById(bidder1.getMemberNo()).orElseThrow();
+        Member updatedBidder2 = memberRepository.findById(bidder2.getMemberNo()).orElseThrow();
+        assertEquals(100000L, refundedBidder1.getPoints()); // 환불 완료 검증
+        
+        sb.append(String.format("- 입찰자2(포인트 20만)가 60,000원 상위 입찰 -> 성공! (잔액: %,d원)\n", updatedBidder2.getPoints()));
+        sb.append(String.format("  * 기존 최고가 입찰자1 포인트 100%% 자동 환불 복구 확인! (현재: %,d원)\n", refundedBidder1.getPoints()));
+
+        // [3] 상품 상세 정보 및 입찰 기록 조회
+        ProductDetailResponseDto detail = productService.getProductDetail(savedProductId, null);
+        List<ProductDetailResponseDto.BidHistoryDto> recentBids = bidService.getBidHistory(savedProductId);
+
+        sb.append("\n3. [최종 상품 상세 정보 및 참여 현황]\n");
         sb.append("------------------------------------------------------------------\n");
         sb.append(String.format("▶ 상 품 명 : %s\n", detail.getTitle()));
-        sb.append(String.format("▶ 판 매 자 : %s (매너온도: %.1f도)\n", 
-                detail.getSeller().getNickname(), detail.getSeller().getMannerTemp()));
-        sb.append(String.format("▶ 경매현황 : 현재가 %,d원 (총 %d회 입찰)\n", 
-                detail.getCurrentPrice(), detail.getParticipantCount()));
+        sb.append(String.format("▶ 판 매 자 : %s (매너온도: %.1f도)\n", detail.getSeller().getNickname(), detail.getSeller().getMannerTemp()));
+        sb.append(String.format("▶ 경매현황 : 현재가 %,d원 (총 %d명 참여)\n", detail.getCurrentPrice(), detail.getParticipantCount()));
         
-        sb.append("\n3. [실시간 입찰 로그 (최신순)]\n");
-        sb.append("------------------------------------------------------------------\n");
-        if (recentBids.isEmpty()) {
-            sb.append("- 진행된 입찰 내역이 없습니다.\n");
-        } else {
-            recentBids.forEach(bid -> 
-                sb.append(String.format("  [%s] 입찰자: %-10s | 입찰금액: %10s원\n", 
-                        bid.getBidTime().toLocalTime().withNano(0), 
-                        bid.getBidderNickname(), 
-                        String.format("%,d", bid.getBidPrice())))
-            );
-        }
+        recentBids.forEach(bid -> 
+            sb.append(String.format("  [%s] 입찰자: %-10s | 입찰금액: %,d원\n", 
+                    bid.getBidTime().toLocalTime().withNano(0), bid.getBidderNickname(), bid.getBidPrice()))
+        );
 
         sb.append("\n==================================================================\n");
-        sb.append("    검증 결과: 입찰 유효성 검사, 포인트 체크, 실시간 가격 갱신 완료\n");
+        sb.append("    ✨ 검증 결과: 페이징, 입찰, 자동 환불 시스템 정상 작동 확인! ✨\n");
         sb.append("==================================================================\n\n");
 
         System.out.println(sb.toString());

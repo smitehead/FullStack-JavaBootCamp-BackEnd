@@ -10,6 +10,7 @@ import com.javajava.project.repository.BidHistoryRepository;
 import com.javajava.project.repository.MemberRepository;
 import com.javajava.project.repository.PointHistoryRepository;
 import com.javajava.project.repository.ProductRepository;
+import com.javajava.project.service.SseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,8 @@ public class BidServiceImpl implements BidService {
     private final MemberRepository memberRepository;
     private final BidHistoryRepository bidHistoryRepository;
     private final PointHistoryRepository pointHistoryRepository; // 포인트 이력 관리를 위해 추가
+    private final SseService sseService; // SSE 알림 발송 서비스
+    private final NotificationService notificationService; // 알림 저장 및 발송 서비스
 
     /**
      * 입찰 프로세스 실행 (검증 + 포인트 환불/차감 + 상품 갱신 + 입찰 기록)
@@ -78,6 +81,15 @@ public class BidServiceImpl implements BidService {
                         .balance(previousBidder.getPoints())
                         .reason("[" + product.getTitle() + "] 상위 입찰 발생으로 인한 자동 환불")
                         .build());
+
+                // [알림 발송] 이전 입찰자에게 상위 입찰 발생 알림 전송 (명세서 반영)
+                String messageToPrevBidder = String.format("상위 입찰 발생: %s에 더 높은 입찰가가 등록되었습니다.", product.getTitle());
+                notificationService.sendAndSaveNotification(
+                        previousBidder.getMemberNo(),
+                        "입찰",
+                        messageToPrevBidder,
+                        "/product/" + product.getProductNo()
+                );
             }
         }
 
@@ -106,6 +118,18 @@ public class BidServiceImpl implements BidService {
                 .build();
 
         bidHistoryRepository.save(newBid);
+
+        // [알림 발송] 판매자에게 새로운 입찰 알림 전송 (명세서 반영)
+        String messageToSeller = String.format("새로운 입찰: 등록하신 %s에 새로운 입찰자가 등장했습니다.", product.getTitle());
+        notificationService.sendAndSaveNotification(
+                product.getSellerNo(),
+                "입찰",
+                messageToSeller,
+                "/product/" + product.getProductNo()
+        );
+
+        // --- 접속 중인 모든 클라이언트(비로그인 포함)에게 변경된 입찰가 브로드캐스트 ---
+        sseService.broadcastPriceUpdate(product.getProductNo(), bidDto.getBidPrice());
 
         return "SUCCESS";
     }

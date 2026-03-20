@@ -3,18 +3,26 @@ package com.javajava.project.service;
 import com.javajava.project.dto.ProductRequestDto;
 import com.javajava.project.dto.ProductResponseDto;
 import com.javajava.project.dto.ProductDetailResponseDto;
+import com.javajava.project.dto.ProductListResponseDto;
 import com.javajava.project.entity.BidHistory;
 import com.javajava.project.entity.Member;
 import com.javajava.project.entity.Product;
 import com.javajava.project.repository.BidHistoryRepository;
 import com.javajava.project.repository.MemberRepository;
 import com.javajava.project.repository.ProductRepository;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -75,6 +83,63 @@ public class ProductServiceImpl implements ProductService {
                 .mainImageUrl("/api/images/sample.jpg") // 이미지 엔티티 연동 전 샘플 경로
                 .build()
         ).collect(Collectors.toList());
+    }
+
+    @Override
+    public Page<ProductListResponseDto> getProductList(int page, int size, Long large, Long medium, Long small,
+                                                       Long minPrice, Long maxPrice, String city,
+                                                       Boolean delivery, Boolean face, String sortOption, Long memberNo) {
+        
+        // 리액트는 1페이지부터 보내므로 백엔드용(0-index)으로 보정
+        int pageNumber = page > 0 ? page - 1 : 0;
+
+        // 프론트엔드 정렬 조건 매핑
+        Sort sort = switch (sortOption) {
+            case "popular" -> Sort.by(Sort.Direction.DESC, "bidCount");
+            case "ending" -> Sort.by(Sort.Direction.ASC, "endTime");
+            default -> Sort.by(Sort.Direction.DESC, "createdAt"); // "latest"
+        };
+        
+        Pageable pageable = PageRequest.of(pageNumber, size, sort);
+
+        // 동적 쿼리 (다중 필터 적용)
+        Specification<Product> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("isActive"), 1)); // 진행 중인 상품
+            predicates.add(cb.equal(root.get("isDeleted"), 0)); // 삭제 안 된 상품
+
+            // 카테고리 필터 (임시: 실제로는 Category 테이블 JOIN 필요)
+            if (small != null) predicates.add(cb.equal(root.get("categoryNo"), small));
+            else if (medium != null) predicates.add(cb.equal(root.get("categoryNo"), medium));
+
+            // 가격 필터
+            if (minPrice != null) predicates.add(cb.greaterThanOrEqualTo(root.get("currentPrice"), minPrice));
+            if (maxPrice != null) predicates.add(cb.lessThanOrEqualTo(root.get("currentPrice"), maxPrice));
+
+            // 지역 필터 (임시: EMD 테이블 JOIN 대신 주소 텍스트 검색)
+            if (city != null && !city.isEmpty()) predicates.add(cb.like(root.get("tradeAddrDetail"), "%" + city + "%"));
+
+            // 거래 방식 필터 (택배, 대면)
+            if (Boolean.TRUE.equals(delivery) && Boolean.TRUE.equals(face)) predicates.add(cb.in(root.get("tradeType")).value(Arrays.asList("택배", "직거래", "혼합")));
+            else if (Boolean.TRUE.equals(delivery)) predicates.add(cb.in(root.get("tradeType")).value(Arrays.asList("택배", "혼합")));
+            else if (Boolean.TRUE.equals(face)) predicates.add(cb.in(root.get("tradeType")).value(Arrays.asList("직거래", "혼합")));
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return productRepository.findAll(spec, pageable).map(product -> 
+            ProductListResponseDto.builder()
+                    .id(product.getProductNo())
+                    .title(product.getTitle())
+                    .location(product.getTradeAddrDetail())
+                    .currentPrice(product.getCurrentPrice())
+                    .endTime(product.getEndTime())
+                    .participantCount(product.getBidCount())
+                    .status(product.getEndTime().isBefore(LocalDateTime.now()) ? "completed" : "active")
+                    .images(List.of("/api/images/sample.jpg")) // 추후 실제 이미지 연동
+                    .isWishlisted(false) // 추후 찜 테이블 연동
+                    .build()
+        );
     }
 
     @Override
