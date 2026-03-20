@@ -24,12 +24,15 @@ public class HeroBanner {
     @Column(name = "LINK_URL", length = 255)
     private String linkUrl; // 클릭 시 이동할 URL
 
+    @Builder.Default
     @Column(name = "SORT_ORDER", nullable = false)
     private Integer sortOrder = 0; // 노출 순서
 
+    @Builder.Default
     @Column(name = "IS_ACTIVE", nullable = false)
     private Integer isActive = 1; // 노출 여부 (1이면 노출)
 
+    @Builder.Default
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
