@@ -27,18 +27,26 @@ public class BidHistory {
     @Column(name = "BID_PRICE", nullable = false)
     private Long bidPrice; // 입찰 금액
 
+    // Builder 사용 시에도 현재 시각이 자동 할당되도록 설정
+    @Builder.Default
     @Column(name = "BID_TIME", nullable = false, updatable = false)
-    private LocalDateTime bidTime = LocalDateTime.now(); // 입찰 시각
+    private LocalDateTime bidTime = LocalDateTime.now();
 
+    // Builder 사용 시 기본값 0(취소 안됨)이 들어가도록 설정
+    @Builder.Default
     @Column(name = "IS_CANCELLED", nullable = false)
-    private Integer isCancelled = 0; // 취소 여부 (1: 취소)
+    private Integer isCancelled = 0;
 
     @Column(name = "CANCEL_REASON", length = 200)
-    private String cancelReason; // 취소 사유
+    private String cancelReason;
 
+    //Builder 사용 시 기본값 0(수동 입찰)이 들어가도록 설정
+    @Builder.Default
     @Column(name = "IS_AUTO", nullable = false)
-    private Integer isAuto = 0; // 자동입찰 여부 (1: 자동)
+    private Integer isAuto = 0;
 
+    //Builder 사용 시 기본값 0(낙찰 아님)이 들어가도록 설정
+    @Builder.Default
     @Column(name = "IS_WINNER", nullable = false)
-    private Integer isWinner = 0; // 낙찰 여부 (1: 최종 낙찰자)
+    private Integer isWinner = 0;
 }
