@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -32,11 +33,19 @@ public class NotificationService {
                 .isRead(0)
                 .build();
         
-        notificationRepository.save(notification);
+        Notification saved = notificationRepository.save(notification);
 
         // 2. 현재 로그인(접속) 중인 클라이언트에게 실시간 알림 발송
-        // 프론트엔드에서는 이 데이터를 받아 우측 하단에 Toast 알림으로 띄우면 됩니다.
-        sseService.sendToClient(String.valueOf(memberNo), content);
+        // 프론트엔드: source.addEventListener('notification', e => { const d = JSON.parse(e.data); ... })
+        // d.type으로 알림 종류 구분, d.linkUrl로 클릭 시 이동 처리
+        sseService.sendToClient(String.valueOf(memberNo), Map.of(
+                "notiNo",    saved.getNotiNo(),
+                "type",      type,
+                "content",   content,
+                "linkUrl",   linkUrl != null ? linkUrl : "",
+                "isRead",    0,
+                "createdAt", saved.getCreatedAt().toString()
+        ));
     }
 
     /**

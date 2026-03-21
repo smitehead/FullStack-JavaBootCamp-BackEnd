@@ -32,6 +32,10 @@ build/
 ### VS Code ###
 .vscode/
 
+### JVM 에러 로그 ###
+hs_err_pid*.log
+replay_pid*.log
+
 ### 로컬 전용 문서 ###
 PENDING.md
 FLOW.md

@@ -146,6 +146,31 @@
 
 ---
 
+## 프론트엔드 알림 SSE 실시간 연동 `2026-03-21`
+
+### 신규 생성 (프론트엔드)
+- **`hooks/useNotifications.ts`**
+  - 로그인 시 `GET /api/notifications` 호출 → 초기 알림 목록 로드
+  - `GET /api/sse/subscribe?clientId={memberNo}` 로 SSE 연결
+  - `notification` 이벤트 수신 시 알림 목록 상단에 실시간 추가
+  - `markAsRead(id)` — `PATCH /api/notifications/{notiNo}/read` 호출
+  - `markAllAsRead()` — `PATCH /api/notifications/read-all` 호출
+  - 컴포넌트 언마운트 시 SSE 연결 자동 종료
+
+### 수정 (프론트엔드)
+- **`components/Layout.tsx`** (헤더 벨 아이콘)
+  - `NOTIFICATIONS` mockData → `useNotifications` 훅으로 교체
+  - 알림 클릭 시 `markAsRead()` 호출하여 읽음 처리
+- **`pages/Inbox.tsx`** (알림함 페이지)
+  - `NOTIFICATIONS` mockData → `GET /api/notifications` 실제 API로 교체
+  - 알림 탭에 "전체 읽음" 버튼 추가 (`markAllAsRead()` 호출)
+
+### SSE clientId 규칙
+- 로그인한 사용자: `clientId = memberNo` (localStorage에서 추출)
+- 비로그인 사용자: 서버가 UUID 자동 발급 (알림 기능 사용 불가)
+
+---
+
 ## API 테스트 가이드 (Thunder Client 기준)
 
 > 아래 `{중괄호}` 항목은 테스터가 임의로 입력하는 값입니다.
