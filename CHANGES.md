@@ -121,6 +121,31 @@
 
 ---
 
+## 알림함 API 구현
+
+### `NotificationResponseDto.java` (dto 패키지) - 신규
+- 알림 응답 DTO
+- `from(Notification)` 팩토리 메서드로 엔티티 → DTO 변환
+- 필드: `notiNo`, `type`, `content`, `linkUrl`, `isRead`, `createdAt`
+
+### `NotificationController.java` (controller 패키지) - 신규
+- `GET /api/notifications` — 로그인 회원의 알림 목록 (최신순, 인증 필요)
+- `GET /api/notifications/unread-count` — 미읽음 알림 개수 `{ "count": N }` (헤더 뱃지용)
+- `PATCH /api/notifications/{notiNo}/read` — 단일 알림 읽음 처리
+- `PATCH /api/notifications/read-all` — 전체 알림 읽음 처리
+- `SecurityContext`에서 `memberNo` 추출 (JwtAuthenticationFilter에서 principal에 저장된 값)
+
+### `NotificationRepository.java` - 수정
+- `markAllAsRead(Long memberNo)` JPQL UPDATE 쿼리 추가
+  - `UPDATE Notification SET isRead = 1 WHERE memberNo = :memberNo AND isRead = 0`
+
+### `NotificationService.java` - 수정
+- `getNotifications(Long memberNo)` — 알림 목록 조회 후 DTO 변환
+- `getUnreadCount(Long memberNo)` — 미읽음 개수 반환
+- `markAllAsRead(Long memberNo)` — 전체 읽음 처리 위임
+
+---
+
 ## API 테스트 가이드 (Thunder Client 기준)
 
 > 아래 `{중괄호}` 항목은 테스터가 임의로 입력하는 값입니다.

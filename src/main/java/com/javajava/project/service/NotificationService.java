@@ -1,5 +1,6 @@
 package com.javajava.project.service;
 
+import com.javajava.project.dto.NotificationResponseDto;
 import com.javajava.project.entity.Notification;
 import com.javajava.project.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
@@ -7,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +40,23 @@ public class NotificationService {
     }
 
     /**
+     * 특정 회원의 알림 목록 조회 (최신순)
+     */
+    public List<NotificationResponseDto> getNotifications(Long memberNo) {
+        return notificationRepository.findByMemberNoOrderByCreatedAtDesc(memberNo)
+                .stream()
+                .map(NotificationResponseDto::from)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 미읽음 알림 개수 조회 (헤더 뱃지용)
+     */
+    public long getUnreadCount(Long memberNo) {
+        return notificationRepository.countByMemberNoAndIsRead(memberNo, 0);
+    }
+
+    /**
      * 알림 읽음 처리 (알림을 클릭해서 이동할 때 호출)
      */
     @Transactional
@@ -45,5 +64,13 @@ public class NotificationService {
         Notification notification = notificationRepository.findById(notiNo)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 알림입니다."));
         notification.setIsRead(1);
+    }
+
+    /**
+     * 전체 읽음 처리
+     */
+    @Transactional
+    public void markAllAsRead(Long memberNo) {
+        notificationRepository.markAllAsRead(memberNo);
     }
 }
