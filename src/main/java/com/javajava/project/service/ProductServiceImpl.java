@@ -134,7 +134,7 @@ public class ProductServiceImpl implements ProductService {
                     .location(product.getTradeAddrDetail())
                     .currentPrice(product.getCurrentPrice())
                     .endTime(product.getEndTime())
-                    .participantCount(product.getBidCount())
+                    .participantCount(bidHistoryRepository.countDistinctParticipants(product.getProductNo()))
                     .status(product.getEndTime().isBefore(LocalDateTime.now()) ? "completed" : "active")
                     .images(List.of("/api/images/sample.jpg")) // 추후 실제 이미지 연동
                     .isWishlisted(false) // 추후 찜 테이블 연동
@@ -178,7 +178,7 @@ public class ProductServiceImpl implements ProductService {
                 .currentPrice(product.getCurrentPrice())
                 .minBidUnit(product.getMinBidUnit())
                 .endTime(product.getEndTime())
-                .participantCount(product.getBidCount())
+                .participantCount(bidHistoryRepository.countDistinctParticipants(product.getProductNo()))
                 .seller(ProductDetailResponseDto.SellerInfoDto.builder()
                         .sellerNo(seller.getMemberNo())
                         .nickname(seller.getNickname())
