@@ -50,6 +50,10 @@
   - 허용 메서드: GET, POST, PUT, DELETE, PATCH, OPTIONS
   - 허용 헤더: 전체 (Authorization 포함)
   - allowCredentials: true
+- **불필요한 코드 제거**
+  - `ignoringRequestMatchers("/h2-console/**")` 제거 (Oracle DB 사용, H2 미사용 / `.disable()`과 중복)
+  - `.requestMatchers("/h2-console/**").permitAll()` 제거 (동일 사유)
+- **주석 보강** — CORS/CSRF/STATELESS/JWT 필터/권한설정 각 항목에 상세 설명 추가
 
 ### `MemberRequestDto.java`
 - Bean Validation 어노테이션 추가 (DB insert 전 Java 레벨 사전 검증)
