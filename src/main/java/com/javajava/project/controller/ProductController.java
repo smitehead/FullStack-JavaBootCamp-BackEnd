@@ -13,7 +13,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -23,9 +26,16 @@ public class ProductController {
 
     private final ProductService productService;
 
-    @PostMapping
-    public ResponseEntity<Long> registerProduct(@RequestBody ProductRequestDto productDto) {
-        return ResponseEntity.ok(productService.save(productDto));
+    @PostMapping(consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+    public ResponseEntity<Long> registerProduct(
+            @RequestPart("product") ProductRequestDto productDto,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images) throws IOException {
+        
+        Long productNo = productService.save(productDto);
+        if (images != null && !images.isEmpty()) {
+            productService.saveImages(productNo, images);
+        }
+        return ResponseEntity.ok(productNo);
     }
 
     //상세 페이지 전용 데이터를 반환하도록 변경

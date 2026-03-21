@@ -10,8 +10,12 @@ import com.javajava.project.entity.Product;
 import com.javajava.project.repository.BidHistoryRepository;
 import com.javajava.project.repository.MemberRepository;
 import com.javajava.project.repository.ProductRepository;
+import com.javajava.project.entity.ProductImage;
+import com.javajava.project.repository.ProductImageRepository;
+import com.javajava.project.util.FileStore;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -34,6 +38,8 @@ public class ProductServiceImpl implements ProductService {
     private final ProductRepository productRepository;
     private final MemberRepository memberRepository;
     private final BidHistoryRepository bidHistoryRepository;
+    private final ProductImageRepository productImageRepository;
+    private final FileStore fileStore;
 
     @Override
     @Transactional
@@ -73,16 +79,19 @@ public class ProductServiceImpl implements ProductService {
 
         List<Product> products = productRepository.findByIsActiveAndIsDeleted(1, 0, sort);
 
-        return products.stream().map(product -> ProductResponseDto.builder()
+        return products.stream().map(product -> {
+            ProductImage mainImage = productImageRepository.findFirstByProductNoAndIsMainOrderByImageNoAsc(product.getProductNo(), 1);
+            String imageUrl = mainImage != null ? "/api/images/" + mainImage.getUuidName() : "/api/images/sample.jpg";
+            return ProductResponseDto.builder()
                 .productNo(product.getProductNo())
                 .title(product.getTitle())
                 .currentPrice(product.getCurrentPrice())
                 .location(product.getTradeAddrDetail())
                 .endTime(product.getEndTime())
                 .isActive(product.getIsActive())
-                .mainImageUrl("/api/images/sample.jpg") // 이미지 엔티티 연동 전 샘플 경로
-                .build()
-        ).collect(Collectors.toList());
+                .mainImageUrl(imageUrl)
+                .build();
+        }).collect(Collectors.toList());
     }
 
     @Override
@@ -127,8 +136,16 @@ public class ProductServiceImpl implements ProductService {
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
-        return productRepository.findAll(spec, pageable).map(product -> 
-            ProductListResponseDto.builder()
+        return productRepository.findAll(spec, pageable).map(product -> {
+            List<ProductImage> productImages = productImageRepository.findByProductNoOrderByIsMainDesc(product.getProductNo());
+            List<String> imageUrls = productImages.stream()
+                    .map(img -> "/api/images/" + img.getUuidName())
+                    .collect(Collectors.toList());
+            if (imageUrls.isEmpty()) {
+                imageUrls.add("/api/images/sample.jpg");
+            }
+            
+            return ProductListResponseDto.builder()
                     .id(product.getProductNo())
                     .title(product.getTitle())
                     .location(product.getTradeAddrDetail())
@@ -136,10 +153,10 @@ public class ProductServiceImpl implements ProductService {
                     .endTime(product.getEndTime())
                     .participantCount(bidHistoryRepository.countDistinctParticipants(product.getProductNo()))
                     .status(product.getEndTime().isBefore(LocalDateTime.now()) ? "completed" : "active")
-                    .images(List.of("/api/images/sample.jpg")) // 추후 실제 이미지 연동
+                    .images(imageUrls)
                     .isWishlisted(false) // 추후 찜 테이블 연동
-                    .build()
-        );
+                    .build();
+        });
     }
 
     @Override
@@ -167,7 +184,16 @@ public class ProductServiceImpl implements ProductService {
                             .build();
                 }).collect(Collectors.toList());
 
-        // 4. 상세 데이터 조립 및 반환
+        // 4. 이미지 정보 조회
+        List<ProductImage> productImages = productImageRepository.findByProductNoOrderByIsMainDesc(productNo);
+        List<String> imageUrls = productImages.stream()
+                .map(img -> "/api/images/" + img.getUuidName())
+                .collect(Collectors.toList());
+        if (imageUrls.isEmpty()) {
+            imageUrls.add("/api/images/sample.jpg");
+        }
+
+        // 5. 상세 데이터 조립 및 반환
         return ProductDetailResponseDto.builder()
                 .productNo(product.getProductNo())
                 .title(product.getTitle())
@@ -179,6 +205,7 @@ public class ProductServiceImpl implements ProductService {
                 .minBidUnit(product.getMinBidUnit())
                 .endTime(product.getEndTime())
                 .participantCount(bidHistoryRepository.countDistinctParticipants(product.getProductNo()))
+                .images(imageUrls)
                 .seller(ProductDetailResponseDto.SellerInfoDto.builder()
                         .sellerNo(seller.getMemberNo())
                         .nickname(seller.getNickname())
@@ -192,6 +219,9 @@ public class ProductServiceImpl implements ProductService {
     public ProductResponseDto findById(Long productNo) {
         Product product = productRepository.findById(productNo)
                 .orElseThrow(() -> new IllegalArgumentException("해당 상품이 없습니다. ID: " + productNo));
+                
+        ProductImage mainImage = productImageRepository.findFirstByProductNoAndIsMainOrderByImageNoAsc(productNo, 1);
+        String imageUrl = mainImage != null ? "/api/images/" + mainImage.getUuidName() : "/api/images/sample.jpg";
         
         return ProductResponseDto.builder()
                 .productNo(product.getProductNo())
@@ -200,7 +230,7 @@ public class ProductServiceImpl implements ProductService {
                 .location(product.getTradeAddrDetail())
                 .endTime(product.getEndTime())
                 .isActive(product.getIsActive())
-                .mainImageUrl("/api/images/sample.jpg")
+                .mainImageUrl(imageUrl)
                 .build();
     }
 
@@ -225,5 +255,14 @@ public class ProductServiceImpl implements ProductService {
     public List<ProductResponseDto> findByCategory(Long categoryNo) {
         // 카테고리 기능은 현재 전체 조회로 대체 (추후 구현 가능)
         return findAllActive("latest");
+    }
+
+    @Override
+    @Transactional
+    public void saveImages(Long productNo, List<MultipartFile> images) throws java.io.IOException {
+        List<ProductImage> storedImages = fileStore.storeFiles(images, productNo);
+        if (!storedImages.isEmpty()) {
+            productImageRepository.saveAll(storedImages);
+        }
     }
 }

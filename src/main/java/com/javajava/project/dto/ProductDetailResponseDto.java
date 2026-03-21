@@ -20,8 +20,7 @@ public class ProductDetailResponseDto {
     private LocalDateTime endTime;
     private Long participantCount;
 
-    // 현재 서비스에서 주석 처리된 부분
-    // private List<String> imageUrls;
+    private List<String> images;
     // private Boolean isWishlisted;
 
     private SellerInfoDto seller;
