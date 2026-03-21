@@ -105,7 +105,8 @@
 - Oracle Dialect 변경 이력
   - 초기: `spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.OracleDialect` (FETCH 사용, 11g 비호환)
   - 1차: `org.hibernate.community.dialect.OracleDialect` → ClassNotFoundException 발생
-  - **최종: `spring.jpa.database-platform=org.hibernate.community.dialect.Oracle10gDialect`** (ROWNUM 사용, 11g 완전 호환)
+  - 2차: `org.hibernate.community.dialect.Oracle10gDialect` → 시도
+  - **최종: `spring.jpa.database-platform=org.hibernate.community.dialect.OracleLegacyDialect`** (ROWNUM 사용, 11g 완전 호환)
 
 ### `pom.xml`
 - jjwt 의존성 추가 (버전 0.12.6)
