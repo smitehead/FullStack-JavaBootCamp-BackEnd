@@ -102,8 +102,10 @@
 - JWT 설정 추가
   - `jwt.secret` - HS256 서명 키 (32자 이상)
   - `jwt.expiration` - 토큰 만료 시간 (86400000ms = 24시간)
-- Oracle Dialect 추가
-  - `spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.OracleDialect`
+- Oracle Dialect 변경 이력
+  - 초기: `spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.OracleDialect` (FETCH 사용, 11g 비호환)
+  - 1차: `org.hibernate.community.dialect.OracleDialect` → ClassNotFoundException 발생
+  - **최종: `spring.jpa.database-platform=org.hibernate.community.dialect.Oracle10gDialect`** (ROWNUM 사용, 11g 완전 호환)
 
 ### `pom.xml`
 - jjwt 의존성 추가 (버전 0.12.6)
