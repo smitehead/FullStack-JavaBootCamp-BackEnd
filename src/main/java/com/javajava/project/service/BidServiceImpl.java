@@ -57,32 +57,48 @@ public class BidServiceImpl implements BidService {
         if (bidDto.getBidPrice() < minRequiredBid) {
             return "최소 입찰 가능 금액은 " + minRequiredBid + "원입니다.";
         }
-        if (currentBidder.getPoints() < bidDto.getBidPrice()) {
-            return "보유 포인트가 부족합니다.";
-        }
-
-        // --- 4. 기존 최고 입찰자 환불 로직 (중요) ---
+        // --- 4. 기존 최고 입찰자 확인 및 환불 예상 금액 계산 ---
+        long availablePoints = currentBidder.getPoints();
         Optional<BidHistory> lastBidOpt = bidHistoryRepository
                 .findFirstByProductNoAndIsCancelledOrderByBidPriceDesc(product.getProductNo(), 0);
 
         if (lastBidOpt.isPresent()) {
             BidHistory lastBid = lastBidOpt.get();
-            // 이전 입찰자가 현재 입찰자와 다른 경우에만 환불 진행
-            if (!lastBid.getMemberNo().equals(currentBidder.getMemberNo())) {
-                Member previousBidder = memberRepository.findById(lastBid.getMemberNo())
+            // 이전 최고 입찰자가 본인인 경우, 입찰 성공 시 해당 금액을 환불받으므로 가용 포인트에 더해준다.
+            if (lastBid.getMemberNo().equals(currentBidder.getMemberNo())) {
+                availablePoints += lastBid.getBidPrice();
+            }
+        }
+
+        if (availablePoints < bidDto.getBidPrice()) {
+            return "보유 포인트가 부족합니다.";
+        }
+
+        // --- 4-2. 기존 최고 입찰자 실제 환불 로직 ---
+        if (lastBidOpt.isPresent()) {
+            BidHistory lastBid = lastBidOpt.get();
+            Member previousBidder;
+            
+            if (lastBid.getMemberNo().equals(currentBidder.getMemberNo())) {
+                // 본인이 재입찰 인 경우
+                previousBidder = currentBidder;
+            } else {
+                previousBidder = memberRepository.findById(lastBid.getMemberNo())
                         .orElseThrow(() -> new IllegalStateException("이전 입찰자 정보를 찾을 수 없습니다."));
+            }
 
-                // 포인트 환불 및 이력 저장
-                previousBidder.setPoints(previousBidder.getPoints() + lastBid.getBidPrice());
-                pointHistoryRepository.save(PointHistory.builder()
-                        .memberNo(previousBidder.getMemberNo())
-                        .type("입찰환불")
-                        .amount(lastBid.getBidPrice())
-                        .balance(previousBidder.getPoints())
-                        .reason("[" + product.getTitle() + "] 상위 입찰 발생으로 인한 자동 환불")
-                        .build());
+            // 포인트 환불 및 이력 저장
+            previousBidder.setPoints(previousBidder.getPoints() + lastBid.getBidPrice());
+            pointHistoryRepository.save(PointHistory.builder()
+                    .memberNo(previousBidder.getMemberNo())
+                    .type("입찰환불")
+                    .amount(lastBid.getBidPrice())
+                    .balance(previousBidder.getPoints())
+                    .reason("[" + product.getTitle() + "] 상위 입찰 발생으로 인한 자동 환불")
+                    .build());
 
-                // [알림 발송] 이전 입찰자에게 상위 입찰 발생 알림 전송 (명세서 반영)
+            // 이전 입찰자가 현재 입찰자와 다른 경우에만 알림 진행
+            if (!lastBid.getMemberNo().equals(currentBidder.getMemberNo())) {
                 String messageToPrevBidder = String.format("상위 입찰 발생: %s에 더 높은 입찰가가 등록되었습니다.", product.getTitle());
                 notificationService.sendAndSaveNotification(
                         previousBidder.getMemberNo(),
