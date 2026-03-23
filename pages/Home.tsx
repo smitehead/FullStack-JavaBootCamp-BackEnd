@@ -100,7 +100,7 @@ export const Home: React.FC = () => {
   return (
     <div className="pb-20">
       {/* Hero Banner */}
-      <section className="relative h-[480px] text-white overflow-hidden w-full bg-black">
+      <section className="relative h-[360px] text-white overflow-hidden w-full bg-black">
         <AnimatePresence initial={false} custom={direction}>
           <motion.div
             key={currentBanner}
