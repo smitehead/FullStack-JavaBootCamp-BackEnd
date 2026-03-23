@@ -162,9 +162,7 @@ export const FAQ: React.FC = () => {
             </div>
             <Link 
               to="/cs/inquiry" 
-              className="px-8 py-4 bg-white text-gray-900 rounded-2xl transition-all font-bold hover:bg-gray-100 flex items-center justify-center gap-2 shrink-0"
-            >
-              <HelpCircle className="w-5 h-5" />
+              className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-bold transition-colors">
               문의하기
             </Link>
           </div>
