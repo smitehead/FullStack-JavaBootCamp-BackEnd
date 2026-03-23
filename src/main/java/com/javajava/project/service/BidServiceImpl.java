@@ -102,7 +102,7 @@ public class BidServiceImpl implements BidService {
                 String messageToPrevBidder = String.format("상위 입찰 발생: %s에 더 높은 입찰가가 등록되었습니다.", product.getTitle());
                 notificationService.sendAndSaveNotification(
                         previousBidder.getMemberNo(),
-                        "입찰",
+                        "bid",
                         messageToPrevBidder,
                         "/product/" + product.getProductNo()
                 );
@@ -139,7 +139,7 @@ public class BidServiceImpl implements BidService {
         String messageToSeller = String.format("새로운 입찰: 등록하신 %s에 새로운 입찰자가 등장했습니다.", product.getTitle());
         notificationService.sendAndSaveNotification(
                 product.getSellerNo(),
-                "입찰",
+                "bid",
                 messageToSeller,
                 "/product/" + product.getProductNo()
         );

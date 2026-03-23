@@ -1,6 +1,6 @@
 # 팀원 공유 주의사항
 
-> 담당: 오수환 | 최종 업데이트: 2026-03-20
+> 담당: 오수환 | 최종 업데이트: 2026-03-21
 
 ---
 
@@ -65,7 +65,27 @@ catch-all `Exception` 핸들러보다 구체적인 타입이 우선 적용되므
 
 ---
 
-## 3. 에러 응답 형식 규약
+## 3. SSE 실시간 알림 연동 (`2026-03-21`)
+
+**파일:** `SseController.java`, `SseService.java`
+
+프론트엔드가 `GET /api/sse/subscribe?clientId={memberNo}` 로 SSE 연결을 맺습니다.
+
+- `clientId`는 로그인 후 localStorage에 저장된 `memberNo` 값 사용
+- 백엔드에서 알림을 발송할 때는 `SseService.sendToClient(memberNo.toString(), dto)` 호출
+- 이벤트 이름은 **`notification`** 으로 통일 (프론트에서 이 이름으로 수신)
+- 브라우저 자동 재연결 기능 있으므로 서버 재시작 시 자동 복구됨
+
+**백엔드 알림 발송 방법 (새 알림 생성 시):**
+```java
+// NotificationService 또는 각 Service에서
+Notification saved = notificationRepository.save(notification);
+sseService.sendToClient(String.valueOf(memberNo), NotificationResponseDto.from(saved));
+```
+
+---
+
+## 4. 에러 응답 형식 규약
 
 현재 프로젝트의 에러 응답 형식은 아래와 같이 통일되어 있습니다.
 새로운 예외 처리 추가 시 동일한 형식을 사용해 주세요.
