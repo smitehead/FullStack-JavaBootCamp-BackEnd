@@ -21,7 +21,7 @@ public class ProductDetailResponseDto {
     private Long participantCount;
 
     private List<String> images;
-    // private Boolean isWishlisted;
+    private Boolean isWishlisted;
 
     private SellerInfoDto seller;
     private List<BidHistoryDto> bidHistory;

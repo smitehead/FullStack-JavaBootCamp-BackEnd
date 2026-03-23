@@ -12,6 +12,7 @@ import com.javajava.project.repository.MemberRepository;
 import com.javajava.project.repository.ProductRepository;
 import com.javajava.project.entity.ProductImage;
 import com.javajava.project.repository.ProductImageRepository;
+import com.javajava.project.repository.WishlistRepository;
 import com.javajava.project.util.FileStore;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class ProductServiceImpl implements ProductService {
     private final MemberRepository memberRepository;
     private final BidHistoryRepository bidHistoryRepository;
     private final ProductImageRepository productImageRepository;
+    private final WishlistRepository wishlistRepository;
     private final FileStore fileStore;
 
     @Override
@@ -154,7 +156,7 @@ public class ProductServiceImpl implements ProductService {
                     .participantCount(bidHistoryRepository.countDistinctParticipants(product.getProductNo()))
                     .status(product.getEndTime().isBefore(LocalDateTime.now()) ? "completed" : "active")
                     .images(imageUrls)
-                    .isWishlisted(false) // 추후 찜 테이블 연동
+                    .isWishlisted(memberNo != null ? wishlistRepository.existsByMemberNoAndProductNo(memberNo, product.getProductNo()) : false)
                     .build();
         });
     }
@@ -206,6 +208,7 @@ public class ProductServiceImpl implements ProductService {
                 .endTime(product.getEndTime())
                 .participantCount(bidHistoryRepository.countDistinctParticipants(product.getProductNo()))
                 .images(imageUrls)
+                .isWishlisted(currentMemberNo != null ? wishlistRepository.existsByMemberNoAndProductNo(currentMemberNo, product.getProductNo()) : false)
                 .seller(ProductDetailResponseDto.SellerInfoDto.builder()
                         .sellerNo(seller.getMemberNo())
                         .nickname(seller.getNickname())
