@@ -42,8 +42,8 @@ public class BidServiceImpl implements BidService {
         Product product = productRepository.findByIdWithLock(bidDto.getProductNo())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상품입니다."));
 
-        // 2. 현재 입찰자 정보 조회
-        Member currentBidder = memberRepository.findById(bidDto.getMemberNo())
+        // 2. 현재 입찰자 정보 조회 (포인트 업데이트를 위한 락)
+        Member currentBidder = memberRepository.findByIdWithLock(bidDto.getMemberNo())
                 .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
 
         // 3. 유효성 검증
@@ -64,9 +64,9 @@ public class BidServiceImpl implements BidService {
 
         if (lastBidOpt.isPresent()) {
             BidHistory lastBid = lastBidOpt.get();
-            // 이전 최고 입찰자가 본인인 경우, 입찰 성공 시 해당 금액을 환불받으므로 가용 포인트에 더해준다.
+            // 현재 최고 입찰자가 본인인 경우, 연속 입찰 방지
             if (lastBid.getMemberNo().equals(currentBidder.getMemberNo())) {
-                availablePoints += lastBid.getBidPrice();
+                return "현재 최고 입찰자입니다. 추가 입찰이 불가합니다.";
             }
         }
 
@@ -77,15 +77,9 @@ public class BidServiceImpl implements BidService {
         // --- 4-2. 기존 최고 입찰자 실제 환불 로직 ---
         if (lastBidOpt.isPresent()) {
             BidHistory lastBid = lastBidOpt.get();
-            Member previousBidder;
             
-            if (lastBid.getMemberNo().equals(currentBidder.getMemberNo())) {
-                // 본인이 재입찰 인 경우
-                previousBidder = currentBidder;
-            } else {
-                previousBidder = memberRepository.findById(lastBid.getMemberNo())
-                        .orElseThrow(() -> new IllegalStateException("이전 입찰자 정보를 찾을 수 없습니다."));
-            }
+            Member previousBidder = memberRepository.findByIdWithLock(lastBid.getMemberNo())
+                    .orElseThrow(() -> new IllegalStateException("이전 입찰자 정보를 찾을 수 없습니다."));
 
             // 포인트 환불 및 이력 저장
             previousBidder.setPoints(previousBidder.getPoints() + lastBid.getBidPrice());

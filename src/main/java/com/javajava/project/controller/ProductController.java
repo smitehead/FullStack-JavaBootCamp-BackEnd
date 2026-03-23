@@ -50,18 +50,18 @@ public class ProductController {
     // 상품 목록 API (프론트엔드 필터링 및 페이징 파라미터 수신)
     @GetMapping
     public ResponseEntity<Page<ProductListResponseDto>> getProductList(
-            @RequestParam(defaultValue = "1") int page,      // 리액트는 1페이지부터 시작
-            @RequestParam(defaultValue = "16") int size,
-            @RequestParam(required = false) Long large,
-            @RequestParam(required = false) Long medium,
-            @RequestParam(required = false) Long small,
-            @RequestParam(required = false) Long minPrice,
-            @RequestParam(required = false) Long maxPrice,
-            @RequestParam(required = false) String city,
-            @RequestParam(required = false) Boolean delivery,
-            @RequestParam(required = false) Boolean face,
-            @RequestParam(defaultValue = "latest") String sort,
-            @RequestParam(required = false) Long memberNo // 찜 여부 확인용
+            @RequestParam(name = "page", defaultValue = "1") int page,      // 리액트는 1페이지부터 시작
+            @RequestParam(name = "size", defaultValue = "16") int size,
+            @RequestParam(name = "large", required = false) Long large,
+            @RequestParam(name = "medium", required = false) Long medium,
+            @RequestParam(name = "small", required = false) Long small,
+            @RequestParam(name = "minPrice", required = false) Long minPrice,
+            @RequestParam(name = "maxPrice", required = false) Long maxPrice,
+            @RequestParam(name = "city", required = false) String city,
+            @RequestParam(name = "delivery", required = false) Boolean delivery,
+            @RequestParam(name = "face", required = false) Boolean face,
+            @RequestParam(name = "sort", defaultValue = "latest") String sort,
+            @RequestParam(name = "memberNo", required = false) Long memberNo // 찜 여부 확인용
     ) {
         Page<ProductListResponseDto> productPage = productService.getProductList(
                 page, size, large, medium, small, minPrice, maxPrice, city, delivery, face, sort, memberNo);
