@@ -1,8 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, TrendingUp, Grid, ChevronLeft, ChevronRight } from 'lucide-react';
-import { CURRENT_USER } from '../services/mockData';
-import { useAppContext } from '../context/AppContext';
+import api from '../services/api';
 import { ProductCard } from '../components/ProductCard';
 import { CATEGORY_DATA } from '../constants';
 import { motion, AnimatePresence } from 'motion/react';
@@ -27,7 +26,6 @@ const HERO_BANNERS = [
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
-  const { products } = useAppContext();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
@@ -35,6 +33,56 @@ export const Home: React.FC = () => {
   const [dragDistance, setDragDistance] = useState(0);
   const [currentBanner, setCurrentBanner] = useState(0);
   const [direction, setDirection] = useState(0);
+  const [popularProducts, setPopularProducts] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchPopularProducts = async () => {
+      try {
+        // 넉넉하게 가져와서 진행중인 경매만 필터링합니다.
+        const response = await api.get('/products?page=1&size=20&sort=popular');
+        const content = response.data.content || response.data;
+        const mapped = content.map((item: any) => ({
+          ...item,
+          id: String(item.id),
+          seller: item.seller || { id: String(item.sellerId || 'unknown'), nickname: item.sellerNickname || '판매자' },
+          images: item.images && item.images.length > 0 ? item.images.map((img: string) => {
+            let replaced = img.startsWith('/') ? `http://localhost:8080${img}` : img;
+            return replaced.replace('http://loclhost', 'http://localhost');
+          }) : ['https://via.placeholder.com/600'],
+          category: item.category || '기타',
+          participantCount: item.participantCount || 0,
+          currentPrice: item.currentPrice || 0,
+          endTime: item.endTime || new Date().toISOString()
+        }));
+        
+        const now = Date.now();
+        const activeProducts = mapped.filter((p: any) => p.status === 'active' && new Date(p.endTime).getTime() > now);
+        setPopularProducts(activeProducts.slice(0, 8));
+      } catch (error) {
+        console.error('Failed to fetch products', error);
+      }
+    };
+    fetchPopularProducts();
+  }, []);
+
+  // SSE logic for real-time price updates on Home page
+  useEffect(() => {
+    const clientId = Math.random().toString(36).substring(7);
+    const eventSource = new EventSource(`http://localhost:8080/api/sse/subscribe?clientId=${clientId}`);
+    
+    eventSource.addEventListener('priceUpdate', (event: any) => {
+      try {
+        const data = JSON.parse(event.data);
+        setPopularProducts(prev => prev.map(p => 
+          String(p.id) === String(data.productNo) ? { ...p, currentPrice: data.currentPrice } : p
+        ));
+      } catch (e) {
+        console.error("Home SSE parsing error", e);
+      }
+    });
+
+    return () => eventSource.close();
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -54,16 +102,7 @@ export const Home: React.FC = () => {
     setCurrentBanner((prev) => (prev - 1 + HERO_BANNERS.length) % HERO_BANNERS.length);
   };
 
-  const now = new Date().getTime();
-  const popularProducts = [...products]
-    .filter(p => 
-      !CURRENT_USER.blockedUserIds?.includes(p.seller.id) && 
-      !p.seller.blockedUserIds?.includes(CURRENT_USER.id) &&
-      p.status === 'active' && 
-      new Date(p.endTime).getTime() > now
-    )
-    .sort((a, b) => b.participantCount - a.participantCount)
-    .slice(0, 8);
+  // popularProducts는 위에서 API를 통해 가져와서 State로 관리합니다.
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!scrollRef.current) return;

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Notification, ChatRoom, User, Product, WithdrawnUser, NotificationType, Report, MannerHistory, ActivityLog, SystemSettings } from '../types';
 import { NOTIFICATIONS as INITIAL_NOTIFICATIONS, MOCK_CHATS as INITIAL_CHATS, CURRENT_USER as MOCK_USER, ADMIN_USER, MOCK_PRODUCTS as INITIAL_PRODUCTS, MOCK_USERS as INITIAL_USERS, MOCK_REPORTS as INITIAL_REPORTS } from '../services/mockData';
+import api from '../services/api';
 
 interface AppContextType {
   user: User | null;
@@ -13,7 +14,7 @@ interface AppContextType {
   mannerHistory: MannerHistory[];
   activityLogs: ActivityLog[];
   systemSettings: SystemSettings;
-  login: (userId: string, password: string) => boolean;
+  login: (userId: string, password: string) => Promise<boolean>;
   logout: () => void;
   suspendUser: (userId: string, days: number, reason: string) => void;
   unsuspendUser: (userId: string) => void;
@@ -26,6 +27,7 @@ interface AppContextType {
   updateUserRole: (userId: string, isAdmin: boolean) => void;
   updateUserManner: (userId: string, mannerTemp: number, reason: string) => void;
   updateUserPoints: (userId: string, points: number) => void;
+  updateCurrentUserPoints: (points: number) => void;
   sendAdminMessage: (userId: string, content: string) => void;
   toggleMaintenanceMode: (enabled: boolean, message?: string) => void;
   addActivityLog: (action: string, details: string, targetId?: string, targetType?: ActivityLog['targetType']) => void;
@@ -74,28 +76,65 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
+      
+      // 새로고침 시 백그라운드에서 최신 포인트/정보 DB 연동
+      const memberNo = parseInt(parsedUser.id.replace(/[^0-9]/g, ''), 10);
+      if (!isNaN(memberNo)) {
+        api.get(`/members/${memberNo}`).then(res => {
+          if (res.data) {
+            setUser(prev => {
+              if (!prev) return prev;
+              const updated = { ...prev, points: res.data.points || 0, mannerTemp: res.data.mannerTemp || 36.5 };
+              localStorage.setItem('java_user', JSON.stringify(updated));
+              return updated;
+            });
+          }
+        }).catch(err => console.error("Failed to sync user data in AppContext", err));
+      }
     }
   }, []);
 
-  const login = (userId: string, password: string) => {
-    let foundUser: User | null = null;
-    if (userId === 'admin1' && password === 'admin1234') {
-      foundUser = ADMIN_USER;
-    } else if (userId === 'testuser' && password === 'password123') {
-      foundUser = MOCK_USER;
-    }
+  const login = async (userId: string, password: string): Promise<boolean> => {
+    try {
+      const response = await api.post('/auth/login', { userId, password });
+      const { token, memberNo, nickname } = response.data;
+      
+      localStorage.setItem('java_token', token);
+      
+      // FETCH REAL POINTS HERE
+      let dbPoints = 0;
+      let dbMannerTemp = 36.5;
+      try {
+        const memberRes = await api.get(`/members/${memberNo}`);
+        dbPoints = memberRes.data.points || 0;
+        dbMannerTemp = memberRes.data.mannerTemp || 36.5;
+      } catch (err) {
+        console.error("Failed to fetch user points during login", err);
+      }
 
-    if (foundUser) {
-      setUser(foundUser);
-      localStorage.setItem('java_user', JSON.stringify(foundUser));
+      const loggedInUser: User = {
+         id: `user_${memberNo}`,
+         nickname: nickname || userId,
+         profileImage: 'https://via.placeholder.com/200',
+         points: dbPoints,
+         mannerTemp: dbMannerTemp,
+         joinedAt: new Date().toISOString(),
+      };
+      
+      setUser(loggedInUser);
+      localStorage.setItem('java_user', JSON.stringify(loggedInUser));
       return true;
+    } catch (error) {
+      console.error('Login failed', error);
+      return false;
     }
-    return false;
   };
 
   const logout = () => {
+    api.post('/auth/logout').catch(console.error);
     setUser(null);
     localStorage.removeItem('java_user');
+    localStorage.removeItem('java_token');
   };
 
   const addActivityLog = (action: string, details: string, targetId?: string, targetType?: ActivityLog['targetType']) => {
@@ -258,6 +297,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addActivityLog('포인트 변경', `${targetUser?.nickname}님 포인트 변경: ${points > 0 ? '+' : ''}${points}P`, userId, 'user');
   };
 
+  const updateCurrentUserPoints = (points: number) => {
+    if (user) {
+      const updated = { ...user, points };
+      setUser(updated);
+      localStorage.setItem('java_user', JSON.stringify(updated));
+    }
+  };
+
   const toggleMaintenanceMode = (enabled: boolean, message?: string) => {
     setSystemSettings(prev => ({
       ...prev,
@@ -303,6 +350,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updateUserRole,
       updateUserManner,
       updateUserPoints,
+      updateCurrentUserPoints,
       sendAdminMessage,
       toggleMaintenanceMode,
       addActivityLog,

@@ -10,7 +10,7 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -23,8 +23,8 @@ export const Login: React.FC = () => {
       return;
     }
 
-    // 2. Login via Context
-    const success = login(trimmedId, trimmedPw);
+    // 2. Login via Context API
+    const success = await login(trimmedId, trimmedPw);
     
     if (success) {
       alert('로그인에 성공했습니다!');

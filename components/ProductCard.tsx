@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, User, Heart } from 'lucide-react';
 import { Product } from '../types';
-import { MOCK_PRODUCTS } from '../services/mockData';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { useAppContext } from '../context/AppContext';
+import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
 interface ProductCardProps {
   product: Product;
@@ -21,7 +23,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   const [timeLeft, setTimeLeft] = useState<string>('');
   const [isFinished, setIsFinished] = useState<boolean>(false);
-  const [isWishlisted, setIsWishlisted] = useState<boolean>(product.isWishlisted);
+  const [isWishlisted, setIsWishlisted] = useState<boolean>(product.isWishlisted || false);
+  const { user } = useAppContext();
+  const navigate = useNavigate();
+  
+  const [priceHighlight, setPriceHighlight] = useState(false);
+  const prevPriceRef = useRef(product.currentPrice);
+
+  useEffect(() => {
+    if (product.currentPrice > prevPriceRef.current) {
+      setPriceHighlight(true);
+      const timer = setTimeout(() => setPriceHighlight(false), 2000);
+      prevPriceRef.current = product.currentPrice;
+      return () => clearTimeout(timer);
+    }
+    prevPriceRef.current = product.currentPrice;
+  }, [product.currentPrice]);
 
   useEffect(() => {
     const updateTime = () => {
@@ -51,17 +68,23 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     return () => clearInterval(interval);
   }, [product.endTime]);
 
-  const toggleWishlist = (e: React.MouseEvent) => {
+  const toggleWishlist = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const newState = !isWishlisted;
-    setIsWishlisted(newState);
     
-    // Update mock data
-    const p = MOCK_PRODUCTS.find(item => item.id === product.id);
-    if (p) {
-      p.isWishlisted = newState;
-      p.wishlistCount = (p.wishlistCount || 0) + (newState ? 1 : -1);
+    if (!user) {
+      alert('로그인이 필요한 서비스입니다.');
+      navigate('/login');
+      return;
+    }
+    
+    try {
+      const memberNo = parseInt(user.id.replace(/[^0-9]/g, '') || '1', 10);
+      const response = await api.post(`/wishlists/toggle?memberNo=${memberNo}&productNo=${product.id}`);
+      setIsWishlisted(response.data);
+    } catch (error) {
+      console.error('Failed to toggle wishlist', error);
+      alert('찜 처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -164,7 +187,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <p className="text-[10px] text-gray-400 mb-0.5">
               {product.status === 'completed' ? '최종 낙찰가' : '현재 입찰가'}
             </p>
-            <p className={`text-lg font-black ${showBadge ? 'text-indigo-600' : 'text-gray-900'}`}>
+            <p className={`text-lg font-black transition-colors duration-500 ${priceHighlight ? 'text-red-600 animate-pulse' : (showBadge ? 'text-indigo-600' : 'text-gray-900')}`}>
               {product.currentPrice.toLocaleString()}원
             </p>
           </div>
