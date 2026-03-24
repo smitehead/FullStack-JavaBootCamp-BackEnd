@@ -70,6 +70,49 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   ]);
 
+  // 전역 SSE 구독 (실시간 포인트 업데이트 등)
+  useEffect(() => {
+    if (!user) return;
+
+    const memberNo = user.id.replace(/[^0-9]/g, '');
+    if (!memberNo) return;
+
+    const eventSource = new EventSource(`http://localhost:8080/api/sse/subscribe?clientId=${memberNo}`);
+    console.log(`[SSE] Subscribed for memberNo: ${memberNo}`);
+    
+    eventSource.addEventListener('pointUpdate', (event: any) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log(`[SSE] Received pointUpdate:`, data);
+        if (data && typeof data.points === 'number') {
+          setUser(prev => {
+            if (!prev) return prev;
+            // 이전 상태와 동일하더라도 참조를 강제로 바꿔 리텍스트 리렌더링 유도
+            const updated = { ...prev, points: data.points };
+            localStorage.setItem('java_user', JSON.stringify(updated));
+            return updated;
+          });
+        }
+      } catch (e) {
+        console.error("[SSE] pointUpdate parsing error", e);
+      }
+    });
+
+    eventSource.onopen = () => {
+      console.log(`[SSE] Connection established for ${memberNo}`);
+    };
+
+    eventSource.onerror = (err) => {
+      console.error(`[SSE] Connection error for ${memberNo}`, err);
+      eventSource.close();
+    };
+
+    return () => {
+      console.log(`[SSE] Connection closed for ${memberNo}`);
+      eventSource.close();
+    };
+  }, [user?.id]); // 사용자 ID가 바뀔 때(로그인/로그아웃) 재연결
+
   // Load user from localStorage if exists
   useEffect(() => {
     const savedUser = localStorage.getItem('java_user');
@@ -77,7 +120,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
       
-      // 새로고침 시 백그라운드에서 최신 포인트/정보 DB 연동
       const memberNo = parseInt(parsedUser.id.replace(/[^0-9]/g, ''), 10);
       if (!isNaN(memberNo)) {
         api.get(`/members/${memberNo}`).then(res => {
@@ -115,7 +157,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const loggedInUser: User = {
          id: `user_${memberNo}`,
          nickname: nickname || userId,
-         profileImage: 'https://via.placeholder.com/200',
+         profileImage: '',
          points: dbPoints,
          mannerTemp: dbMannerTemp,
          joinedAt: new Date().toISOString(),

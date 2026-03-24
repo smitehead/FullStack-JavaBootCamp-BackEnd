@@ -242,3 +242,18 @@ export interface WithdrawnUser {
   details?: string;
   withdrawnAt: string;
 }
+
+export interface ProductRequestDto {
+  sellerNo: number;
+  categoryNo: number;
+  title: string;
+  description: string;
+  tradeType: string;
+  tradeEmdNo?: number;
+  tradeAddrDetail?: string;
+  startPrice: number;
+  buyoutPrice?: number | null;
+  minBidUnit: number;
+  endTime: string;
+}
+

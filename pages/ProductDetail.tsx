@@ -49,7 +49,6 @@ export const ProductDetail: React.FC = () => {
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'bid' | 'auto'>('bid');
   const [autoBidMaxAmount, setAutoBidMaxAmount] = useState<number>(0);
-  const [userPoints, setUserPoints] = useState(user?.points || 0);
   const [showRechargePrompt, setShowRechargePrompt] = useState(false);
 
   const [visibleBidsCount, setVisibleBidsCount] = useState(5);
@@ -75,7 +74,7 @@ export const ProductDetail: React.FC = () => {
           seller: {
             id: String(data.seller?.sellerNo || 'seller_1'),
             nickname: data.seller?.nickname || '판매자',
-            profileImage: 'https://via.placeholder.com/200',
+            profileImage: '',
             points: 0,
             mannerTemp: data.seller?.mannerTemp || 36.5,
             joinedAt: ''
@@ -85,10 +84,11 @@ export const ProductDetail: React.FC = () => {
           minBidIncrement: data.minBidUnit || 1000,
           startTime: new Date().toISOString(), // Fallback
           endTime: data.endTime,
-          images: data.images && data.images.length > 0 ? data.images.map((img: string) => {
+          images: (data.images || []).map((img: string) => {
+            if (!img) return '';
             let replaced = img.startsWith('/') ? `http://localhost:8080${img}` : img;
             return replaced.replace('http://loclhost', 'http://localhost');
-          }) : ['https://via.placeholder.com/600'],
+          }),
           participantCount: data.participantCount || 0,
           bids: (data.bidHistory || []).map((b: any, idx: number) => ({
             id: `bid_${idx}`,
@@ -117,7 +117,8 @@ export const ProductDetail: React.FC = () => {
     if (id) {
       fetchProduct();
     }
-  }, [id, navigate, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]); // user는 초기 로드 시만 참조하거나 SSE 업데이트와 분리
 
   useEffect(() => {
     if (!product) return;
@@ -151,38 +152,36 @@ export const ProductDetail: React.FC = () => {
 
   useEffect(() => {
     if (!product || !product.id) return;
-    const clientId = user ? user.id.replace(/[^0-9]/g, '') : Math.random().toString(36).substring(7);
+    
+    // 로그인 상태가 보장될 때까지 기다리거나, 게스트 기본 ID 사용
+    const clientId = user ? user.id.replace(/[^0-9]/g, '') : 'guest_' + id;
     const eventSource = new EventSource(`http://localhost:8080/api/sse/subscribe?clientId=${clientId}`);
+
+    console.log(`SSE Connecting: ${product.id}`);
 
     eventSource.addEventListener('priceUpdate', (event: any) => {
       try {
         const data = JSON.parse(event.data);
-        if (String(data.productNo) === product.id) {
+        if (String(data.productNo) === String(product.id)) {
           setProduct(prev => prev ? ({
             ...prev,
             currentPrice: data.currentPrice
           }) : prev);
 
-          // 다른 회원이 입찰 시 붉은색 알림
           setPriceHighlight(true);
-          setTimeout(() => setPriceHighlight(false), 15000);
-
-          // 로그인한 유저라면 백엔드에서 변경된(환불 등) 잔여 포인트를 즉시 다시 동기화
-          if (user) {
-            const memberNo = parseInt(user.id.replace(/[^0-9]/g, '') || '1', 10);
-            api.get(`/members/${memberNo}`).then(res => {
-              setUserPoints(res.data.points);
-              updateCurrentUserPoints(res.data.points);
-            }).catch(err => console.error("Auto point sync error", err));
-          }
+          setTimeout(() => setPriceHighlight(false), 5000);
         }
       } catch (e) {
         console.error("SSE parsing error", e);
       }
     });
 
+    eventSource.onerror = () => {
+      eventSource.close();
+    };
+
     return () => eventSource.close();
-  }, [product?.id, user]);
+  }, [product?.id, user?.id]); // id가 바뀔 때만 재연결 (객체 전체가 아닌 id 기준)
 
   const prevPriceRef = React.useRef<number>(0);
 
@@ -248,7 +247,6 @@ export const ProductDetail: React.FC = () => {
     try {
       const memberNo = parseInt(user.id.replace(/[^0-9]/g, '') || '1', 10);
       const res = await api.get(`/members/${memberNo}`);
-      setUserPoints(res.data.points);
       updateCurrentUserPoints(res.data.points);
     } catch (e) {
       console.error("Failed to fetch user points", e);
@@ -277,7 +275,7 @@ export const ProductDetail: React.FC = () => {
       return;
     }
 
-    if (amountToValidate > userPoints) {
+    if (amountToValidate > (user?.points || 0)) {
       setShowRechargePrompt(true);
       return;
     }
@@ -360,8 +358,15 @@ export const ProductDetail: React.FC = () => {
 
         {/* Left: Images */}
         <div className="lg:w-[55%] flex flex-col relative group">
-          <div className="aspect-square bg-gray-100 rounded-2xl overflow-hidden shadow-sm relative">
-            <img src={product.images[selectedImage] || undefined} alt={product.title} className="w-full h-full object-cover transition-transform duration-500" />
+          <div className="aspect-square bg-gray-100 rounded-2xl overflow-hidden shadow-sm relative flex items-center justify-center">
+            {product.images && product.images.length > 0 ? (
+              <img src={product.images[selectedImage]} alt={product.title} className="w-full h-full object-cover transition-transform duration-500" />
+            ) : (
+              <div className="flex flex-col items-center text-gray-300">
+                <Package className="w-20 h-20 mb-2" />
+                <span className="text-sm font-medium">등록된 이미지가 없습니다.</span>
+              </div>
+            )}
 
             {/* Navigation Arrows */}
             {product.images.length > 1 && (
@@ -437,7 +442,13 @@ export const ProductDetail: React.FC = () => {
             <div className="flex justify-between items-start mb-1">
               <Link to={`/seller/${product.seller.id}`} className="font-bold text-lg text-gray-900 hover:text-orange-500 transition-colors">{product.seller.nickname}</Link>
               <Link to={`/seller/${product.seller.id}`}>
-                <img src={product.seller.profileImage || undefined} alt="Seller" className="w-10 h-10 rounded-full object-cover border border-gray-100 hover:border-orange-500 transition-all" />
+                {product.seller.profileImage ? (
+                  <img src={product.seller.profileImage} alt="Seller" className="w-10 h-10 rounded-full object-cover border border-gray-100 hover:border-orange-500 transition-all" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center border border-gray-100">
+                    <Users className="w-6 h-6 text-gray-300" />
+                  </div>
+                )}
               </Link>
             </div>
             <div className="flex justify-between items-end mb-0.5">
@@ -763,7 +774,7 @@ export const ProductDetail: React.FC = () => {
                   </div>
                   <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">보유 포인트</span>
                 </div>
-                <span className="text-xl font-black text-orange-400">{(userPoints || 0).toLocaleString()} P</span>
+                <span className="text-xl font-black text-orange-400">{(user?.points || 0).toLocaleString()} P</span>
               </div>
 
               {/* Price Info */}
@@ -839,7 +850,7 @@ export const ProductDetail: React.FC = () => {
             <h3 className="text-2xl font-black text-gray-900 mb-3">포인트가 부족합니다</h3>
             <p className="text-gray-500 mb-8 leading-relaxed">
               입찰을 진행하기 위해 포인트 충전이 필요합니다.<br />
-              현재 보유 포인트: <span className="text-indigo-600 font-bold">{(userPoints || 0).toLocaleString()}P</span><br />
+              현재 보유 포인트: <span className="text-indigo-600 font-bold">{(user?.points || 0).toLocaleString()}P</span><br />
               지금 충전하러 가시겠습니까?
             </p>
             <div className="flex gap-3">
