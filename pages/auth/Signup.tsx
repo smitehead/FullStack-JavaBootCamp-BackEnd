@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import api from '../services/api';
+import api from '../../services/api';
 import { Package, Check, ChevronRight, Mail, User, Lock, ShieldCheck, MapPin, Phone, Calendar, AlertCircle, Send, CheckCircle2, X } from 'lucide-react';
 
 type SignupStep = 'terms' | 'info' | 'success';
@@ -8,7 +8,7 @@ type SignupStep = 'terms' | 'info' | 'success';
 export const Signup: React.FC = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<SignupStep>('terms');
-  
+
   // 약관 동의 상태
   const [terms, setTerms] = useState({
     service: false,
@@ -119,8 +119,8 @@ export const Signup: React.FC = () => {
     return () => clearInterval(interval);
   }, [timer]);
 
-  const isAllRequiredTermsChecked = 
-    terms.service && terms.privacy && terms.purpose && 
+  const isAllRequiredTermsChecked =
+    terms.service && terms.privacy && terms.purpose &&
     terms.termsDef && terms.auction && terms.prohibited;
 
   const handleTermToggle = (key: keyof typeof terms) => {
@@ -272,7 +272,7 @@ export const Signup: React.FC = () => {
             </div>
 
             <div className="space-y-4">
-              <button 
+              <button
                 onClick={handleAllTermsToggle}
                 className="w-full flex items-center justify-between p-5 bg-gray-50 rounded-2xl border border-gray-100 hover:bg-gray-100 transition-all group"
               >
@@ -297,7 +297,7 @@ export const Signup: React.FC = () => {
                   <div key={item.key} className="p-4 rounded-2xl hover:bg-gray-50 transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <button 
+                        <button
                           onClick={() => handleTermToggle(item.key as keyof typeof terms)}
                           className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${terms[item.key as keyof typeof terms] ? 'bg-[#FF5A5A] text-white' : 'bg-white text-gray-200 border border-gray-200'}`}
                         >
@@ -307,7 +307,7 @@ export const Signup: React.FC = () => {
                           {item.label} {item.required ? <span className="text-[#FF5A5A]">(필수)</span> : '(선택)'}
                         </span>
                       </div>
-                      <button 
+                      <button
                         onClick={() => toggleTermExpand(item.key)}
                         className="text-[10px] font-black text-gray-300 uppercase tracking-widest hover:text-[#FF5A5A] transition-colors"
                       >
@@ -324,7 +324,7 @@ export const Signup: React.FC = () => {
               </div>
             </div>
 
-            <button 
+            <button
               disabled={!isAllRequiredTermsChecked}
               onClick={() => setStep('info')}
               className={`w-full mt-10 py-4 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2 ${isAllRequiredTermsChecked ? 'bg-[#FF5A5A] text-white shadow-lg shadow-red-100 hover:bg-[#FF4545] active:scale-95' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
@@ -338,7 +338,7 @@ export const Signup: React.FC = () => {
         {step === 'info' && (
           <div className="bg-white p-10 rounded-[32px] shadow-xl border border-gray-100">
             <h2 className="text-2xl font-black text-gray-900 mb-8 tracking-tight">회원정보 입력</h2>
-            
+
             <form onSubmit={handleSubmit} className="space-y-8">
               {/* ID & PW */}
               <div className="space-y-4">
@@ -353,14 +353,14 @@ export const Signup: React.FC = () => {
                         placeholder="영문 소문자, 숫자 포함 5~20자"
                         value={formData.userId}
                         onChange={(e) => {
-                          setFormData({...formData, userId: e.target.value});
+                          setFormData({ ...formData, userId: e.target.value });
                           setIdCheckMessage(null);
                           setIsIdChecked(false);
                         }}
                       />
                     </div>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={handleIdCheck}
                       className="px-5 py-3.5 bg-gray-900 text-white text-xs font-bold rounded-2xl hover:bg-black transition-all"
                     >
@@ -384,7 +384,7 @@ export const Signup: React.FC = () => {
                         className="block w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#FF5A5A]/20 focus:bg-white transition-all outline-none"
                         placeholder="최소 8자 이상"
                         value={formData.password}
-                        onChange={(e) => setFormData({...formData, password: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       />
                     </div>
                   </div>
@@ -400,7 +400,7 @@ export const Signup: React.FC = () => {
                         className="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#FF5A5A]/20 focus:bg-white transition-all outline-none"
                         placeholder="비밀번호 재입력"
                         value={formData.confirmPassword}
-                        onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                       />
                     </div>
                   </div>
@@ -419,7 +419,7 @@ export const Signup: React.FC = () => {
                       placeholder="한글/영문 15자 이내"
                       value={formData.nickname}
                       onChange={(e) => {
-                        setFormData({...formData, nickname: e.target.value});
+                        setFormData({ ...formData, nickname: e.target.value });
                         setNicknameCheckMessage(null);
                         setIsNicknameChecked(false);
                       }}
@@ -450,11 +450,11 @@ export const Signup: React.FC = () => {
                         className="block w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#FF5A5A]/20 focus:bg-white transition-all outline-none disabled:opacity-50"
                         placeholder="example@email.com"
                         value={formData.email}
-                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       />
                     </div>
-                    <button 
-                      type="button" 
+                    <button
+                      type="button"
                       onClick={sendVerificationCode}
                       disabled={isEmailVerified}
                       className="px-5 py-3.5 bg-gray-900 text-white text-xs font-bold rounded-2xl hover:bg-black transition-all disabled:bg-gray-200"
@@ -479,8 +479,8 @@ export const Signup: React.FC = () => {
                             </div>
                           )}
                         </div>
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={verifyCode}
                           className="px-5 py-3.5 bg-[#FF5A5A] text-white text-xs font-bold rounded-2xl hover:bg-[#FF4545] transition-all"
                         >
@@ -488,7 +488,7 @@ export const Signup: React.FC = () => {
                         </button>
                       </div>
                       <div className="flex justify-center px-1">
-                        <button 
+                        <button
                           type="button"
                           onClick={sendVerificationCode}
                           className="text-[10px] font-bold text-gray-400 hover:text-gray-600 transition-colors underline underline-offset-2"
@@ -518,7 +518,7 @@ export const Signup: React.FC = () => {
                         value={formData.address}
                       />
                     </div>
-                    <button type="button" onClick={() => setFormData({...formData, address: '서울 강남구 테헤란로 123'})} className="px-5 py-3.5 bg-gray-900 text-white text-xs font-bold rounded-2xl hover:bg-black transition-all">검색</button>
+                    <button type="button" onClick={() => setFormData({ ...formData, address: '서울 강남구 테헤란로 123' })} className="px-5 py-3.5 bg-gray-900 text-white text-xs font-bold rounded-2xl hover:bg-black transition-all">검색</button>
                   </div>
                   <input
                     type="text"
@@ -526,7 +526,7 @@ export const Signup: React.FC = () => {
                     className="block w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#FF5A5A]/20 focus:bg-white transition-all outline-none"
                     placeholder="상세주소를 입력하세요"
                     value={formData.addrDetail}
-                    onChange={(e) => setFormData({...formData, addrDetail: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, addrDetail: e.target.value })}
                   />
                 </div>
 
@@ -551,7 +551,7 @@ export const Signup: React.FC = () => {
                           } else {
                             formatted = `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
                           }
-                          setFormData({...formData, phoneNum: formatted});
+                          setFormData({ ...formData, phoneNum: formatted });
                         }}
                       />
                     </div>
@@ -569,7 +569,7 @@ export const Signup: React.FC = () => {
                         onChange={(e) => {
                           const val = e.target.value.replace(/[^0-9]/g, '');
                           if (val.length <= 6) {
-                            setFormData({...formData, birthDate: val});
+                            setFormData({ ...formData, birthDate: val });
                           }
                         }}
                       />
@@ -596,18 +596,18 @@ export const Signup: React.FC = () => {
             </div>
             <h2 className="text-4xl font-black text-gray-900 mb-4 tracking-tight">환영합니다!</h2>
             <p className="text-gray-500 font-medium leading-relaxed mb-10">
-              회원가입이 성공적으로 완료되었습니다.<br/>
+              회원가입이 성공적으로 완료되었습니다.<br />
               지금 바로 LiveBid의 실시간 경매를 시작해보세요.
             </p>
             <div className="space-y-3">
-              <Link 
-                to="/login" 
+              <Link
+                to="/login"
                 className="block w-full py-5 bg-[#FF5A5A] text-white font-black rounded-2xl hover:bg-[#FF4545] transition-all shadow-xl shadow-red-100 active:scale-95"
               >
                 로그인 하러가기
               </Link>
-              <Link 
-                to="/" 
+              <Link
+                to="/"
                 className="block w-full py-5 bg-gray-50 text-gray-600 font-black rounded-2xl hover:bg-gray-100 transition-all"
               >
                 메인으로 이동

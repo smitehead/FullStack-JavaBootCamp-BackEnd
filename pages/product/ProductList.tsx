@@ -1,18 +1,24 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { CURRENT_USER } from '../../services/mockData';
-import { useAppContext } from '../../context/AppContext';
+import api from '../../services/api';
 import { ProductCard } from '../../components/ProductCard';
 import { CATEGORY_DATA, LOCATION_DATA } from '../../constants';
-import { ChevronRight, Search, ChevronLeft, ChevronRight as ChevronRightIcon, RotateCcw, X, Plus, Minus } from 'lucide-react';
+import { ChevronRight, Search, RotateCcw, X, Plus, Minus, Loader2 } from 'lucide-react';
+import { Product } from '../../types';
 
 type SortOption = 'all' | 'popular' | 'ending' | 'latest';
 
 export const ProductList: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { products } = useAppContext();
   
+  // 데이터 상태
+  const [products, setProducts] = useState<Product[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [totalElements, setTotalElements] = useState(0);
+
   // 필터 상태 (URL과 동기화)
   const [largeCat, setLargeCat] = useState(searchParams.get('large') || '');
   const [mediumCat, setMediumCat] = useState(searchParams.get('medium') || '');
@@ -33,11 +39,88 @@ export const ProductList: React.FC = () => {
   const [faceToFace, setFaceToFace] = useState(searchParams.get('face') === 'true');
   
   const [sort, setSort] = useState<SortOption>((searchParams.get('sort') as SortOption) || 'all');
-  const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
-  const itemsPerPage = 3;
 
   // UI 상태
   const [isCategoryExpanded, setIsCategoryExpanded] = useState(true);
+  
+  // 무한 스크롤용 Ref
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastElementRef = useCallback((node: HTMLDivElement | null) => {
+    if (loading) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setPage(prevPage => prevPage + 1);
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [loading, hasMore]);
+
+  // 데이터 가져오기 함수
+  const fetchProducts = useCallback(async (pageToFetch: number, isNewSearch: boolean) => {
+    if (loading) return;
+    setLoading(true);
+
+    try {
+      const params = {
+        page: pageToFetch,
+        size: 16,
+        large: largeCat ? parseInt(largeCat.replace(/[^0-9]/g, '') || '0') : undefined,
+        medium: mediumCat ? parseInt(mediumCat.replace(/[^0-9]/g, '') || '0') : undefined,
+        small: smallCat ? parseInt(smallCat.replace(/[^0-9]/g, '') || '0') : undefined,
+        minPrice: minPrice ? parseInt(minPrice) : undefined,
+        maxPrice: maxPrice ? parseInt(maxPrice) : undefined,
+        city: city || undefined,
+        delivery: delivery || undefined,
+        face: faceToFace || undefined,
+        sort: sort === 'all' ? 'latest' : sort,
+      };
+
+      const response = await api.get('/products', { params });
+      const data = response.data;
+      
+      const mappedProducts: Product[] = (data.content || []).map((item: any) => ({
+        ...item,
+        id: String(item.id),
+        seller: item.seller || { id: 'unknown', nickname: '판매자' },
+        images: (item.images || []).map((img: string) => {
+          if (!img) return '';
+          let replaced = img.startsWith('/') ? `http://localhost:8080${img}` : img;
+          return replaced.replace('http://loclhost', 'http://localhost');
+        }),
+        status: item.status || 'active',
+        participantCount: item.participantCount || 0,
+        currentPrice: item.currentPrice || 0,
+        endTime: item.endTime || new Date().toISOString()
+      }));
+
+      if (isNewSearch) {
+        setProducts(mappedProducts);
+      } else {
+        setProducts(prev => [...prev, ...mappedProducts]);
+      }
+      
+      setTotalElements(data.totalElements || 0);
+      setHasMore(!data.last);
+    } catch (error) {
+      console.error('Failed to fetch products:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [largeCat, mediumCat, smallCat, minPrice, maxPrice, city, delivery, faceToFace, sort]);
+
+  // 필터 변경 시 초기화 및 데이터 로드
+  useEffect(() => {
+    setPage(1);
+    fetchProducts(1, true);
+  }, [largeCat, mediumCat, smallCat, minPrice, maxPrice, city, delivery, faceToFace, sort]);
+
+  // 페이지 변경 시(무한 스크롤) 데이터 추가 로드
+  useEffect(() => {
+    if (page > 1) {
+      fetchProducts(page, false);
+    }
+  }, [page]);
 
   // URL 변경 시 상태 동기화 (예: 뒤로가기 버튼)
   useEffect(() => {
@@ -58,74 +141,15 @@ export const ProductList: React.FC = () => {
     setDelivery(searchParams.get('delivery') === 'true');
     setFaceToFace(searchParams.get('face') === 'true');
     setSort((searchParams.get('sort') as SortOption) || 'all');
-    setPage(Number(searchParams.get('page')) || 1);
   }, [searchParams]);
 
   // 파생 데이터 (선택된 카테고리·지역 정보)
   const selectedLarge = CATEGORY_DATA.find(c => c.id === largeCat);
   const selectedMedium = selectedLarge?.subCategories?.find(c => c.id === mediumCat);
   const selectedSmall = selectedMedium?.subCategories?.find(c => c.id === smallCat);
-  
-  const expandedLargeData = CATEGORY_DATA.find(c => c.id === expandedLarge);
-  const expandedMediumData = expandedLargeData?.subCategories?.find(c => c.id === expandedMedium);
 
   const selectedCity = LOCATION_DATA.find(l => l.name === city);
   const selectedDistrict = selectedCity?.sub?.find(d => d.name === district);
-
-  // 필터링 로직
-  const filteredProducts = useMemo(() => {
-    let result = [...products];
-
-    // 차단한/차단당한 사용자의 상품 제외 (상호 차단)
-    result = result.filter(p =>
-      !CURRENT_USER.blockedUserIds?.includes(p.seller.id) &&
-      !p.seller.blockedUserIds?.includes(CURRENT_USER.id)
-    );
-
-    // 종료되었거나 취소된 상품 제외
-    const now = new Date().getTime();
-    result = result.filter(p => p.status === 'active' && new Date(p.endTime).getTime() > now);
-
-    // 카테고리 필터
-    if (largeCat) {
-      // 실제 연동 시: result = result.filter(p => p.largeCategoryId === largeCat);
-    }
-    if (mediumCat) {
-      // 실제 연동 시: result = result.filter(p => p.mediumCategoryId === mediumCat);
-    }
-    if (smallCat) {
-      // 실제 연동 시: result = result.filter(p => p.smallCategoryId === smallCat);
-    }
-
-    // 가격 필터
-    if (minPrice) result = result.filter(p => p.currentPrice >= Number(minPrice));
-    if (maxPrice) result = result.filter(p => p.currentPrice <= Number(maxPrice));
-
-    // 지역 필터
-    if (city) {
-      // 실제 연동 시: result = result.filter(p => p.location.includes(city));
-    }
-
-    // 거래방식 필터
-    if (delivery || faceToFace) {
-      result = result.filter(p => {
-        if (delivery && p.transactionMethod === 'delivery') return true;
-        if (faceToFace && p.transactionMethod === 'face-to-face') return true;
-        return false;
-      });
-    }
-
-    // 정렬
-    if (sort === 'popular') result.sort((a, b) => b.participantCount - a.participantCount);
-    else if (sort === 'ending') result.sort((a, b) => new Date(a.endTime).getTime() - new Date(b.endTime).getTime());
-    else if (sort === 'latest') result.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
-
-    return result;
-  }, [largeCat, mediumCat, smallCat, minPrice, maxPrice, city, district, neighborhood, delivery, faceToFace, sort]);
-
-  // 페이지네이션
-  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-  const paginatedProducts = filteredProducts.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
   const updateParams = (newParams: any) => {
     const params = Object.fromEntries(searchParams.entries());
@@ -135,10 +159,6 @@ export const ProductList: React.FC = () => {
         delete merged[key];
       }
     });
-    if (!newParams.page) {
-      merged.page = '1';
-      setPage(1);
-    }
     setSearchParams(merged);
   };
 
@@ -163,28 +183,12 @@ export const ProductList: React.FC = () => {
     updateParams({ small: id });
   };
 
-  const toggleExpandLarge = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    setExpandedLarge(expandedLarge === id ? null : id);
-  };
-
-  const toggleExpandMedium = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    setExpandedMedium(expandedMedium === id ? null : id);
-  };
-
   const handleSortChange = (newSort: SortOption) => {
     updateParams({ sort: newSort });
   };
 
-  const handlePageChange = (newPage: number) => {
-    updateParams({ page: String(newPage) });
-    window.scrollTo(0, 0);
-  };
-
   const resetAll = () => {
     setSearchParams({});
-    setPage(1);
     setExpandedLarge(null);
     setExpandedMedium(null);
   };
@@ -215,23 +219,23 @@ export const ProductList: React.FC = () => {
       {/* Breadcrumb */}
       <nav className="flex items-center text-sm text-gray-500 space-x-2">
         <span className="cursor-pointer hover:text-gray-900" onClick={() => navigate('/')}>홈</span>
-        <ChevronRightIcon className="w-4 h-4" />
+        <ChevronRight className="w-4 h-4" />
         <span className={`cursor-pointer ${!largeCat ? 'font-bold text-gray-900' : 'hover:text-gray-900'}`} onClick={() => handleLargeClick('')}>전체</span>
         {selectedLarge && (
           <>
-            <ChevronRightIcon className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4" />
             <span className={`cursor-pointer ${!mediumCat ? 'font-bold text-gray-900' : 'hover:text-gray-900'}`} onClick={() => handleLargeClick(largeCat)}>{selectedLarge.name}</span>
           </>
         )}
         {selectedMedium && (
           <>
-            <ChevronRightIcon className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4" />
             <span className={`cursor-pointer ${!smallCat ? 'font-bold text-gray-900' : 'hover:text-gray-900'}`} onClick={() => handleMediumClick(mediumCat)}>{selectedMedium.name}</span>
           </>
         )}
         {selectedSmall && (
           <>
-            <ChevronRightIcon className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4" />
             <span className="font-bold text-gray-900">{selectedSmall.name}</span>
           </>
         )}
@@ -252,7 +256,6 @@ export const ProductList: React.FC = () => {
             </div>
           </div>
           <div className="flex-grow flex flex-col">
-            {/* Category Breadcrumb/Header - Always Visible */}
             <div className="px-6 pt-4 pb-2 flex items-center space-x-2 text-sm">
               <button 
                 onClick={() => handleLargeClick('')}
@@ -262,7 +265,7 @@ export const ProductList: React.FC = () => {
               </button>
               {selectedLarge && (
                 <>
-                  <ChevronRightIcon className="w-3 h-3 text-gray-300" />
+                  <ChevronRight className="w-3 h-3 text-gray-300" />
                   <button 
                     onClick={() => { setMediumCat(''); setSmallCat(''); updateParams({ medium: '', small: '' }); }}
                     className={`font-bold ${!mediumCat ? 'text-brand' : 'text-gray-900 hover:underline'}`}
@@ -273,7 +276,7 @@ export const ProductList: React.FC = () => {
               )}
               {selectedMedium && (
                 <>
-                  <ChevronRightIcon className="w-3 h-3 text-gray-300" />
+                  <ChevronRight className="w-3 h-3 text-gray-300" />
                   <button 
                     onClick={() => { setSmallCat(''); updateParams({ small: '' }); }}
                     className={`font-bold ${!smallCat ? 'text-brand' : 'text-gray-900 hover:underline'}`}
@@ -284,13 +287,12 @@ export const ProductList: React.FC = () => {
               )}
               {selectedSmall && (
                 <>
-                  <ChevronRightIcon className="w-3 h-3 text-gray-300" />
+                  <ChevronRight className="w-3 h-3 text-gray-300" />
                   <span className="font-bold text-brand">{selectedSmall.name}</span>
                 </>
               )}
             </div>
 
-            {/* Category Grid - Collapsible */}
             <div className={`px-6 pb-6 flex-grow transition-all duration-300 ${isCategoryExpanded ? 'opacity-100' : 'h-0 opacity-0 overflow-hidden p-0'}`}>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-y-3 gap-x-8 mt-2">
                 {!largeCat ? (
@@ -494,7 +496,7 @@ export const ProductList: React.FC = () => {
       {/* List Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 py-4">
         <div className="flex items-center space-x-2">
-          <span className="text-sm font-bold text-gray-900">총 <span className="text-gray-900">{filteredProducts.length}</span>개 상품</span>
+          <span className="text-sm font-bold text-gray-900">총 <span className="text-gray-900">{totalElements}</span>개 상품</span>
         </div>
         
         <div className="flex items-center space-x-1">
@@ -516,14 +518,25 @@ export const ProductList: React.FC = () => {
       </div>
 
       {/* Product Grid */}
-      <div className="grid grid-cols-4 gap-6">
-        {paginatedProducts.map(product => (
-          <ProductCard key={product.id} product={product} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {products.map((product, index) => (
+          <div 
+            key={`${product.id}-${index}`} 
+            ref={index === products.length - 1 ? lastElementRef : null}
+          >
+            <ProductCard product={product} />
+          </div>
         ))}
       </div>
 
-      {/* No Results */}
-      {paginatedProducts.length === 0 && (
+      {/* Loading & No Results */}
+      {loading && (
+        <div className="flex justify-center py-10">
+          <Loader2 className="w-8 h-8 text-brand animate-spin" />
+        </div>
+      )}
+
+      {!loading && products.length === 0 && (
         <div className="py-32 text-center bg-white rounded-3xl border border-gray-100 shadow-sm">
           <Search className="w-16 h-16 text-gray-200 mx-auto mb-6" />
           <p className="text-gray-500 text-xl font-bold mb-2">조건에 맞는 상품이 없습니다.</p>
@@ -533,37 +546,6 @@ export const ProductList: React.FC = () => {
             className="text-xs font-bold text-gray-400 hover:text-gray-600 underline underline-offset-4"
           >
             필터 초기화
-          </button>
-        </div>
-      )}
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center space-x-2 pt-12">
-          <button 
-            onClick={() => handlePageChange(page - 1)}
-            disabled={page === 1}
-            className="w-10 h-10 flex items-center justify-center rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-30 transition-all"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-            <button
-              key={p}
-              onClick={() => handlePageChange(p)}
-              className={`w-10 h-10 flex items-center justify-center rounded font-bold transition-all ${page === p ? 'bg-blue-500 text-white' : 'border border-gray-200 text-gray-500 hover:border-brand hover:text-brand'}`}
-            >
-              {p}
-            </button>
-          ))}
-
-          <button 
-            onClick={() => handlePageChange(page + 1)}
-            disabled={page === totalPages}
-            className="w-10 h-10 flex items-center justify-center rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-30 transition-all"
-          >
-            <ChevronRightIcon className="w-5 h-5" />
           </button>
         </div>
       )}
