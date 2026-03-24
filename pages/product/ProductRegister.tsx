@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Category, CategoryItem, TransactionMethod, Product } from '../types';
-import { CATEGORY_DATA } from '../constants';
-import { useAppContext } from '../context/AppContext';
+import { Category, CategoryItem, TransactionMethod, Product } from '../../types';
+import { CATEGORY_DATA } from '../../constants';
+import { useAppContext } from '../../context/AppContext';
 import { Camera, Calendar, DollarSign, MapPin, Truck, Info, AlignLeft, Package, ArrowLeft } from 'lucide-react';
 
 export const ProductRegister: React.FC = () => {

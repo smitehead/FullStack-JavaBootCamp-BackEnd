@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Calendar, Eye, Info, AlertTriangle, List } from 'lucide-react';
-import { MOCK_NOTICES } from '../services/mockData';
+import { MOCK_NOTICES } from '../../services/mockData';
 import { format } from 'date-fns';
 
 export const NoticeDetail: React.FC = () => {

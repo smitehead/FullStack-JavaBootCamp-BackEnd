@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MOCK_PRODUCTS, MOCK_REVIEWS, MOCK_REVIEW_TAGS } from '../services/mockData';
-import { ProductCard } from '../components/ProductCard';
+import { MOCK_PRODUCTS, MOCK_REVIEWS, MOCK_REVIEW_TAGS } from '../../services/mockData';
+import { ProductCard } from '../../components/ProductCard';
 import { Package, MessageSquare, Thermometer, Calendar, User, ChevronRight, AlertCircle, Shield } from 'lucide-react';
-import { Review, User as UserType, Product } from '../types';
+import { Review, User as UserType, Product } from '../../types';
 
 export const SellerProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();

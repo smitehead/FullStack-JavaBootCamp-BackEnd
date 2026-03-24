@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, MessageSquare, ChevronRight, Package, Clock } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import { useAppContext } from '../context/AppContext';
-import { CURRENT_USER } from '../services/mockData';
+import { useAppContext } from '../../context/AppContext';
+import { CURRENT_USER } from '../../services/mockData';
 
 export const Inbox: React.FC = () => {
   const { notifications, chats, markNotificationAsRead, markChatAsRead } = useAppContext();

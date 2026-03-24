@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
-import { MOCK_NOTICES } from '../services/mockData';
-import { NoticeCategory } from '../types';
+import { MOCK_NOTICES } from '../../services/mockData';
+import { NoticeCategory } from '../../types';
 import { format } from 'date-fns';
-import { CustomerCenterSidebar } from '../components/CustomerCenterSidebar';
+import { CustomerCenterSidebar } from '../cs/CustomerCenterSidebar';
 
 export const NoticeList: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<NoticeCategory | '전체'>('전체');

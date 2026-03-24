@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { CURRENT_USER, MOCK_PRODUCTS, MOCK_REVIEW_TAGS } from '../services/mockData';
-import { Product } from '../types';
+import { CURRENT_USER, MOCK_PRODUCTS, MOCK_REVIEW_TAGS } from '../../services/mockData';
+import { Product } from '../../types';
 import { ChevronLeft, Star, Camera, CheckCircle2, Package, User } from 'lucide-react';
 
 export const ReviewCreate: React.FC = () => {

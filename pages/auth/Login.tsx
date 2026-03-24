@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Package, Mail, Lock, AlertCircle, ChevronRight } from 'lucide-react';
-import { useAppContext } from '../context/AppContext';
+import { useAppContext } from '../../context/AppContext';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
