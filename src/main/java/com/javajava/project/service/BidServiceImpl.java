@@ -91,6 +91,9 @@ public class BidServiceImpl implements BidService {
                     .reason("[" + product.getTitle() + "] 상위 입찰 발생으로 인한 자동 환불")
                     .build());
 
+            // 실시간 포인트 업데이트 발송
+            sseService.sendPointUpdate(previousBidder.getMemberNo(), previousBidder.getPoints());
+
             // 이전 입찰자가 현재 입찰자와 다른 경우에만 알림 진행
             if (!lastBid.getMemberNo().equals(currentBidder.getMemberNo())) {
                 String messageToPrevBidder = String.format("상위 입찰 발생: %s에 더 높은 입찰가가 등록되었습니다.", product.getTitle());
@@ -112,6 +115,9 @@ public class BidServiceImpl implements BidService {
                 .balance(currentBidder.getPoints())
                 .reason("[" + product.getTitle() + "] 경매 입찰 참여")
                 .build());
+
+        // 실시간 포인트 업데이트 발송
+        sseService.sendPointUpdate(currentBidder.getMemberNo(), currentBidder.getPoints());
 
         // 6. 상품 및 입찰 기록 업데이트
         product.setCurrentPrice(bidDto.getBidPrice());

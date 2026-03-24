@@ -83,7 +83,7 @@ public class ProductServiceImpl implements ProductService {
 
         return products.stream().map(product -> {
             ProductImage mainImage = productImageRepository.findFirstByProductNoAndIsMainOrderByImageNoAsc(product.getProductNo(), 1);
-            String imageUrl = mainImage != null ? "/api/images/" + mainImage.getUuidName() : "/api/images/sample.jpg";
+            String imageUrl = mainImage != null ? "/api/images/" + mainImage.getUuidName() : null;
             return ProductResponseDto.builder()
                 .productNo(product.getProductNo())
                 .title(product.getTitle())
@@ -143,9 +143,7 @@ public class ProductServiceImpl implements ProductService {
             List<String> imageUrls = productImages.stream()
                     .map(img -> "/api/images/" + img.getUuidName())
                     .collect(Collectors.toList());
-            if (imageUrls.isEmpty()) {
-                imageUrls.add("/api/images/sample.jpg");
-            }
+
             
             return ProductListResponseDto.builder()
                     .id(product.getProductNo())
@@ -191,9 +189,7 @@ public class ProductServiceImpl implements ProductService {
         List<String> imageUrls = productImages.stream()
                 .map(img -> "/api/images/" + img.getUuidName())
                 .collect(Collectors.toList());
-        if (imageUrls.isEmpty()) {
-            imageUrls.add("/api/images/sample.jpg");
-        }
+
 
         // 5. 상세 데이터 조립 및 반환
         return ProductDetailResponseDto.builder()
@@ -224,7 +220,7 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new IllegalArgumentException("해당 상품이 없습니다. ID: " + productNo));
                 
         ProductImage mainImage = productImageRepository.findFirstByProductNoAndIsMainOrderByImageNoAsc(productNo, 1);
-        String imageUrl = mainImage != null ? "/api/images/" + mainImage.getUuidName() : "/api/images/sample.jpg";
+        String imageUrl = mainImage != null ? "/api/images/" + mainImage.getUuidName() : null;
         
         return ProductResponseDto.builder()
                 .productNo(product.getProductNo())
