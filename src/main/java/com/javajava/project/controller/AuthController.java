@@ -6,6 +6,7 @@ import com.javajava.project.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -30,12 +31,18 @@ public class AuthController {
     /**
      * 로그아웃
      * POST /api/auth/logout
-     * JWT는 stateless이므로 서버에서 토큰을 삭제할 수 없음.
-     * 프론트에서 저장된 토큰을 삭제하는 방식으로 처리.
-     * 서버는 200 OK만 반환.
+     * DB에서 currentToken을 삭제하여 해당 토큰을 즉시 무효화.
+     * 프론트에서도 로컬스토리지의 토큰을 삭제.
      */
     @PostMapping("/logout")
     public ResponseEntity<Void> logout() {
+        // SecurityContext에서 현재 로그인한 회원 번호 추출
+        Object principal = SecurityContextHolder.getContext().getAuthentication() != null
+                ? SecurityContextHolder.getContext().getAuthentication().getPrincipal()
+                : null;
+        if (principal instanceof Long memberNo) {
+            authService.logout(memberNo);
+        }
         return ResponseEntity.ok().build();
     }
 }

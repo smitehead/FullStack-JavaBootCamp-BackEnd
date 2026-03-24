@@ -5,4 +5,5 @@ import com.javajava.project.dto.LoginResponseDto;
 
 public interface AuthService {
     LoginResponseDto login(LoginRequestDto dto);
+    void logout(Long memberNo);
 }

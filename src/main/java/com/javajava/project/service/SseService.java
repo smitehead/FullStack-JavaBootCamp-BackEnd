@@ -66,6 +66,22 @@ public class SseService {
     }
 
     /**
+     * 특정 사용자에게 강제 로그아웃 이벤트 전송 (다른 기기에서 로그인 감지 시)
+     * SSE 연결이 없으면(오프라인 등) 건너뜀 → 이후 API 요청 시 401 인터셉터로 처리됨
+     */
+    public void sendForceLogout(Long memberNo) {
+        String clientId = String.valueOf(memberNo);
+        SseEmitter emitter = emitterMap.get(clientId);
+        if (emitter != null) {
+            try {
+                emitter.send(SseEmitter.event().name("forceLogout").data("{}"));
+            } catch (IOException e) {
+                emitterMap.remove(clientId);
+            }
+        }
+    }
+
+    /**
      * 모든 연결된 클라이언트에게 실시간 입찰가 갱신 브로드캐스트
      */
     public void broadcastPriceUpdate(Long productNo, Long currentPrice) {

@@ -80,4 +80,8 @@ public class Member {
     @Builder.Default
     @Column(name = "MARKETING_AGREE", nullable = false)
     private Integer marketingAgree = 0;
+
+    // 현재 유효한 JWT 토큰 (동시 로그인 방지용 - 새 로그인 시 기존 토큰 무효화)
+    @Column(name = "CURRENT_TOKEN", length = 500)
+    private String currentToken;
 }

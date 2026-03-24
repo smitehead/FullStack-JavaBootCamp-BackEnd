@@ -285,6 +285,59 @@ CREATE TABLE member_token (
 
 ---
 
+---
+
+## 다기기 동시 로그인 방지 구현 `2026-03-24`
+
+> 위에서 요청한 방안 A (DB 기반 토큰 관리)를 Member 엔티티 컬럼 방식으로 구현 완료.
+> 별도 테이블 생성 없이 Member 테이블에 `CURRENT_TOKEN` 컬럼만 추가.
+
+### 변경된 파일
+
+#### `Member.java`
+- `currentToken` 필드 추가 (`CURRENT_TOKEN VARCHAR2(500)`, nullable)
+- `ddl-auto=update`로 서버 재시작 시 자동으로 DB 컬럼 추가됨
+
+#### `AuthService.java`
+- `logout(Long memberNo)` 메서드 인터페이스 추가
+
+#### `AuthServiceImpl.java`
+- `login()` → 로그인 성공 시 신규 토큰을 `member.currentToken`에 저장 (기존 토큰 자동 덮어쓰기)
+- `logout()` → 해당 회원의 `currentToken`을 null로 초기화
+- `@Transactional` 어노테이션 추가
+
+#### `JwtAuthenticationFilter.java`
+- `MemberRepository` 의존성 추가
+- 토큰 유효성 검증 후 DB의 `currentToken`과 비교하는 로직 추가
+- 불일치 시 `401 Unauthorized` 응답 반환 (`{ "error": "다른 기기에서 로그인되어 자동 로그아웃 처리되었습니다." }`)
+- `currentToken == null`인 경우(기존 로그인 세션)는 허용 → 재로그인 후부터 적용됨
+
+#### `AuthController.java`
+- `logout()` → `SecurityContextHolder`에서 `memberNo` 추출 후 `authService.logout(memberNo)` 호출
+
+#### `SseService.java` (추가)
+- `sendForceLogout(Long memberNo)` 메서드 추가
+- 해당 회원의 SSE 연결에 `forceLogout` 이벤트 전송 (연결 없으면 건너뜀)
+
+#### `AuthServiceImpl.java` (추가)
+- `SseService` 의존성 주입
+- `login()` → currentToken 교체 전에 `sseService.sendForceLogout()` 호출하여 기존 기기에 즉시 알림
+
+### 동작 흐름
+
+```
+1. A기기 로그인  → DB: currentToken = "tokenA", SSE 구독 중
+2. B기기 로그인  → sendForceLogout() 호출 → A기기 SSE에 forceLogout 이벤트 즉시 전송
+                → DB: currentToken = "tokenB" (tokenA 덮어씀)
+3. A기기 프론트  → SSE 이벤트 수신 → 즉시 로그아웃 (새로고침 불필요)
+
+(A기기 SSE 미연결 시 백업)
+3. A기기 API 요청 → Filter에서 "tokenA" ≠ DB "tokenB" 감지 → 401 반환
+4. A기기 프론트  → 401 interceptor 수신 → 로그아웃
+```
+
+---
+
 ### 3. 이메일 인증 API 구현 요청
 
 현재 프론트엔드 이메일 인증이 Mock 상태 (랜덤 숫자를 `alert`로 노출).

@@ -18,8 +18,10 @@ public class AuthServiceImpl implements AuthService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final SseService sseService;
 
     @Override
+    @Transactional
     public LoginResponseDto login(LoginRequestDto dto) {
         // 1. 아이디로 회원 조회 (없으면 예외)
         Member member = memberRepository.findByUserId(dto.getUserId())
@@ -44,12 +46,26 @@ public class AuthServiceImpl implements AuthService {
         // 5. JWT 토큰 발급
         String token = jwtUtil.generateToken(member.getMemberNo(), member.getUserId());
 
-        // 6. 응답 반환 (토큰 + 회원 기본 정보)
+        // 6. 동시 로그인 방지: 기존 기기에 SSE로 즉시 강제 로그아웃 이벤트 전송 (연결 중인 경우)
+        //    SSE 연결이 없으면 건너뜀 → 이후 API 요청 시 401 인터셉터로 처리됨
+        sseService.sendForceLogout(member.getMemberNo());
+
+        // 7. 새로 발급한 토큰을 DB에 저장 (기존 기기의 토큰 자동 무효화)
+        member.setCurrentToken(token);
+
+        // 7. 응답 반환 (토큰 + 회원 기본 정보)
         return LoginResponseDto.builder()
                 .token(token)
                 .memberNo(member.getMemberNo())
                 .userId(member.getUserId())
                 .nickname(member.getNickname())
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public void logout(Long memberNo) {
+        // 로그아웃 시 DB의 currentToken을 제거하여 해당 토큰 즉시 무효화
+        memberRepository.findById(memberNo).ifPresent(m -> m.setCurrentToken(null));
     }
 }
