@@ -470,12 +470,11 @@ const Footer: React.FC = () => {
           {/* Links */}
           <div className="md:col-span-2">
             <h4 className="text-sm font-black text-gray-800 mb-6 uppercase tracking-wider">서비스 및 정책</h4>
-            <ul className="space-y-4 text-sm text-gray-500 font-medium">
-              <li><a href="#" className="hover:text-[#FF5A5A] transition-colors">서비스 소개</a></li>
-              <li><a href="#" className="hover:text-[#FF5A5A] transition-colors font-bold text-gray-700">개인정보처리방침</a></li>
-              <li><a href="#" className="hover:text-[#FF5A5A] transition-colors">이용약관</a></li>
-              <li><a href="#" className="hover:text-[#FF5A5A] transition-colors">운영정책</a></li>
-              <li><a href="#" className="hover:text-[#FF5A5A] transition-colors">청소년보호정책</a></li>
+            <ul className="space-y-4 text-sm text-gray-500 font-bold">
+              <li><Link to="/about?tab=intro" className="hover:text-[#FF5A5A] transition-colors">서비스 소개</Link></li>
+              <li><Link to="/about?tab=privacy" className="hover:text-[#FF5A5A] transition-colors">개인정보처리방침</Link></li>
+              <li><Link to="/about?tab=terms" className="hover:text-[#FF5A5A] transition-colors">이용약관</Link></li>
+              <li><Link to="/about?tab=policy" className="hover:text-[#FF5A5A] transition-colors">운영정책</Link></li>
             </ul>
           </div>
 

@@ -23,7 +23,7 @@ import { NoticeDetail } from './pages/NoticeDetail';
 import { InquiryList } from './pages/InquiryList';
 import { InquiryCreate } from './pages/InquiryCreate';
 import { InquiryDetail } from './pages/InquiryDetail';
-import { CSCenter } from './pages/CSCenter';
+import { AboutUs } from './pages/AboutUs';
 import { AdminLayout } from './pages/admin/AdminLayout';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { UserManagement } from './pages/admin/UserManagement';
@@ -70,7 +70,7 @@ const App: React.FC = () => {
                 <Route path="/products/:id" element={<ProductDetail />} />
                 <Route path="/won/:id" element={<WonProductDetail />} />
                 <Route path="/inbox" element={<Inbox />} />
-                <Route path="/cs" element={<CSCenter />} />
+                <Route path="/about" element={<AboutUs />} />
                 <Route path="/notice" element={<NoticeList />} />
                 <Route path="/notice/:id" element={<NoticeDetail />} />
                 <Route path="/inquiry" element={<InquiryList />} />
