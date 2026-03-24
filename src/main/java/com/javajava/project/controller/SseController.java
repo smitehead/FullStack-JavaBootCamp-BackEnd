@@ -10,6 +10,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/sse")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*") // CORS 허용 추가
 public class SseController {
 
     private final SseService sseService;

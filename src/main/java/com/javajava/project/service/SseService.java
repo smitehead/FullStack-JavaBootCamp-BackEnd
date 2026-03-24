@@ -49,12 +49,28 @@ public class SseService {
     }
 
     /**
+     * 특정 사용자에게 포인트 갱신 이벤트 전송
+     */
+    public void sendPointUpdate(Long memberNo, Long currentPoints) {
+        String clientId = String.valueOf(memberNo);
+        SseEmitter emitter = emitterMap.get(clientId);
+        
+        if (emitter != null) {
+            try {
+                Map<String, Object> data = Map.of("points", currentPoints);
+                emitter.send(SseEmitter.event().name("pointUpdate").data(data));
+            } catch (IOException e) {
+                emitterMap.remove(clientId);
+            }
+        }
+    }
+
+    /**
      * 모든 연결된 클라이언트에게 실시간 입찰가 갱신 브로드캐스트
      */
     public void broadcastPriceUpdate(Long productNo, Long currentPrice) {
         Map<String, Object> data = Map.of("productNo", productNo, "currentPrice", currentPrice);
         
-        // 현재 연결된 모든 사용자에게 'priceUpdate'라는 이벤트 이름으로 데이터 발송
         emitterMap.forEach((clientId, emitter) -> {
             try {
                 emitter.send(SseEmitter.event().name("priceUpdate").data(data));

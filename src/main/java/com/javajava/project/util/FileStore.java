@@ -18,7 +18,7 @@ public class FileStore {
     private String fileDir;
 
     public String getFullPath(String filename) {
-        return fileDir + filename;
+        return new File(fileDir, filename).getAbsolutePath();
     }
 
     public List<ProductImage> storeFiles(List<MultipartFile> multipartFiles, Long productNo) throws IOException {
@@ -45,19 +45,20 @@ public class FileStore {
         String originalFilename = multipartFile.getOriginalFilename();
         String uuidName = createStoreFileName(originalFilename);
         
-        // 디렉토리가 없으면 생성
-        File dir = new File(fileDir);
+        // 디렉토리가 없으면 생성 (절대 경로 이용)
+        File dir = new File(fileDir).getAbsoluteFile();
         if(!dir.exists()) {
              dir.mkdirs();
         }
 
-        multipartFile.transferTo(new File(getFullPath(uuidName)));
+        File targetFile = new File(dir, uuidName);
+        multipartFile.transferTo(targetFile);
 
         return ProductImage.builder()
                 .productNo(productNo)
                 .originalName(originalFilename)
                 .uuidName(uuidName)
-                .imagePath(getFullPath(uuidName))
+                .imagePath(targetFile.getAbsolutePath())
                 .isMain(isMain)
                 .build();
     }

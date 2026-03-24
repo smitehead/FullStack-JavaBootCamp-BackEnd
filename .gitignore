@@ -50,3 +50,6 @@ gemini/기능 명세서 - 알림 메시지 종류.csv
 gemini/기능 명세서.xlsx
 gemini/상품쪽프론트.txt
 gemini/Auction ERD(최최종종본본)-snapshot.json
+server_log.txt
+boot_log.txt
+server_log_utf8.txt
