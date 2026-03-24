@@ -1,14 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Package, Mail, Lock, AlertCircle, ChevronRight } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useAppContext();
+  const { login, user } = useAppContext();
   const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  // 이미 로그인된 상태면 홈으로 리다이렉트 (중복 로그인 방지)
+  useEffect(() => {
+    if (user) {
+      navigate('/', { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,20 +24,19 @@ export const Login: React.FC = () => {
     const trimmedId = userId.trim();
     const trimmedPw = password.trim();
 
-    // 1. Validation
+    // 1. 입력값 검증
     if (trimmedId.length === 0 || trimmedPw.length === 0) {
       setError('아이디와 비밀번호를 모두 입력해주세요.');
       return;
     }
 
-    // 2. Login via Context API
+    // 2. Context API를 통한 로그인 요청
     const success = await login(trimmedId, trimmedPw);
-    
+
     if (success) {
-      alert('로그인에 성공했습니다!');
       navigate('/');
     } else {
-      // Failure
+      // 로그인 실패
       alert('아이디 혹은 비밀번호가 잘못되었습니다.');
       setError('아이디 혹은 비밀번호가 일치하지 않습니다.');
     }

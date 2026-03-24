@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import api from '../services/api';
 import { Package, Check, ChevronRight, Mail, User, Lock, ShieldCheck, MapPin, Phone, Calendar, AlertCircle, Send, CheckCircle2, X } from 'lucide-react';
 
 type SignupStep = 'terms' | 'info' | 'success';
@@ -8,7 +9,7 @@ export const Signup: React.FC = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<SignupStep>('terms');
   
-  // Terms state
+  // 약관 동의 상태
   const [terms, setTerms] = useState({
     service: false,
     privacy: false,
@@ -19,7 +20,7 @@ export const Signup: React.FC = () => {
     marketing: false
   });
 
-  // User info state
+  // 회원정보 입력 상태
   const [formData, setFormData] = useState({
     userId: '',
     password: '',
@@ -29,13 +30,18 @@ export const Signup: React.FC = () => {
     address: '',
     addrDetail: '',
     phoneNum: '',
-    birthDate: '' // Will be 6 digits
+    birthDate: '' // 6자리 숫자 (YYMMDD)
   });
 
-  // ID Check state
+  // 아이디 중복확인 상태
   const [idCheckMessage, setIdCheckMessage] = useState<{ text: string; isError: boolean } | null>(null);
+  const [isIdChecked, setIsIdChecked] = useState(false);
 
-  // Terms accordion state
+  // 닉네임 중복확인 상태
+  const [nicknameCheckMessage, setNicknameCheckMessage] = useState<{ text: string; isError: boolean } | null>(null);
+  const [isNicknameChecked, setIsNicknameChecked] = useState(false);
+
+  // 약관 아코디언 펼침 상태
   const [expandedTerm, setExpandedTerm] = useState<string | null>(null);
 
   const termContents: Record<string, string> = {
@@ -52,7 +58,7 @@ export const Signup: React.FC = () => {
     setExpandedTerm(prev => prev === key ? null : key);
   };
 
-  const handleIdCheck = () => {
+  const handleIdCheck = async () => {
     if (!formData.userId) {
       setIdCheckMessage({ text: '아이디를 입력해주세요.', isError: true });
       return;
@@ -62,16 +68,41 @@ export const Signup: React.FC = () => {
       setIdCheckMessage({ text: '영문 소문자, 숫자 포함 5~20자여야 합니다.', isError: true });
       return;
     }
-    
-    // Mock check
-    if (formData.userId === 'admin' || formData.userId === 'user1') {
-      setIdCheckMessage({ text: '이미 사용 중인 아이디입니다.', isError: true });
-    } else {
-      setIdCheckMessage({ text: '사용 가능한 아이디입니다.', isError: false });
+
+    try {
+      const res = await api.get(`/members/check-userid?userId=${formData.userId}`);
+      if (res.data.duplicate) {
+        setIdCheckMessage({ text: '이미 사용 중인 아이디입니다.', isError: true });
+        setIsIdChecked(false);
+      } else {
+        setIdCheckMessage({ text: '사용 가능한 아이디입니다.', isError: false });
+        setIsIdChecked(true);
+      }
+    } catch {
+      setIdCheckMessage({ text: '중복확인 중 오류가 발생했습니다.', isError: true });
     }
   };
 
-  // Email verification state
+  const handleNicknameCheck = async () => {
+    if (!formData.nickname) {
+      setNicknameCheckMessage({ text: '닉네임을 입력해주세요.', isError: true });
+      return;
+    }
+    try {
+      const res = await api.get(`/members/check-nickname?nickname=${encodeURIComponent(formData.nickname)}`);
+      if (res.data.duplicate) {
+        setNicknameCheckMessage({ text: '이미 사용 중인 닉네임입니다.', isError: true });
+        setIsNicknameChecked(false);
+      } else {
+        setNicknameCheckMessage({ text: '사용 가능한 닉네임입니다.', isError: false });
+        setIsNicknameChecked(true);
+      }
+    } catch {
+      setNicknameCheckMessage({ text: '중복확인 중 오류가 발생했습니다.', isError: true });
+    }
+  };
+
+  // 이메일 인증 상태
   const [emailCode, setEmailCode] = useState('');
   const [sentCode, setSentCode] = useState<string | null>(null);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
@@ -109,15 +140,26 @@ export const Signup: React.FC = () => {
     });
   };
 
-  const sendVerificationCode = () => {
+  const sendVerificationCode = async () => {
     if (!formData.email.includes('@')) {
       alert('올바른 이메일 형식을 입력해주세요.');
       return;
     }
-    // Generate 6 digit random number
+    // DB에 이미 등록된 이메일인지 먼저 확인
+    try {
+      const res = await api.get(`/members/check-email?email=${encodeURIComponent(formData.email)}`);
+      if (res.data.duplicate) {
+        alert('이미 사용 중인 이메일입니다. 다른 이메일을 입력해주세요.');
+        return;
+      }
+    } catch {
+      alert('이메일 확인 중 오류가 발생했습니다.');
+      return;
+    }
+    // 6자리 랜덤 인증번호 생성
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setSentCode(code);
-    setTimer(180); // 3 minutes
+    setTimer(180); // 3분
     alert(`인증번호가 발송되었습니다: ${code} (실제 서비스에서는 이메일로 발송됩니다)`);
   };
 
@@ -131,46 +173,74 @@ export const Signup: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 1. ID Validation (5-20 chars, lowercase/numbers)
+    // 1. ID 중복확인 여부 체크
+    if (!isIdChecked) {
+      alert('아이디 중복확인을 완료해주세요.');
+      return;
+    }
+
+    // 1-1. 닉네임 중복확인 여부 체크
+    if (!isNicknameChecked) {
+      alert('닉네임 중복확인을 완료해주세요.');
+      return;
+    }
+
+    // 2. 아이디 유효성 검사 (영문 소문자·숫자 5~20자)
     const idRegex = /^[a-z0-9]{5,20}$/;
     if (!idRegex.test(formData.userId)) {
       alert('아이디는 영문 소문자, 숫자 포함 5~20자여야 합니다.');
       return;
     }
 
-    // 2. Password Validation (8+ chars)
+    // 3. 비밀번호 유효성 검사 (8자 이상)
     if (formData.password.length < 8) {
       alert('비밀번호는 최소 8자 이상이어야 합니다.');
       return;
     }
 
-    // 3. Password Match
+    // 4. 비밀번호 일치 확인
     if (formData.password !== formData.confirmPassword) {
       alert('비밀번호가 일치하지 않습니다.');
       return;
     }
 
-    // 4. Email Verification Check
+    // 5. 이메일 인증 완료 여부 확인
     if (!isEmailVerified) {
       alert('이메일 인증을 완료해주세요.');
       return;
     }
 
-    // Success: In a real app, send to server
-    // Automatically saved info: joinedAt (SYSDATE), mannerTemp (30), points (0), profile (default)
-    console.log('Final Signup Data:', {
-      ...formData,
-      joinedAt: new Date().toISOString(),
-      mannerTemp: 30,
-      points: 0,
-      profileImage: 'default/user.png',
-      marketingConsent: terms.marketing
-    });
+    // 6. birthDate: YYMMDD → yyyy-MM-dd 변환
+    const yy = parseInt(formData.birthDate.substring(0, 2), 10);
+    const currentYY = new Date().getFullYear() % 100;
+    const fullYear = yy > currentYY ? `19${formData.birthDate.substring(0, 2)}` : `20${formData.birthDate.substring(0, 2)}`;
+    const birthDateFormatted = `${fullYear}-${formData.birthDate.substring(2, 4)}-${formData.birthDate.substring(4, 6)}`;
 
-    setStep('success');
+    try {
+      await api.post('/members', {
+        userId: formData.userId,
+        password: formData.password,
+        nickname: formData.nickname,
+        email: formData.email,
+        phoneNum: formData.phoneNum,
+        emdNo: 1, // TODO: 주소 검색 API 연동 후 실제 읍면동 번호로 교체 필요
+        addrDetail: formData.addrDetail,
+        birthDate: birthDateFormatted,
+        marketingAgree: terms.marketing ? 1 : 0,
+      });
+      setStep('success');
+    } catch (error: any) {
+      if (error.response?.status === 409) {
+        alert('이미 사용 중인 아이디, 닉네임, 또는 이메일입니다.');
+      } else if (error.response?.status === 400) {
+        alert(error.response.data?.message || '입력 정보를 다시 확인해주세요.');
+      } else {
+        alert('회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      }
+    }
   };
 
   return (
@@ -285,6 +355,7 @@ export const Signup: React.FC = () => {
                         onChange={(e) => {
                           setFormData({...formData, userId: e.target.value});
                           setIdCheckMessage(null);
+                          setIsIdChecked(false);
                         }}
                       />
                     </div>
@@ -340,14 +411,32 @@ export const Signup: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">닉네임</label>
-                  <input
-                    type="text"
-                    required
-                    className="block w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#FF5A5A]/20 focus:bg-white transition-all outline-none"
-                    placeholder="한글/영문 15자 이내"
-                    value={formData.nickname}
-                    onChange={(e) => setFormData({...formData, nickname: e.target.value})}
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      required
+                      className="block flex-1 px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#FF5A5A]/20 focus:bg-white transition-all outline-none"
+                      placeholder="한글/영문 15자 이내"
+                      value={formData.nickname}
+                      onChange={(e) => {
+                        setFormData({...formData, nickname: e.target.value});
+                        setNicknameCheckMessage(null);
+                        setIsNicknameChecked(false);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleNicknameCheck}
+                      className="px-5 py-3.5 bg-gray-900 text-white text-xs font-bold rounded-2xl hover:bg-black transition-all"
+                    >
+                      중복확인
+                    </button>
+                  </div>
+                  {nicknameCheckMessage && (
+                    <p className={`text-[10px] mt-2 ml-1 font-bold ${nicknameCheckMessage.isError ? 'text-red-500' : 'text-emerald-500'}`}>
+                      {nicknameCheckMessage.text}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -451,7 +540,19 @@ export const Signup: React.FC = () => {
                         className="block w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#FF5A5A]/20 focus:bg-white transition-all outline-none"
                         placeholder="010-0000-0000"
                         value={formData.phoneNum}
-                        onChange={(e) => setFormData({...formData, phoneNum: e.target.value})}
+                        onChange={(e) => {
+                          // 숫자만 추출 후 010-0000-0000 형식으로 자동 포맷
+                          const digits = e.target.value.replace(/[^0-9]/g, '');
+                          let formatted = digits;
+                          if (digits.length <= 3) {
+                            formatted = digits;
+                          } else if (digits.length <= 7) {
+                            formatted = `${digits.slice(0, 3)}-${digits.slice(3)}`;
+                          } else {
+                            formatted = `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
+                          }
+                          setFormData({...formData, phoneNum: formatted});
+                        }}
                       />
                     </div>
                   </div>

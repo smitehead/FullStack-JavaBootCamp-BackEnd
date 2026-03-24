@@ -45,10 +45,11 @@ export const Home: React.FC = () => {
           ...item,
           id: String(item.id),
           seller: item.seller || { id: String(item.sellerId || 'unknown'), nickname: item.sellerNickname || '판매자' },
-          images: item.images && item.images.length > 0 ? item.images.map((img: string) => {
+          images: (item.images || []).map((img: string) => {
+            if (!img) return '';
             let replaced = img.startsWith('/') ? `http://localhost:8080${img}` : img;
             return replaced.replace('http://loclhost', 'http://localhost');
-          }) : ['https://via.placeholder.com/600'],
+          }),
           category: item.category || '기타',
           participantCount: item.participantCount || 0,
           currentPrice: item.currentPrice || 0,
@@ -65,9 +66,9 @@ export const Home: React.FC = () => {
     fetchPopularProducts();
   }, []);
 
-  // SSE logic for real-time price updates on Home page
+  // 홈 페이지 실시간 가격 업데이트 SSE 연결
   useEffect(() => {
-    const clientId = Math.random().toString(36).substring(7);
+    const clientId = 'guest_home_' + Math.random().toString(36).substring(7);
     const eventSource = new EventSource(`http://localhost:8080/api/sse/subscribe?clientId=${clientId}`);
     
     eventSource.addEventListener('priceUpdate', (event: any) => {
@@ -80,6 +81,10 @@ export const Home: React.FC = () => {
         console.error("Home SSE parsing error", e);
       }
     });
+
+    eventSource.onerror = () => {
+      eventSource.close();
+    };
 
     return () => eventSource.close();
   }, []);
@@ -124,13 +129,13 @@ export const Home: React.FC = () => {
     if (!isDragging || !scrollRef.current) return;
     e.preventDefault();
     const x = e.pageX - scrollRef.current.offsetLeft;
-    const walk = (x - startX) * 1.2; // Adjusted scroll speed (was 2)
+    const walk = (x - startX) * 1.2; // 스크롤 속도 조정값 (기존 2에서 변경)
     scrollRef.current.scrollLeft = scrollLeft - walk;
     setDragDistance(Math.abs(x - startX));
   };
 
   const handleCategoryClick = (catId: string) => {
-    // Only navigate if it wasn't a significant drag
+    // 드래그가 아닌 클릭일 때만 이동
     if (dragDistance < 5) {
       navigate(`/search?large=${encodeURIComponent(catId)}`);
     }

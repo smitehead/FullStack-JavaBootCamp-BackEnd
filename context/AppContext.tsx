@@ -16,6 +16,8 @@ interface AppContextType {
   systemSettings: SystemSettings;
   login: (userId: string, password: string) => Promise<boolean>;
   logout: () => void;
+  forceLogoutModalOpen: boolean;
+  closeForceLogoutModal: () => void;
   suspendUser: (userId: string, days: number, reason: string) => void;
   unsuspendUser: (userId: string) => void;
   addProduct: (newProduct: Product) => void;
@@ -46,6 +48,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [reports, setReports] = useState<Report[]>(INITIAL_REPORTS);
   const [mannerHistory, setMannerHistory] = useState<MannerHistory[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [forceLogoutModalOpen, setForceLogoutModalOpen] = useState(false);
   const [systemSettings, setSystemSettings] = useState<SystemSettings>({
     isMaintenanceMode: false,
     maintenanceMessage: '현재 시스템 점검 중입니다. 잠시 후 다시 시도해 주세요.',
@@ -70,14 +73,58 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   ]);
 
-  // Load user from localStorage if exists
+  // 전역 SSE 구독 - 로그인한 사용자의 포인트 실시간 업데이트
+  useEffect(() => {
+    if (!user) return;
+
+    const memberNo = user.id.replace(/[^0-9]/g, '');
+    if (!memberNo) return;
+
+    const eventSource = new EventSource(`http://localhost:8080/api/sse/subscribe?clientId=${memberNo}`);
+
+    eventSource.addEventListener('pointUpdate', (event: any) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data && typeof data.points === 'number') {
+          setUser(prev => {
+            if (!prev) return prev;
+            // 이전 상태와 동일하더라도 참조를 강제로 바꿔 리렌더링 유도
+            const updated = { ...prev, points: data.points };
+            localStorage.setItem('java_user', JSON.stringify(updated));
+            return updated;
+          });
+        }
+      } catch (e) {
+        console.error("[SSE] pointUpdate 파싱 오류", e);
+      }
+    });
+
+    // 다른 기기에서 로그인 시 즉시 강제 로그아웃 처리 (새로고침 불필요)
+    eventSource.addEventListener('forceLogout', () => {
+      eventSource.close();
+      localStorage.removeItem('java_token');
+      localStorage.removeItem('java_user');
+      setUser(null);
+      setForceLogoutModalOpen(true);
+    });
+
+    eventSource.onerror = (err) => {
+      console.error(`[SSE] 연결 오류 (memberNo: ${memberNo})`, err);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [user?.id]); // 사용자 ID가 바뀔 때(로그인/로그아웃) 재연결
+
+  // 앱 시작 시 localStorage에 저장된 로그인 정보 복원
   useEffect(() => {
     const savedUser = localStorage.getItem('java_user');
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
       
-      // 새로고침 시 백그라운드에서 최신 포인트/정보 DB 연동
       const memberNo = parseInt(parsedUser.id.replace(/[^0-9]/g, ''), 10);
       if (!isNaN(memberNo)) {
         api.get(`/members/${memberNo}`).then(res => {
@@ -115,7 +162,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const loggedInUser: User = {
          id: `user_${memberNo}`,
          nickname: nickname || userId,
-         profileImage: 'https://via.placeholder.com/200',
+         profileImage: '',
          points: dbPoints,
          mannerTemp: dbMannerTemp,
          joinedAt: new Date().toISOString(),
@@ -136,6 +183,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     localStorage.removeItem('java_user');
     localStorage.removeItem('java_token');
   };
+
+  const closeForceLogoutModal = () => setForceLogoutModalOpen(false);
+
+  // api.ts의 401 인터셉터에서 발생시키는 커스텀 이벤트 처리 (SSE 미연결 상태 백업)
+  useEffect(() => {
+    const handleForceLogout = () => {
+      localStorage.removeItem('java_token');
+      localStorage.removeItem('java_user');
+      setUser(null);
+      setForceLogoutModalOpen(true);
+    };
+    window.addEventListener('forceLogout', handleForceLogout);
+    return () => window.removeEventListener('forceLogout', handleForceLogout);
+  }, []);
 
   const addActivityLog = (action: string, details: string, targetId?: string, targetType?: ActivityLog['targetType']) => {
     if (!user?.isAdmin) return;
@@ -162,7 +223,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       endDateStr = endDate.toISOString();
     }
 
-    // Update users list
+    // 전체 유저 목록에 정지 상태 반영
     setUsers(prev => prev.map(u => 
       u.id === userId ? { 
         ...u, 
@@ -173,7 +234,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } : u
     ));
 
-    // Update current user if it's the one being suspended
+    // 현재 로그인한 유저가 정지 대상이면 본인 상태도 갱신
     if (user?.id === userId) {
       const updatedUser = { 
         ...user, 
@@ -186,7 +247,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem('java_user', JSON.stringify(updatedUser));
     }
 
-    // End all ongoing auctions for this user
+    // 해당 유저의 진행 중인 경매 강제 종료
     setProducts(prev => prev.map(p => 
       p.seller.id === userId && p.status === 'active' ? { ...p, status: 'canceled' as const } : p
     ));
@@ -316,7 +377,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const sendAdminMessage = (userId: string, content: string) => {
-    // Mock sending a message - in a real app, this would create/update a ChatRoom
+    // 임시 구현 - 실제 연동 시 채팅방 생성/업데이트 API 호출로 교체 필요
     console.log(`Admin message to ${userId}: ${content}`);
     alert(`${userId}님에게 메시지를 보냈습니다: ${content}`);
     addActivityLog('메시지 발송', `${userId}님에게 관리자 메시지 발송`, userId, 'user');
@@ -339,6 +400,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       systemSettings,
       login,
       logout,
+      forceLogoutModalOpen,
+      closeForceLogoutModal,
       suspendUser,
       unsuspendUser,
       addProduct,
