@@ -482,7 +482,19 @@ export const Signup: React.FC = () => {
                         className="block w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#FF5A5A]/20 focus:bg-white transition-all outline-none"
                         placeholder="010-0000-0000"
                         value={formData.phoneNum}
-                        onChange={(e) => setFormData({...formData, phoneNum: e.target.value})}
+                        onChange={(e) => {
+                          // 숫자만 추출 후 010-0000-0000 형식으로 자동 포맷
+                          const digits = e.target.value.replace(/[^0-9]/g, '');
+                          let formatted = digits;
+                          if (digits.length <= 3) {
+                            formatted = digits;
+                          } else if (digits.length <= 7) {
+                            formatted = `${digits.slice(0, 3)}-${digits.slice(3)}`;
+                          } else {
+                            formatted = `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
+                          }
+                          setFormData({...formData, phoneNum: formatted});
+                        }}
                       />
                     </div>
                   </div>
