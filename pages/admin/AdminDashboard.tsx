@@ -5,8 +5,8 @@ import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer, 
   LineChart, Line 
 } from 'recharts';
-import { MOCK_USERS, MOCK_INQUIRIES, MOCK_NOTICES, MOCK_REPORTS, MOCK_PRODUCTS } from '../../services/mockData';
-import { Category } from '../../types';
+import { MOCK_USERS, MOCK_INQUIRIES, MOCK_NOTICES, MOCK_REPORTS, MOCK_PRODUCTS } from '@/services/mockData';
+import { Category } from '@/types';
 
 const MONTHLY_DATA = [
   { name: '1월', users: 400 },

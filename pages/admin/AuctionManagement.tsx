@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Gavel, Search, Filter, AlertCircle, Clock, Users, Ban, CheckCircle2 } from 'lucide-react';
-import { useAppContext } from '../../context/AppContext';
-import { Product } from '../../types';
+import { useAppContext } from '@/context/AppContext';
+import { Product } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 

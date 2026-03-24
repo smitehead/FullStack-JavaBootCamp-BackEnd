@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { History, Search, Filter, ShieldCheck, User, Gavel, AlertTriangle, Settings, Calendar, Info } from 'lucide-react';
-import { useAppContext } from '../../context/AppContext';
-import { ActivityLog } from '../../types';
+import { useAppContext } from '@/context/AppContext';
+import { ActivityLog } from '@/types';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 

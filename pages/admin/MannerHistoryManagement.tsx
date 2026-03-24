@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Thermometer, Search, User, Calendar, ArrowRight, TrendingUp, TrendingDown } from 'lucide-react';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from '@/context/AppContext';
 import { motion } from 'framer-motion';
 
 export const MannerHistoryManagement: React.FC = () => {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Bell, Send, Link as LinkIcon, Info, Plus, X } from 'lucide-react';
-import { useAppContext } from '../../context/AppContext';
-import { NotificationType } from '../../types';
+import { useAppContext } from '@/context/AppContext';
+import { NotificationType } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const NotificationManagement: React.FC = () => {

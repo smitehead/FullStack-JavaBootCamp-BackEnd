@@ -1,4 +1,4 @@
-import { CategoryItem } from './types';
+import { CategoryItem } from '@/types';
 
 export const CATEGORY_DATA: CategoryItem[] = [
   {

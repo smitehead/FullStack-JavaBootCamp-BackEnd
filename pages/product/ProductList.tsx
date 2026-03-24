@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import api from '../../services/api';
-import { ProductCard } from '../../components/ProductCard';
-import { CATEGORY_DATA, LOCATION_DATA } from '../../constants';
+import api from '@/services/api';
+import { ProductCard } from '@/components/ProductCard';
+import { CATEGORY_DATA, LOCATION_DATA } from '@/constants';
 import { ChevronRight, Search, RotateCcw, X, Plus, Minus, Loader2 } from 'lucide-react';
-import { Product } from '../../types';
+import { Product } from '@/types';
 
 type SortOption = 'all' | 'popular' | 'ending' | 'latest';
 

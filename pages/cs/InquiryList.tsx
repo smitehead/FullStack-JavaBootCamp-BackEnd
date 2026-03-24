@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, Plus, ChevronRight, MessageSquare, Clock, CheckCircle2, Filter } from 'lucide-react';
-import { MOCK_INQUIRIES } from '../../services/mockData';
-import { InquiryCategory, InquiryStatus } from '../../types';
+import { MOCK_INQUIRIES } from '@/services/mockData';
+import { InquiryCategory, InquiryStatus } from '@/types';
 import { format } from 'date-fns';
-import { CustomerCenterSidebar } from '../cs/CustomerCenterSidebar';
+import { CustomerCenterSidebar } from '@/pages/cs/CustomerCenterSidebar';
 
 export const InquiryList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');

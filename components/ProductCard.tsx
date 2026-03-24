@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, User, Heart, Package } from 'lucide-react';
-import { Product } from '../types';
+import { Product } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { useAppContext } from '../context/AppContext';
+import { useAppContext } from '@/context/AppContext';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import api from '@/services/api';
 
 interface ProductCardProps {
   product: Product;

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ChevronLeft, Camera, X, AlertCircle, CheckCircle2, Send, Info } from 'lucide-react';
-import { InquiryCategory, BugType } from '../../types';
+import { InquiryCategory, BugType } from '@/types';
 
 export const InquiryCreate: React.FC = () => {
   const navigate = useNavigate();
