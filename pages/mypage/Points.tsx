@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CURRENT_USER, MOCK_POINT_HISTORY } from '../services/mockData';
+import { CURRENT_USER, MOCK_POINT_HISTORY } from '../../services/mockData';
 import { Wallet, Plus, Minus, ChevronDown, ChevronUp, ArrowUpRight, ArrowDownLeft, CreditCard, ArrowLeft, Filter } from 'lucide-react';
 
 export const Points: React.FC = () => {

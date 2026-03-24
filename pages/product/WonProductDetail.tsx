@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { CURRENT_USER, MOCK_PRODUCTS, MOCK_REVIEW_TAGS } from '../services/mockData';
-import { Product, Order } from '../types';
+import { CURRENT_USER, MOCK_PRODUCTS, MOCK_REVIEW_TAGS } from '../../services/mockData';
+import { Product, Order } from '../../types';
 import { ChevronLeft, ChevronRight, MapPin, Truck, CreditCard, MessageSquare, CheckCircle2, XCircle, Package, Info, AlertCircle, Star } from 'lucide-react';
 
 export const WonProductDetail: React.FC = () => {

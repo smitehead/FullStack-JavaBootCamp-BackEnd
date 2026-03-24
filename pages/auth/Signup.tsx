@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import api from '../services/api';
+import api from '../../services/api';
 import { Package, Check, ChevronRight, Mail, User, Lock, ShieldCheck, MapPin, Phone, Calendar, AlertCircle, Send, CheckCircle2, X } from 'lucide-react';
 
 type SignupStep = 'terms' | 'info' | 'success';

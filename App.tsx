@@ -1,29 +1,46 @@
 import React from 'react';
 import { HashRouter, Routes, Route } from 'react-router-dom';
+
+// [ Context & Components ]
+import { AppProvider } from './context/AppContext';
 import { Layout } from './components/Layout';
+
+// [ Root Pages ]
 import { Home } from './pages/Home';
-import { ProductList } from './pages/ProductList';
-import { ProductDetail } from './pages/ProductDetail';
-import { ProductRegister } from './pages/ProductRegister';
-import { MyPage } from './pages/MyPage';
-import { SellerProfile } from './pages/SellerProfile';
-import { Settings } from './pages/Settings';
-import { Points } from './pages/Points';
-import { PointCharge } from './pages/PointCharge';
-import { PointWithdraw } from './pages/PointWithdraw';
-import { Login } from './pages/Login';
-import { Signup } from './pages/Signup';
-import { Report } from './pages/Report';
-import { FindAccount } from './pages/FindAccount';
-import { WonProductDetail } from './pages/WonProductDetail';
-import { FAQ } from './pages/FAQ';
-import { Inbox } from './pages/Inbox';
-import { NoticeList } from './pages/NoticeList';
-import { NoticeDetail } from './pages/NoticeDetail';
-import { InquiryList } from './pages/InquiryList';
-import { InquiryCreate } from './pages/InquiryCreate';
-import { InquiryDetail } from './pages/InquiryDetail';
 import { AboutUs } from './pages/AboutUs';
+
+// [ Auth Pages (인증/회원) ]
+import { Login } from './pages/auth/Login';
+import { Signup } from './pages/auth/Signup';
+import { FindAccount } from './pages/auth/FindAccount';
+
+// [ Product Pages (상품/경매) ]
+import { ProductList } from './pages/product/ProductList';
+import { ProductDetail } from './pages/product/ProductDetail';
+import { ProductRegister } from './pages/product/ProductRegister';
+import { WonProductDetail } from './pages/product/WonProductDetail';
+
+// [ MyPage Pages (마이페이지/재화) ]
+import { MyPage } from './pages/mypage/MyPage';
+import { Settings } from './pages/mypage/Settings';
+import { Points } from './pages/mypage/Points';
+import { PointCharge } from './pages/mypage/PointCharge';
+import { PointWithdraw } from './pages/mypage/PointWithdraw';
+
+// [ Trade Pages (거래/커뮤니케이션) ]
+import { Inbox } from './pages/trade/Inbox';
+import { SellerProfile } from './pages/trade/SellerProfile';
+
+// [ CS Pages (고객센터) ]
+import { FAQ } from './pages/cs/FAQ';
+import { NoticeList } from './pages/cs/NoticeList';
+import { NoticeDetail } from './pages/cs/NoticeDetail';
+import { InquiryList } from './pages/cs/InquiryList';
+import { InquiryCreate } from './pages/cs/InquiryCreate';
+import { InquiryDetail } from './pages/cs/InquiryDetail';
+import { Report } from './pages/cs/Report';
+
+// [ Admin Pages (관리자) ]
 import { AdminLayout } from './pages/admin/AdminLayout';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { UserManagement } from './pages/admin/UserManagement';
@@ -35,8 +52,6 @@ import { AuctionManagement } from './pages/admin/AuctionManagement';
 import { ReportManagement } from './pages/admin/ReportManagement';
 import { ActivityLogManagement } from './pages/admin/ActivityLogManagement';
 import { MannerHistoryManagement } from './pages/admin/MannerHistoryManagement';
-
-import { AppProvider } from './context/AppContext';
 
 const App: React.FC = () => {
   return (

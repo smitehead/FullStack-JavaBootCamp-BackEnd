@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { CURRENT_USER } from '../services/mockData';
-import { useAppContext } from '../context/AppContext';
-import { ProductCard } from '../components/ProductCard';
-import { CATEGORY_DATA, LOCATION_DATA } from '../constants';
+import { CURRENT_USER } from '../../services/mockData';
+import { useAppContext } from '../../context/AppContext';
+import { ProductCard } from '../../components/ProductCard';
+import { CATEGORY_DATA, LOCATION_DATA } from '../../constants';
 import { ChevronRight, Search, ChevronLeft, ChevronRight as ChevronRightIcon, RotateCcw, X, Plus, Minus } from 'lucide-react';
 
 type SortOption = 'all' | 'popular' | 'ending' | 'latest';
