@@ -42,6 +42,8 @@ FLOW.md
 CLAUDE.md
 
 ### Claude Code ###
+.claude/settings.local.json
+
 gemini/기능 명세서 - 기능 명세서.csv
 gemini/기능 명세서 - 기능 분배 및 주소 시트.csv
 gemini/기능 명세서 - 알림 메시지 종류.csv

@@ -229,3 +229,74 @@
 - Thunder Client 요청 Headers 탭에 추가:
   - Key: `Authorization`
   - Value: `Bearer {token}`
+
+---
+
+## 프론트엔드 연동 수정사항 반영 요청 `2026-03-24`
+
+> 프론트엔드에서 로그인/회원가입을 백엔드에 실제 연동하는 작업을 완료함.
+> 아래는 백엔드에서 추가 처리가 필요한 항목들.
+
+---
+
+### 1. 중복 로그인 방지 구현 요청
+
+#### 현재 문제
+- JWT Stateless 방식이므로 동일 계정으로 여러 기기/브라우저에서 동시 로그인 가능.
+- 프론트엔드에서는 같은 브라우저 내 중복 로그인은 막았으나, **다른 기기·브라우저 간 중복 세션은 백엔드에서만 처리 가능**.
+- `POST /api/auth/logout` 이 현재 서버에서 아무 처리 없이 200만 반환 → 토큰 무효화 안 됨.
+
+#### 요청 구현 방안 (선택)
+
+**방안 A — DB 기반 토큰 관리 (간단)**
+1. `member_token` 테이블 생성
+```sql
+CREATE TABLE member_token (
+  member_no  NUMBER PRIMARY KEY REFERENCES member(member_no),
+  token      VARCHAR2(512) NOT NULL,
+  created_at TIMESTAMP DEFAULT SYSDATE
+);
+```
+2. 로그인 시 → 기존 토큰 삭제 후 신규 토큰 저장 (한 계정 = 토큰 1개)
+3. `JwtAuthenticationFilter`에서 DB 토큰과 요청 토큰 비교 → 불일치 시 401
+4. 로그아웃 시 → DB에서 해당 토큰 삭제
+
+**방안 B — Redis 기반 (권장, 성능 우수)**
+1. Redis에 `token:{memberNo}` 키로 유효 토큰 저장 (TTL = JWT 만료시간 24h)
+2. 로그인 시 → 기존 키 덮어쓰기 → 이전 토큰 자동 무효화
+3. `JwtAuthenticationFilter`에서 Redis 토큰 비교
+4. 로그아웃 시 → Redis 키 삭제
+
+---
+
+### 2. emdNo (읍면동 코드) 처리 요청
+
+#### 현재 상태
+- 프론트엔드 회원가입 주소 입력이 자유 텍스트 형식이며 주소 검색 API 미연동.
+- 백엔드 `MemberRequestDto`의 `emdNo`가 필수 FK → 프론트에서 현재 `emdNo: 1` 임시 하드코딩 중.
+- **DB에 `emdNo = 1` 데이터가 없으면 회원가입 실패**.
+
+#### 요청 처리 방안 (선택)
+
+| 방안 | 내용 |
+|------|------|
+| A (정식) | 주소 검색 API (`GET /api/address?keyword=xxx`) 구현 후 프론트 연동 |
+| B (임시) | `emdNo` 컬럼을 nullable 허용 또는 기본값 설정하여 주소 없이도 가입 가능하게 처리 |
+
+---
+
+### 3. 이메일 인증 API 구현 요청
+
+현재 프론트엔드 이메일 인증이 Mock 상태 (랜덤 숫자를 `alert`로 노출).
+
+| 엔드포인트 | 설명 | 요청 Body |
+|-----------|------|----------|
+| `POST /api/auth/send-email-code` | 인증번호 이메일 발송 | `{ "email": "user@example.com" }` |
+| `POST /api/auth/verify-email-code` | 인증번호 검증 | `{ "email": "user@example.com", "code": "123456" }` |
+
+검증 응답 예시:
+```json
+{ "verified": true }
+// 또는
+{ "verified": false }
+```
