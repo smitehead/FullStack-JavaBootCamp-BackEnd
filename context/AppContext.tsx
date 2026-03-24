@@ -16,6 +16,8 @@ interface AppContextType {
   systemSettings: SystemSettings;
   login: (userId: string, password: string) => Promise<boolean>;
   logout: () => void;
+  forceLogoutModalOpen: boolean;
+  closeForceLogoutModal: () => void;
   suspendUser: (userId: string, days: number, reason: string) => void;
   unsuspendUser: (userId: string) => void;
   addProduct: (newProduct: Product) => void;
@@ -46,6 +48,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [reports, setReports] = useState<Report[]>(INITIAL_REPORTS);
   const [mannerHistory, setMannerHistory] = useState<MannerHistory[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [forceLogoutModalOpen, setForceLogoutModalOpen] = useState(false);
   const [systemSettings, setSystemSettings] = useState<SystemSettings>({
     isMaintenanceMode: false,
     maintenanceMessage: '현재 시스템 점검 중입니다. 잠시 후 다시 시도해 주세요.',
@@ -94,6 +97,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } catch (e) {
         console.error("[SSE] pointUpdate 파싱 오류", e);
       }
+    });
+
+    // 다른 기기에서 로그인 시 즉시 강제 로그아웃 처리 (새로고침 불필요)
+    eventSource.addEventListener('forceLogout', () => {
+      eventSource.close();
+      localStorage.removeItem('java_token');
+      localStorage.removeItem('java_user');
+      setUser(null);
+      setForceLogoutModalOpen(true);
     });
 
     eventSource.onerror = (err) => {
@@ -171,6 +183,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     localStorage.removeItem('java_user');
     localStorage.removeItem('java_token');
   };
+
+  const closeForceLogoutModal = () => setForceLogoutModalOpen(false);
+
+  // api.ts의 401 인터셉터에서 발생시키는 커스텀 이벤트 처리 (SSE 미연결 상태 백업)
+  useEffect(() => {
+    const handleForceLogout = () => {
+      localStorage.removeItem('java_token');
+      localStorage.removeItem('java_user');
+      setUser(null);
+      setForceLogoutModalOpen(true);
+    };
+    window.addEventListener('forceLogout', handleForceLogout);
+    return () => window.removeEventListener('forceLogout', handleForceLogout);
+  }, []);
 
   const addActivityLog = (action: string, details: string, targetId?: string, targetType?: ActivityLog['targetType']) => {
     if (!user?.isAdmin) return;
@@ -374,6 +400,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       systemSettings,
       login,
       logout,
+      forceLogoutModalOpen,
+      closeForceLogoutModal,
       suspendUser,
       unsuspendUser,
       addProduct,

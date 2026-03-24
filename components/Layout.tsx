@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Bell, Search, Menu, X, User as UserIcon, LogOut, ChevronDown, ChevronUp, Sparkles, Plus, MapPin, Share2, Instagram, Youtube, Info, Headphones, Megaphone, Settings as SettingsIcon, Clock, TrendingUp } from 'lucide-react';
+import { Bell, Search, Menu, X, User as UserIcon, LogOut, ChevronDown, ChevronUp, Sparkles, Plus, MapPin, Share2, Instagram, Youtube, Info, Headphones, Megaphone, Settings as SettingsIcon, Clock, TrendingUp, ShieldAlert } from 'lucide-react';
 import { CURRENT_USER } from '../services/mockData';
 import { useAppContext } from '../context/AppContext';
 import { Category } from '../types';
@@ -522,7 +522,7 @@ const Footer: React.FC = () => {
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
-  const { logout } = useAppContext();
+  const { logout, forceLogoutModalOpen, closeForceLogoutModal } = useAppContext();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   // 로그아웃 확인 모달 오픈
@@ -543,6 +543,33 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         {children}
       </main>
       <Footer />
+
+      {/* 강제 로그아웃 알림 모달 (다른 기기에서 로그인 감지) */}
+      {forceLogoutModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+          <div className="relative bg-white w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in duration-200">
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <ShieldAlert className="w-8 h-8 text-orange-500" />
+              </div>
+              <h3 className="text-xl font-black text-gray-900 mb-2">다른 기기에서 로그인됨</h3>
+              <p className="text-sm text-gray-500 mb-8 font-medium leading-relaxed">
+                동일한 계정으로 다른 기기에서 로그인되어<br/>자동 로그아웃 처리되었습니다.
+              </p>
+              <button
+                onClick={() => {
+                  closeForceLogoutModal();
+                  navigate('/login');
+                }}
+                className="w-full py-3.5 bg-[#FF5A5A] text-white font-bold rounded-2xl hover:bg-[#FF4545] transition-all shadow-lg shadow-red-100"
+              >
+                로그인 페이지로 이동
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Logout Confirmation Modal */}
       {isLogoutModalOpen && (

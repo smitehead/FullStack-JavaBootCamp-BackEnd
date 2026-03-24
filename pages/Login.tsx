@@ -34,7 +34,6 @@ export const Login: React.FC = () => {
     const success = await login(trimmedId, trimmedPw);
 
     if (success) {
-      alert('로그인에 성공했습니다!');
       navigate('/');
     } else {
       // 로그인 실패

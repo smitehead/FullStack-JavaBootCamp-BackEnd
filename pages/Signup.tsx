@@ -37,6 +37,10 @@ export const Signup: React.FC = () => {
   const [idCheckMessage, setIdCheckMessage] = useState<{ text: string; isError: boolean } | null>(null);
   const [isIdChecked, setIsIdChecked] = useState(false);
 
+  // 닉네임 중복확인 상태
+  const [nicknameCheckMessage, setNicknameCheckMessage] = useState<{ text: string; isError: boolean } | null>(null);
+  const [isNicknameChecked, setIsNicknameChecked] = useState(false);
+
   // 약관 아코디언 펼침 상태
   const [expandedTerm, setExpandedTerm] = useState<string | null>(null);
 
@@ -79,6 +83,25 @@ export const Signup: React.FC = () => {
     }
   };
 
+  const handleNicknameCheck = async () => {
+    if (!formData.nickname) {
+      setNicknameCheckMessage({ text: '닉네임을 입력해주세요.', isError: true });
+      return;
+    }
+    try {
+      const res = await api.get(`/members/check-nickname?nickname=${encodeURIComponent(formData.nickname)}`);
+      if (res.data.duplicate) {
+        setNicknameCheckMessage({ text: '이미 사용 중인 닉네임입니다.', isError: true });
+        setIsNicknameChecked(false);
+      } else {
+        setNicknameCheckMessage({ text: '사용 가능한 닉네임입니다.', isError: false });
+        setIsNicknameChecked(true);
+      }
+    } catch {
+      setNicknameCheckMessage({ text: '중복확인 중 오류가 발생했습니다.', isError: true });
+    }
+  };
+
   // 이메일 인증 상태
   const [emailCode, setEmailCode] = useState('');
   const [sentCode, setSentCode] = useState<string | null>(null);
@@ -117,15 +140,26 @@ export const Signup: React.FC = () => {
     });
   };
 
-  const sendVerificationCode = () => {
+  const sendVerificationCode = async () => {
     if (!formData.email.includes('@')) {
       alert('올바른 이메일 형식을 입력해주세요.');
+      return;
+    }
+    // DB에 이미 등록된 이메일인지 먼저 확인
+    try {
+      const res = await api.get(`/members/check-email?email=${encodeURIComponent(formData.email)}`);
+      if (res.data.duplicate) {
+        alert('이미 사용 중인 이메일입니다. 다른 이메일을 입력해주세요.');
+        return;
+      }
+    } catch {
+      alert('이메일 확인 중 오류가 발생했습니다.');
       return;
     }
     // 6자리 랜덤 인증번호 생성
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setSentCode(code);
-    setTimer(180); // 3 minutes
+    setTimer(180); // 3분
     alert(`인증번호가 발송되었습니다: ${code} (실제 서비스에서는 이메일로 발송됩니다)`);
   };
 
@@ -145,6 +179,12 @@ export const Signup: React.FC = () => {
     // 1. ID 중복확인 여부 체크
     if (!isIdChecked) {
       alert('아이디 중복확인을 완료해주세요.');
+      return;
+    }
+
+    // 1-1. 닉네임 중복확인 여부 체크
+    if (!isNicknameChecked) {
+      alert('닉네임 중복확인을 완료해주세요.');
       return;
     }
 
@@ -371,14 +411,32 @@ export const Signup: React.FC = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">닉네임</label>
-                  <input
-                    type="text"
-                    required
-                    className="block w-full px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#FF5A5A]/20 focus:bg-white transition-all outline-none"
-                    placeholder="한글/영문 15자 이내"
-                    value={formData.nickname}
-                    onChange={(e) => setFormData({...formData, nickname: e.target.value})}
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      required
+                      className="block flex-1 px-5 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#FF5A5A]/20 focus:bg-white transition-all outline-none"
+                      placeholder="한글/영문 15자 이내"
+                      value={formData.nickname}
+                      onChange={(e) => {
+                        setFormData({...formData, nickname: e.target.value});
+                        setNicknameCheckMessage(null);
+                        setIsNicknameChecked(false);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleNicknameCheck}
+                      className="px-5 py-3.5 bg-gray-900 text-white text-xs font-bold rounded-2xl hover:bg-black transition-all"
+                    >
+                      중복확인
+                    </button>
+                  </div>
+                  {nicknameCheckMessage && (
+                    <p className={`text-[10px] mt-2 ml-1 font-bold ${nicknameCheckMessage.isError ? 'text-red-500' : 'text-emerald-500'}`}>
+                      {nicknameCheckMessage.text}
+                    </p>
+                  )}
                 </div>
 
                 <div>
