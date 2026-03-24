@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, User, Heart } from 'lucide-react';
+import { Clock, User, Heart, Package } from 'lucide-react';
 import { Product } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -99,13 +99,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       }`}
     >
       <div className="relative aspect-square m-0.5 rounded-[22px] overflow-hidden bg-gray-100 isolate [transform:translateZ(0)]">
-        <img 
-          src={product.images[0] || undefined} 
-          alt={product.title} 
-          className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${
-            product.status === 'completed' ? 'grayscale-[0.3]' : ''
-          }`}
-        />
+        {product.images && product.images.length > 0 ? (
+          <img 
+            src={product.images[0]} 
+            alt={product.title} 
+            className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ${
+              product.status === 'completed' ? 'grayscale-[0.3]' : ''
+            }`}
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
+            <Package className="w-12 h-12 mb-1" />
+            <span className="text-[10px] font-medium">이미지 없음</span>
+          </div>
+        )}
         
         {/* Participant Count */}
         <div className="absolute top-3 left-3 bg-black/40 text-white text-[10px] px-2 py-1 rounded-full flex items-center backdrop-blur-sm">

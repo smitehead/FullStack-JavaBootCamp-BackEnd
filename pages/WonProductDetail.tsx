@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { CURRENT_USER, MOCK_PRODUCTS } from '../services/mockData';
+import { CURRENT_USER, MOCK_PRODUCTS, MOCK_REVIEW_TAGS } from '../services/mockData';
 import { Product, Order } from '../types';
-import { ChevronLeft, ChevronRight, MapPin, Truck, CreditCard, MessageSquare, CheckCircle2, XCircle, Package, Info, AlertCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, Truck, CreditCard, MessageSquare, CheckCircle2, XCircle, Package, Info, AlertCircle, Star } from 'lucide-react';
 
 export const WonProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -13,6 +13,13 @@ export const WonProductDetail: React.FC = () => {
   const [showPaymentConfirm, setShowPaymentConfirm] = useState(false);
   const [showPurchaseConfirm, setShowPurchaseConfirm] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  
+  // Review state
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [reviewContent, setReviewContent] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [showReviewSuccess, setShowReviewSuccess] = useState(false);
   
   // Address state
   const [address, setAddress] = useState(CURRENT_USER.address || '');
@@ -81,8 +88,35 @@ export const WonProductDetail: React.FC = () => {
   const executeConfirmPurchase = () => {
     setShowPurchaseConfirm(false);
     setOrder(prev => prev ? { ...prev, status: 'completed' } : null);
-    alert('구매 확정이 완료되었습니다. 후기를 남겨주세요!');
-    navigate(`/review/${order.id}?productId=${product.id}`);
+    // Show review modal instead of navigating
+    setShowReviewModal(true);
+  };
+
+  const toggleTag = (tagContent: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tagContent) 
+        ? prev.filter(t => t !== tagContent) 
+        : [...prev, tagContent]
+    );
+  };
+
+  const handleSubmitReview = () => {
+    if (selectedTags.length === 0 && !reviewContent.trim()) {
+      alert('후기 태그를 선택하거나 내용을 입력해주세요.');
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    // Simulate API call
+    setTimeout(() => {
+      setIsSubmittingReview(false);
+      setShowReviewSuccess(true);
+      setTimeout(() => {
+        setShowReviewSuccess(false);
+        setShowReviewModal(false);
+        navigate('/mypage');
+      }, 2000);
+    }, 1500);
   };
 
   const handleCancel = () => {
@@ -416,6 +450,88 @@ export const WonProductDetail: React.FC = () => {
                 취소하기
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Review Modal */}
+      {showReviewModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] max-w-lg w-full p-8 shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center gap-4 mb-8 pb-6 border-b border-gray-50">
+              <div className="w-16 h-16 rounded-2xl overflow-hidden border border-gray-100">
+                <img src={product.images[0]} alt={product.title} className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-gray-900 leading-tight">
+                  <span className="text-indigo-600">{product.seller.nickname}</span>님과의 거래<br/>
+                  어떤 점이 좋았나요?
+                </h3>
+              </div>
+            </div>
+
+            <div className="space-y-8">
+              <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">거래하며 느낀 점을 선택해주세요</p>
+                <div className="flex flex-wrap gap-2">
+                  {MOCK_REVIEW_TAGS.map(tag => (
+                    <button
+                      key={tag.id}
+                      onClick={() => toggleTag(tag.content)}
+                      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border ${
+                        selectedTags.includes(tag.content)
+                          ? 'bg-indigo-600 border-indigo-600 text-white'
+                          : 'bg-gray-50 border-gray-100 text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {tag.content}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-black text-gray-900 mb-3">상세 후기 남기기</h4>
+                <textarea
+                  value={reviewContent}
+                  onChange={(e) => setReviewContent(e.target.value)}
+                  placeholder="판매자에게 따뜻한 후기를 남겨주세요."
+                  className="w-full h-32 p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none resize-none"
+                ></textarea>
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowReviewModal(false)}
+                  className="flex-1 py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all"
+                >
+                  나중에 하기
+                </button>
+                <button 
+                  onClick={handleSubmitReview}
+                  disabled={isSubmittingReview}
+                  className="flex-1 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-200 disabled:opacity-50"
+                >
+                  {isSubmittingReview ? '등록 중...' : '후기 등록하기'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Review Success Modal */}
+      {showReviewSuccess && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[40px] max-w-sm w-full p-10 text-center shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 className="w-10 h-10 text-emerald-500" />
+            </div>
+            <h3 className="text-2xl font-black text-gray-900 mb-2">후기 등록 완료!</h3>
+            <p className="text-sm text-gray-500 font-medium leading-relaxed">
+              소중한 후기가 등록되었습니다.<br/>
+              마이페이지로 이동합니다.
+            </p>
           </div>
         </div>
       )}

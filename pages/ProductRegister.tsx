@@ -4,6 +4,8 @@ import { Category, CategoryItem, TransactionMethod, Product } from '../types';
 import { CATEGORY_DATA } from '../constants';
 import { useAppContext } from '../context/AppContext';
 import { Camera, Calendar, DollarSign, MapPin, Truck, Info, AlignLeft, Package, ArrowLeft } from 'lucide-react';
+import api from '../services/api';
+import { ProductRequestDto } from '../types';
 
 export const ProductRegister: React.FC = () => {
   const navigate = useNavigate();
@@ -11,6 +13,7 @@ export const ProductRegister: React.FC = () => {
   const editProduct = location.state?.product as Product | undefined;
 
   const [images, setImages] = useState<string[]>([]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [title, setTitle] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   
@@ -117,12 +120,19 @@ export const ProductRegister: React.FC = () => {
         alert('이미지는 최대 5장까지 등록 가능합니다.');
         return;
       }
-      const url = URL.createObjectURL(e.target.files[0]);
+      const file = e.target.files[0];
+      const url = URL.createObjectURL(file);
       setImages([...images, url]);
+      setImageFiles([...imageFiles, file]);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const removeImage = (idx: number) => {
+    setImages(images.filter((_, i) => i !== idx));
+    setImageFiles(imageFiles.filter((_, i) => i !== idx));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (user?.isSuspended) {
@@ -165,30 +175,50 @@ export const ProductRegister: React.FC = () => {
       return;
     }
 
-    const newProduct: Product = {
-      id: `p_${Date.now()}`,
-      title,
-      description,
-      images: images.length > 0 ? images : ['https://picsum.photos/seed/product/800/800'],
-      startPrice,
-      currentPrice: startPrice,
-      instantPrice: isInstantPriceEnabled ? instantPrice : undefined,
-      minBidIncrement,
-      startTime: new Date().toISOString(),
-      endTime: new Date(Date.now() + parseInt(duration) * 24 * 60 * 60 * 1000).toISOString(),
-      status: 'active',
-      seller: user,
-      location: address || '전국',
-      category: (selectedLarge?.name as Category) || Category.ETC,
-      transactionMethod: 'both',
-      participantCount: 0,
-      wishlistCount: 0,
-      bids: []
-    };
+    try {
+      const sellerNo = parseInt(user.id.replace(/[^0-9]/g, '') || '1', 10);
+      const categoryNoStr = smallCat || mediumCat || largeCat || 'cat_1';
+      const categoryNo = parseInt(categoryNoStr.replace(/[^0-9]/g, '') || '1', 10);
 
-    addProduct(newProduct);
-    alert('상품이 성공적으로 등록되었습니다.');
-    navigate('/');
+      const computedEndTime = isManualTime && manualDate && manualTime 
+        ? new Date(`${manualDate}T${manualTime}`).toISOString().slice(0, 19)
+        : new Date(Date.now() + parseInt(duration) * 24 * 60 * 60 * 1000).toISOString().slice(0, 19);
+
+      const productDto: ProductRequestDto = {
+        sellerNo,
+        categoryNo,
+        title,
+        description,
+        tradeType: methods.face ? '직거래' : '택배거래',
+        tradeEmdNo: 1, // Default town code
+        tradeAddrDetail: address,
+        startPrice,
+        buyoutPrice: isInstantPriceEnabled ? instantPrice : null,
+        minBidUnit: minBidIncrement,
+        endTime: computedEndTime
+      };
+
+      const formData = new FormData();
+      formData.append(
+        'product',
+        new Blob([JSON.stringify(productDto)], { type: 'application/json' }),
+        'product.json'
+      );
+
+      imageFiles.forEach(file => {
+        formData.append('images', file);
+      });
+
+      await api.post('/products', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      alert('상품이 성공적으로 등록되었습니다.');
+      navigate('/');
+    } catch (error) {
+      console.error('Failed to register product', error);
+      alert('상품 등록 중 오류가 발생했습니다.');
+    }
   };
 
   const selectedLarge = CATEGORY_DATA.find(c => c.id === largeCat);
@@ -231,7 +261,7 @@ export const ProductRegister: React.FC = () => {
                  <img src={img || undefined} alt="preview" className="w-full h-full object-cover" />
                  <button 
                   type="button" 
-                  onClick={() => setImages(images.filter((_, i) => i !== idx))}
+                  onClick={() => removeImage(idx)}
                   className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
                  >
                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>

@@ -45,10 +45,11 @@ export const Home: React.FC = () => {
           ...item,
           id: String(item.id),
           seller: item.seller || { id: String(item.sellerId || 'unknown'), nickname: item.sellerNickname || '판매자' },
-          images: item.images && item.images.length > 0 ? item.images.map((img: string) => {
+          images: (item.images || []).map((img: string) => {
+            if (!img) return '';
             let replaced = img.startsWith('/') ? `http://localhost:8080${img}` : img;
             return replaced.replace('http://loclhost', 'http://localhost');
-          }) : ['https://via.placeholder.com/600'],
+          }),
           category: item.category || '기타',
           participantCount: item.participantCount || 0,
           currentPrice: item.currentPrice || 0,
@@ -67,7 +68,7 @@ export const Home: React.FC = () => {
 
   // 홈 페이지 실시간 가격 업데이트 SSE 연결
   useEffect(() => {
-    const clientId = Math.random().toString(36).substring(7);
+    const clientId = 'guest_home_' + Math.random().toString(36).substring(7);
     const eventSource = new EventSource(`http://localhost:8080/api/sse/subscribe?clientId=${clientId}`);
     
     eventSource.addEventListener('priceUpdate', (event: any) => {
@@ -80,6 +81,10 @@ export const Home: React.FC = () => {
         console.error("Home SSE parsing error", e);
       }
     });
+
+    eventSource.onerror = () => {
+      eventSource.close();
+    };
 
     return () => eventSource.close();
   }, []);
