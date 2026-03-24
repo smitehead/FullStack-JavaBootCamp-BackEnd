@@ -173,7 +173,7 @@ export const MOCK_PRODUCTS: Product[] = [
     currentPrice: 100000,
     minBidIncrement: 5000,
     startTime: '2023-10-20T09:00:00',
-    endTime: new Date(Date.now() - 3600000).toISOString(), // Ended
+    endTime: new Date(Date.now() - 3600000).toISOString(), // 종료된 경매
     images: ['https://picsum.photos/seed/table/600/400'],
     participantCount: 0,
     bids: [],

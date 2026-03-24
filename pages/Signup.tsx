@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import api from '../services/api';
 import { Package, Check, ChevronRight, Mail, User, Lock, ShieldCheck, MapPin, Phone, Calendar, AlertCircle, Send, CheckCircle2, X } from 'lucide-react';
 
 type SignupStep = 'terms' | 'info' | 'success';
@@ -8,7 +9,7 @@ export const Signup: React.FC = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState<SignupStep>('terms');
   
-  // Terms state
+  // 약관 동의 상태
   const [terms, setTerms] = useState({
     service: false,
     privacy: false,
@@ -19,7 +20,7 @@ export const Signup: React.FC = () => {
     marketing: false
   });
 
-  // User info state
+  // 회원정보 입력 상태
   const [formData, setFormData] = useState({
     userId: '',
     password: '',
@@ -29,13 +30,14 @@ export const Signup: React.FC = () => {
     address: '',
     addrDetail: '',
     phoneNum: '',
-    birthDate: '' // Will be 6 digits
+    birthDate: '' // 6자리 숫자 (YYMMDD)
   });
 
-  // ID Check state
+  // 아이디 중복확인 상태
   const [idCheckMessage, setIdCheckMessage] = useState<{ text: string; isError: boolean } | null>(null);
+  const [isIdChecked, setIsIdChecked] = useState(false);
 
-  // Terms accordion state
+  // 약관 아코디언 펼침 상태
   const [expandedTerm, setExpandedTerm] = useState<string | null>(null);
 
   const termContents: Record<string, string> = {
@@ -52,7 +54,7 @@ export const Signup: React.FC = () => {
     setExpandedTerm(prev => prev === key ? null : key);
   };
 
-  const handleIdCheck = () => {
+  const handleIdCheck = async () => {
     if (!formData.userId) {
       setIdCheckMessage({ text: '아이디를 입력해주세요.', isError: true });
       return;
@@ -62,16 +64,22 @@ export const Signup: React.FC = () => {
       setIdCheckMessage({ text: '영문 소문자, 숫자 포함 5~20자여야 합니다.', isError: true });
       return;
     }
-    
-    // Mock check
-    if (formData.userId === 'admin' || formData.userId === 'user1') {
-      setIdCheckMessage({ text: '이미 사용 중인 아이디입니다.', isError: true });
-    } else {
-      setIdCheckMessage({ text: '사용 가능한 아이디입니다.', isError: false });
+
+    try {
+      const res = await api.get(`/members/check-userid?userId=${formData.userId}`);
+      if (res.data.duplicate) {
+        setIdCheckMessage({ text: '이미 사용 중인 아이디입니다.', isError: true });
+        setIsIdChecked(false);
+      } else {
+        setIdCheckMessage({ text: '사용 가능한 아이디입니다.', isError: false });
+        setIsIdChecked(true);
+      }
+    } catch {
+      setIdCheckMessage({ text: '중복확인 중 오류가 발생했습니다.', isError: true });
     }
   };
 
-  // Email verification state
+  // 이메일 인증 상태
   const [emailCode, setEmailCode] = useState('');
   const [sentCode, setSentCode] = useState<string | null>(null);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
@@ -114,7 +122,7 @@ export const Signup: React.FC = () => {
       alert('올바른 이메일 형식을 입력해주세요.');
       return;
     }
-    // Generate 6 digit random number
+    // 6자리 랜덤 인증번호 생성
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setSentCode(code);
     setTimer(180); // 3 minutes
@@ -131,46 +139,68 @@ export const Signup: React.FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 1. ID Validation (5-20 chars, lowercase/numbers)
+    // 1. ID 중복확인 여부 체크
+    if (!isIdChecked) {
+      alert('아이디 중복확인을 완료해주세요.');
+      return;
+    }
+
+    // 2. 아이디 유효성 검사 (영문 소문자·숫자 5~20자)
     const idRegex = /^[a-z0-9]{5,20}$/;
     if (!idRegex.test(formData.userId)) {
       alert('아이디는 영문 소문자, 숫자 포함 5~20자여야 합니다.');
       return;
     }
 
-    // 2. Password Validation (8+ chars)
+    // 3. 비밀번호 유효성 검사 (8자 이상)
     if (formData.password.length < 8) {
       alert('비밀번호는 최소 8자 이상이어야 합니다.');
       return;
     }
 
-    // 3. Password Match
+    // 4. 비밀번호 일치 확인
     if (formData.password !== formData.confirmPassword) {
       alert('비밀번호가 일치하지 않습니다.');
       return;
     }
 
-    // 4. Email Verification Check
+    // 5. 이메일 인증 완료 여부 확인
     if (!isEmailVerified) {
       alert('이메일 인증을 완료해주세요.');
       return;
     }
 
-    // Success: In a real app, send to server
-    // Automatically saved info: joinedAt (SYSDATE), mannerTemp (30), points (0), profile (default)
-    console.log('Final Signup Data:', {
-      ...formData,
-      joinedAt: new Date().toISOString(),
-      mannerTemp: 30,
-      points: 0,
-      profileImage: 'default/user.png',
-      marketingConsent: terms.marketing
-    });
+    // 6. birthDate: YYMMDD → yyyy-MM-dd 변환
+    const yy = parseInt(formData.birthDate.substring(0, 2), 10);
+    const currentYY = new Date().getFullYear() % 100;
+    const fullYear = yy > currentYY ? `19${formData.birthDate.substring(0, 2)}` : `20${formData.birthDate.substring(0, 2)}`;
+    const birthDateFormatted = `${fullYear}-${formData.birthDate.substring(2, 4)}-${formData.birthDate.substring(4, 6)}`;
 
-    setStep('success');
+    try {
+      await api.post('/members', {
+        userId: formData.userId,
+        password: formData.password,
+        nickname: formData.nickname,
+        email: formData.email,
+        phoneNum: formData.phoneNum,
+        emdNo: 1, // TODO: 주소 검색 API 연동 후 실제 읍면동 번호로 교체 필요
+        addrDetail: formData.addrDetail,
+        birthDate: birthDateFormatted,
+        marketingAgree: terms.marketing ? 1 : 0,
+      });
+      setStep('success');
+    } catch (error: any) {
+      if (error.response?.status === 409) {
+        alert('이미 사용 중인 아이디, 닉네임, 또는 이메일입니다.');
+      } else if (error.response?.status === 400) {
+        alert(error.response.data?.message || '입력 정보를 다시 확인해주세요.');
+      } else {
+        alert('회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      }
+    }
   };
 
   return (
@@ -285,6 +315,7 @@ export const Signup: React.FC = () => {
                         onChange={(e) => {
                           setFormData({...formData, userId: e.target.value});
                           setIdCheckMessage(null);
+                          setIsIdChecked(false);
                         }}
                       />
                     </div>

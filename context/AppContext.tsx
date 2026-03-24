@@ -70,7 +70,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   ]);
 
-  // Load user from localStorage if exists
+  // 앱 시작 시 localStorage에 저장된 로그인 정보 복원
   useEffect(() => {
     const savedUser = localStorage.getItem('java_user');
     if (savedUser) {
@@ -162,7 +162,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       endDateStr = endDate.toISOString();
     }
 
-    // Update users list
+    // 전체 유저 목록에 정지 상태 반영
     setUsers(prev => prev.map(u => 
       u.id === userId ? { 
         ...u, 
@@ -173,7 +173,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       } : u
     ));
 
-    // Update current user if it's the one being suspended
+    // 현재 로그인한 유저가 정지 대상이면 본인 상태도 갱신
     if (user?.id === userId) {
       const updatedUser = { 
         ...user, 
@@ -186,7 +186,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       localStorage.setItem('java_user', JSON.stringify(updatedUser));
     }
 
-    // End all ongoing auctions for this user
+    // 해당 유저의 진행 중인 경매 강제 종료
     setProducts(prev => prev.map(p => 
       p.seller.id === userId && p.status === 'active' ? { ...p, status: 'canceled' as const } : p
     ));
@@ -316,7 +316,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const sendAdminMessage = (userId: string, content: string) => {
-    // Mock sending a message - in a real app, this would create/update a ChatRoom
+    // 임시 구현 - 실제 연동 시 채팅방 생성/업데이트 API 호출로 교체 필요
     console.log(`Admin message to ${userId}: ${content}`);
     alert(`${userId}님에게 메시지를 보냈습니다: ${content}`);
     addActivityLog('메시지 발송', `${userId}님에게 관리자 메시지 발송`, userId, 'user');

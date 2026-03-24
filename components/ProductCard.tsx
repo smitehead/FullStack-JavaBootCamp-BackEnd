@@ -113,7 +113,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           {product.participantCount}명 참여
         </div>
 
-        {/* Heart Icon - Only shows when wishlisted or on hover, and NOT won/sold */}
+        {/* 찜 버튼 - 찜한 상태이거나 호버 시 표시, 낙찰/판매 완료 상품 제외 */}
         {!showBadge && (
           <button 
             onClick={toggleWishlist}

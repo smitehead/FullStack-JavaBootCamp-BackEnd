@@ -27,7 +27,7 @@ export const ProductDetail: React.FC = () => {
   useEffect(() => {
     const handleScroll = () => {
       const sections = ['detail', 'history', 'shipping', 'qna'];
-      const scrollPosition = window.scrollY + 300; // Increased offset for better sync
+      const scrollPosition = window.scrollY + 300; // 탭 동기화 정확도를 위해 오프셋 증가
 
       for (const section of sections) {
         const element = document.getElementById(section);
@@ -45,7 +45,7 @@ export const ProductDetail: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // New States for Bidding
+  // 입찰 관련 상태
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'bid' | 'auto'>('bid');
   const [autoBidMaxAmount, setAutoBidMaxAmount] = useState<number>(0);
@@ -83,7 +83,7 @@ export const ProductDetail: React.FC = () => {
           startPrice: data.startPrice || 0,
           currentPrice: data.currentPrice || 0,
           minBidIncrement: data.minBidUnit || 1000,
-          startTime: new Date().toISOString(), // Fallback
+          startTime: new Date().toISOString(), // 백엔드 미제공 시 기본값
           endTime: data.endTime,
           images: data.images && data.images.length > 0 ? data.images.map((img: string) => {
             let replaced = img.startsWith('/') ? `http://localhost:8080${img}` : img;
@@ -146,7 +146,7 @@ export const ProductDetail: React.FC = () => {
     return () => clearInterval(interval);
   }, [product]);
 
-  // SSE logic for real-time price updates
+  // 실시간 가격 업데이트 SSE 연결
   const [priceHighlight, setPriceHighlight] = useState(false);
 
   useEffect(() => {
@@ -244,7 +244,7 @@ export const ProductDetail: React.FC = () => {
       return;
     }
 
-    // Fetch real-time points from backend
+    // 백엔드에서 실시간 포인트 조회
     try {
       const memberNo = parseInt(user.id.replace(/[^0-9]/g, '') || '1', 10);
       const res = await api.get(`/members/${memberNo}`);
@@ -310,7 +310,7 @@ export const ProductDetail: React.FC = () => {
       amount: bid.amount
     }));
 
-  // Ensure chart has at least start price point
+  // 입찰 내역이 없을 경우 시작가를 차트 기준점으로 추가
   if (chartData.length === 0) {
     chartData.push({
       time: new Date(product.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -535,7 +535,7 @@ export const ProductDetail: React.FC = () => {
                   setActiveTab(tab.id as any);
                   const element = document.getElementById(tab.id);
                   if (element) {
-                    const headerOffset = 250; // Adjusted for better alignment
+                    const headerOffset = 250; // 헤더 높이 고려한 스크롤 오프셋
                     const elementPosition = element.getBoundingClientRect().top;
                     const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
                     window.scrollTo({

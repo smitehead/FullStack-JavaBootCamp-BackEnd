@@ -13,12 +13,12 @@ export const ProductList: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { products } = useAppContext();
   
-  // Filter States (Sync with URL)
+  // 필터 상태 (URL과 동기화)
   const [largeCat, setLargeCat] = useState(searchParams.get('large') || '');
   const [mediumCat, setMediumCat] = useState(searchParams.get('medium') || '');
   const [smallCat, setSmallCat] = useState(searchParams.get('small') || '');
   
-  // Expansion States
+  // 카테고리 펼침 상태
   const [expandedLarge, setExpandedLarge] = useState<string | null>(searchParams.get('large'));
   const [expandedMedium, setExpandedMedium] = useState<string | null>(searchParams.get('medium'));
   
@@ -36,10 +36,10 @@ export const ProductList: React.FC = () => {
   const [page, setPage] = useState(Number(searchParams.get('page')) || 1);
   const itemsPerPage = 3;
 
-  // UI States
+  // UI 상태
   const [isCategoryExpanded, setIsCategoryExpanded] = useState(true);
 
-  // Sync state with URL when URL changes (e.g. back button)
+  // URL 변경 시 상태 동기화 (예: 뒤로가기 버튼)
   useEffect(() => {
     const l = searchParams.get('large') || '';
     const m = searchParams.get('medium') || '';
@@ -61,7 +61,7 @@ export const ProductList: React.FC = () => {
     setPage(Number(searchParams.get('page')) || 1);
   }, [searchParams]);
 
-  // Derived Data
+  // 파생 데이터 (선택된 카테고리·지역 정보)
   const selectedLarge = CATEGORY_DATA.find(c => c.id === largeCat);
   const selectedMedium = selectedLarge?.subCategories?.find(c => c.id === mediumCat);
   const selectedSmall = selectedMedium?.subCategories?.find(c => c.id === smallCat);
@@ -72,41 +72,41 @@ export const ProductList: React.FC = () => {
   const selectedCity = LOCATION_DATA.find(l => l.name === city);
   const selectedDistrict = selectedCity?.sub?.find(d => d.name === district);
 
-  // Filter Logic
+  // 필터링 로직
   const filteredProducts = useMemo(() => {
     let result = [...products];
-    
-    // Filter out products from blocked users (mutual)
-    result = result.filter(p => 
-      !CURRENT_USER.blockedUserIds?.includes(p.seller.id) && 
+
+    // 차단한/차단당한 사용자의 상품 제외 (상호 차단)
+    result = result.filter(p =>
+      !CURRENT_USER.blockedUserIds?.includes(p.seller.id) &&
       !p.seller.blockedUserIds?.includes(CURRENT_USER.id)
     );
 
-    // Filter out completed or canceled products
+    // 종료되었거나 취소된 상품 제외
     const now = new Date().getTime();
     result = result.filter(p => p.status === 'active' && new Date(p.endTime).getTime() > now);
 
-    // Category Filter
+    // 카테고리 필터
     if (largeCat) {
-      // In real app: result = result.filter(p => p.largeCategoryId === largeCat);
+      // 실제 연동 시: result = result.filter(p => p.largeCategoryId === largeCat);
     }
     if (mediumCat) {
-      // In real app: result = result.filter(p => p.mediumCategoryId === mediumCat);
+      // 실제 연동 시: result = result.filter(p => p.mediumCategoryId === mediumCat);
     }
     if (smallCat) {
-      // In real app: result = result.filter(p => p.smallCategoryId === smallCat);
+      // 실제 연동 시: result = result.filter(p => p.smallCategoryId === smallCat);
     }
 
-    // Price Filter
+    // 가격 필터
     if (minPrice) result = result.filter(p => p.currentPrice >= Number(minPrice));
     if (maxPrice) result = result.filter(p => p.currentPrice <= Number(maxPrice));
 
-    // Location Filter
+    // 지역 필터
     if (city) {
-      // In real app: result = result.filter(p => p.location.includes(city));
+      // 실제 연동 시: result = result.filter(p => p.location.includes(city));
     }
 
-    // Delivery Filter
+    // 거래방식 필터
     if (delivery || faceToFace) {
       result = result.filter(p => {
         if (delivery && p.transactionMethod === 'delivery') return true;
@@ -115,15 +115,15 @@ export const ProductList: React.FC = () => {
       });
     }
 
-    // Sorting
+    // 정렬
     if (sort === 'popular') result.sort((a, b) => b.participantCount - a.participantCount);
     else if (sort === 'ending') result.sort((a, b) => new Date(a.endTime).getTime() - new Date(b.endTime).getTime());
     else if (sort === 'latest') result.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
-    
+
     return result;
   }, [largeCat, mediumCat, smallCat, minPrice, maxPrice, city, district, neighborhood, delivery, faceToFace, sort]);
 
-  // Pagination
+  // 페이지네이션
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
   const paginatedProducts = filteredProducts.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 

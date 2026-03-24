@@ -526,7 +526,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   const { logout } = useAppContext();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
-  // Mock logout function
+  // 로그아웃 확인 모달 오픈
   const handleLogout = () => {
     setIsLogoutModalOpen(true);
   };
