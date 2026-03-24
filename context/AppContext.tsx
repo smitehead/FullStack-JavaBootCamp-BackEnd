@@ -110,7 +110,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     eventSource.onerror = (err) => {
       console.error(`[SSE] 연결 오류 (memberNo: ${memberNo})`, err);
-      eventSource.close();
+      // close() 제거 - EventSource 스펙상 오류 시 자동 재연결됨
+      // close()를 호출하면 재연결이 막혀 이후 forceLogout 이벤트를 못 받게 됨
     };
 
     return () => {
