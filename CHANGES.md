@@ -338,6 +338,57 @@ CREATE TABLE member_token (
 
 ---
 
+---
+
+## 김태우 커밋 반영 `2026-03-25` (ba24831)
+
+> SSE 최적화, 데드락 방지, 이미지 처리 개선, 무한스크롤/정렬 추가
+
+### `BidServiceImpl.java` - 수정
+- **데드락 방지**: 이전/현재 입찰자 비관적 락 순서 고정 (memberNo 오름차순)
+- **본인 재입찰 차단**: 현재 최고 입찰자가 본인이면 추가 입찰 불가
+- **SSE 발송 격리**: `try-catch`로 SSE/알림 실패가 트랜잭션 롤백을 유발하지 않도록 처리
+- **입찰 취소 환불 추가**: `cancelBid()` 시 포인트 환불 + PointHistory 기록 + SSE 포인트 갱신
+
+### `SseService.java` - 수정
+- **`sendPointUpdate(Long memberNo, Long currentPoints)`** 메서드 추가 — 특정 사용자에게 포인트 갱신 이벤트 전송
+- **`broadcastPriceUpdate()`** 개선 — forEach 루프 중 직접 remove 대신 deadClients 리스트 수집 후 일괄 제거 (ConcurrentModification 방지)
+
+### `ProductServiceImpl.java` - 수정
+- 무한스크롤 기능 추가
+- 정렬 기능 추가
+
+### `ImageController.java` - 수정
+- 이미지 확장자 검증 추가
+
+### `FileStore.java` (util 패키지) - 수정
+- 이미지 처리 개선
+
+### `ProductImageRepository.java` - 수정
+- 쿼리 최적화
+
+### `WishlistRepository.java` - 수정
+- 쿼리 추가
+
+### `application.properties` - 수정
+- 설정값 조정
+
+### `NotificationService.java` - 수정
+- `sendAndSaveNotification()` — SSE 전송 데이터를 문자열 → 구조화된 Map 객체로 변경
+  - `{ notiNo, type, content, linkUrl, isRead, createdAt }` 형태로 전송
+  - 프론트에서 `type`으로 알림 종류 구분, `linkUrl`로 클릭 시 이동 처리 가능
+
+### `BidServiceImpl.java` - 알림 type 통일
+- `"입찰"` → `"bid"` 로 변경 (프론트 Inbox.tsx 필터와 일치)
+
+### `.gitignore` - 수정
+- `hs_err_pid*.log`, `replay_pid*.log` 제외 추가 (JVM 크래시 로그)
+
+### `SseController.java` - 수정
+- `@CrossOrigin(origins = "*")` CORS 허용 추가
+
+---
+
 ### 3. 이메일 인증 API 구현 요청
 
 현재 프론트엔드 이메일 인증이 Mock 상태 (랜덤 숫자를 `alert`로 노출).
