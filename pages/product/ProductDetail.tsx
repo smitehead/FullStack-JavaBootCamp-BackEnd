@@ -7,11 +7,14 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import api from '@/services/api';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { resolveImageUrls } from '../../utils/imageUtils';
+import { BACKEND_URL } from '../../utils/imageUtils';
 
 export const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { products, user, updateCurrentUserPoints } = useAppContext();
+  // updateCurrentUserPoints: AppContext의 user.points를 갱신해 헤더 포인트도 동시에 업데이트됨
   const [product, setProduct] = useState<Product | null | undefined>(null);
   const [bidAmount, setBidAmount] = useState<number>(0);
   const [activeTab, setActiveTab] = useState<'detail' | 'history' | 'shipping' | 'qna'>('detail');
@@ -54,71 +57,68 @@ export const ProductDetail: React.FC = () => {
   const [visibleBidsCount, setVisibleBidsCount] = useState(5);
   const [timeLeft, setTimeLeft] = useState<string>('');
 
+  // 입찰 성공 후 상품 데이터 재조회에 사용 (재호출 가능하도록 단돈으로 분리)
+  const fetchProduct = React.useCallback(async () => {
+    try {
+      const memberNo = user ? parseInt(user.id.replace(/[^0-9]/g, '') || '1', 10) : null;
+      let url = `/products/${id}`;
+      if (memberNo) url += `?memberNo=${memberNo}`;
+
+      const response = await api.get(url);
+      const data = response.data;
+
+      const isFinished = new Date(data.endTime).getTime() <= Date.now() || data.status === 'completed';
+
+      const mappedProduct: Product = {
+        id: String(data.productNo || id),
+        title: data.title,
+        description: data.description || '',
+        category: data.category || '기타',
+        seller: {
+          id: String(data.seller?.sellerNo || 'seller_1'),
+          nickname: data.seller?.nickname || '판매자',
+          profileImage: '',
+          points: 0,
+          mannerTemp: data.seller?.mannerTemp || 36.5,
+          joinedAt: ''
+        },
+        startPrice: data.startPrice || 0,
+        currentPrice: data.currentPrice || 0,
+        minBidIncrement: data.minBidUnit || 1000,
+        startTime: new Date().toISOString(),
+        endTime: data.endTime,
+        images: resolveImageUrls(data.images || []),
+        participantCount: data.participantCount || 0,
+        bids: (data.bidHistory || []).map((b: any, idx: number) => ({
+          id: `bid_${idx}`,
+          bidderName: b.bidderNickname,
+          amount: b.bidPrice,
+          timestamp: b.bidTime
+        })),
+        status: isFinished ? 'completed' : 'active',
+        location: data.location || '알 수 없음',
+        transactionMethod: data.tradeType === '직거래' ? 'face-to-face' : 'delivery',
+        isWishlisted: data.isWishlisted || false,
+        wishlistCount: 0
+      };
+
+      setProduct(mappedProduct);
+      setBidAmount((mappedProduct.currentPrice || 0) + (mappedProduct.minBidIncrement || 0));
+      setAutoBidMaxAmount((mappedProduct.currentPrice || 0) + (mappedProduct.minBidIncrement || 0) * 5);
+      setIsWishlisted(mappedProduct.isWishlisted || false);
+
+    } catch (error) {
+      console.error('Failed to fetch product details', error);
+      setProduct(undefined);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, user?.id]);
+
   useEffect(() => {
-    const fetchProduct = async () => {
-      try {
-        const memberNo = user ? parseInt(user.id.replace(/[^0-9]/g, '') || '1', 10) : null;
-        let url = `/products/${id}`;
-        if (memberNo) url += `?memberNo=${memberNo}`;
-
-        const response = await api.get(url);
-        const data = response.data;
-
-        const isFinished = new Date(data.endTime).getTime() <= Date.now() || data.status === 'completed';
-
-        const mappedProduct: Product = {
-          id: String(data.productNo || id),
-          title: data.title,
-          description: data.description || '',
-          category: data.category || '기타',
-          seller: {
-            id: String(data.seller?.sellerNo || 'seller_1'),
-            nickname: data.seller?.nickname || '판매자',
-            profileImage: '',
-            points: 0,
-            mannerTemp: data.seller?.mannerTemp || 36.5,
-            joinedAt: ''
-          },
-          startPrice: data.startPrice || 0,
-          currentPrice: data.currentPrice || 0,
-          minBidIncrement: data.minBidUnit || 1000,
-          startTime: new Date().toISOString(), // 백엔드 미제공 시 기본값
-          endTime: data.endTime,
-          images: (data.images || []).map((img: string) => {
-            if (!img) return '';
-            let replaced = img.startsWith('/') ? `http://localhost:8080${img}` : img;
-            return replaced.replace('http://loclhost', 'http://localhost');
-          }),
-          participantCount: data.participantCount || 0,
-          bids: (data.bidHistory || []).map((b: any, idx: number) => ({
-            id: `bid_${idx}`,
-            bidderName: b.bidderNickname,
-            amount: b.bidPrice,
-            timestamp: b.bidTime
-          })),
-          status: isFinished ? 'completed' : 'active',
-          location: data.location || '알 수 없음',
-          transactionMethod: data.tradeType === '직거래' ? 'face-to-face' : 'delivery',
-          isWishlisted: data.isWishlisted || false,
-          wishlistCount: 0
-        };
-
-        setProduct(mappedProduct);
-        setBidAmount((mappedProduct.currentPrice || 0) + (mappedProduct.minBidIncrement || 0));
-        setAutoBidMaxAmount((mappedProduct.currentPrice || 0) + (mappedProduct.minBidIncrement || 0) * 5);
-        setIsWishlisted(mappedProduct.isWishlisted || false);
-
-      } catch (error) {
-        console.error('Failed to fetch product details', error);
-        setProduct(undefined);
-      }
-    };
-
     if (id) {
       fetchProduct();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]); // user는 초기 로드 시만 참조하거나 SSE 업데이트와 분리
+  }, [fetchProduct]);
 
   useEffect(() => {
     if (!product) return;
@@ -147,41 +147,58 @@ export const ProductDetail: React.FC = () => {
     return () => clearInterval(interval);
   }, [product]);
 
-  // 실시간 가격 업데이트 SSE 연결
+  // -----------------------------------------------------------------------------
+  // 실시간 SSE 구독 (가격 업데이트 + 포인트 업데이트)
+  // - priceUpdate: 다른 사람이 입찰하면 현재 가격 즉시 갱신
+  // - pointUpdate: 내 포인트가 변경되면(입찰차감/환불) 즉시 팝업과 헤더에 반영
+  // -----------------------------------------------------------------------------
   const [priceHighlight, setPriceHighlight] = useState(false);
 
   useEffect(() => {
     if (!product || !product.id) return;
-    
-    // 로그인 상태가 보장될 때까지 기다리거나, 게스트 기본 ID 사용
-    const clientId = user ? user.id.replace(/[^0-9]/g, '') : 'guest_' + id;
-    const eventSource = new EventSource(`http://localhost:8080/api/sse/subscribe?clientId=${clientId}`);
 
-    console.log(`SSE Connecting: ${product.id}`);
+    // 로그인한 사용자는 memberNo를 clientId로 사용 (AppContext SSE와 같은 채널)
+    // 비로그인은 게스트 ID 사용 (priceUpdate만 수신)
+    const clientId = user ? user.id.replace(/[^0-9]/g, '') : `guest_${id}`;
+    const sseUrl = `${BACKEND_URL}/api/sse/subscribe?clientId=${clientId}`;
+    const eventSource = new EventSource(sseUrl);
 
-    eventSource.addEventListener('priceUpdate', (event: any) => {
+    // 1. 상품 가격 실시간 갱신
+    eventSource.addEventListener('priceUpdate', (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
         if (String(data.productNo) === String(product.id)) {
-          setProduct(prev => prev ? ({
-            ...prev,
-            currentPrice: data.currentPrice
-          }) : prev);
-
+          setProduct(prev => prev ? ({ ...prev, currentPrice: data.currentPrice }) : prev);
           setPriceHighlight(true);
           setTimeout(() => setPriceHighlight(false), 5000);
         }
       } catch (e) {
-        console.error("SSE parsing error", e);
+        console.error('[SSE] priceUpdate 파싱 오류', e);
       }
     });
 
-    eventSource.onerror = () => {
-      eventSource.close();
+    // 2. 포인트 실시간 갱신 (입찰 차감 / 환불)
+    // AppContext의 pointUpdate와 동일한 채널이지만,
+    // 입찰 팝업이 열려 있는 경우 팝업 안의 포인트도 즉시 반영되게 updateCurrentUserPoints 호출
+    eventSource.addEventListener('pointUpdate', (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data && typeof data.points === 'number') {
+          // AppContext user.points 갱신 → 헤더 + 이 팝업의 {user?.points} 모두 자동 반영
+          updateCurrentUserPoints(data.points);
+        }
+      } catch (e) {
+        console.error('[SSE] pointUpdate 파싱 오류', e);
+      }
+    });
+
+    // 오류 시 close() 미호출 → EventSource 스펙상 자동 재연결됨
+    eventSource.onerror = (err) => {
+      console.error('[SSE] 연결 오류', err);
     };
 
     return () => eventSource.close();
-  }, [product?.id, user?.id]); // id가 바뀔 때만 재연결 (객체 전체가 아닌 id 기준)
+  }, [product?.id, user?.id]); // 상품 또는 로그인 사용자가 바뀔 때만 재연결
 
   const prevPriceRef = React.useRef<number>(0);
 
@@ -291,9 +308,9 @@ export const ProductDetail: React.FC = () => {
       setIsBidModalOpen(false);
       alert(modalType === 'bid' ? '입찰이 완료되었습니다!' : '자동 입찰이 설정되었습니다!');
 
-      // 유저의 요청에 따라 입찰 성공 후 헤더 포인트를 포함한 전체 갱신을 위해 페이지를 강제 새로고침합니다.
-      window.location.reload();
-      return;
+      // [수정] window.location.reload() 제거 - SSE가 실시간 가격 갱신을 처리함
+      // 입찰 기록 등 추가 데이터를 위해 상품 정보만 재조회
+      await fetchProduct();
 
     } catch (error: any) {
       const errorMsg = error.response?.data?.message || (typeof error.response?.data === 'string' ? error.response.data : '입찰에 실패했습니다.');

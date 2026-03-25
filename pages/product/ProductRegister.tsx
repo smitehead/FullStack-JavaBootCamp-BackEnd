@@ -189,7 +189,8 @@ export const ProductRegister: React.FC = () => {
         categoryNo,
         title,
         description,
-        tradeType: methods.face ? '직거래' : '택배거래',
+        tradeType: methods.face && methods.delivery ? '혼합' :
+                   methods.face ? '직거래' : '택배거래',
         tradeEmdNo: 1, // Default town code
         tradeAddrDetail: address,
         startPrice,

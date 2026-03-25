@@ -5,6 +5,7 @@ import api from '@/services/api';
 import { ProductCard } from '@/components/ProductCard';
 import { CATEGORY_DATA } from '@/constants';
 import { motion, AnimatePresence } from 'motion/react';
+import { resolveImageUrls } from '../utils/imageUtils';
 
 const HERO_BANNERS = [
   {
@@ -45,11 +46,7 @@ export const Home: React.FC = () => {
           ...item,
           id: String(item.id),
           seller: item.seller || { id: String(item.sellerId || 'unknown'), nickname: item.sellerNickname || '판매자' },
-          images: (item.images || []).map((img: string) => {
-            if (!img) return '';
-            let replaced = img.startsWith('/') ? `http://localhost:8080${img}` : img;
-            return replaced.replace('http://loclhost', 'http://localhost');
-          }),
+          images: resolveImageUrls(item.images || []),
           category: item.category || '기타',
           participantCount: item.participantCount || 0,
           currentPrice: item.currentPrice || 0,

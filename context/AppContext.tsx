@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import { Notification, ChatRoom, User, Product, WithdrawnUser, NotificationType, Report, MannerHistory, ActivityLog } from '@/types';
 import { NOTIFICATIONS as INITIAL_NOTIFICATIONS, MOCK_CHATS as INITIAL_CHATS, CURRENT_USER as MOCK_USER, ADMIN_USER, MOCK_PRODUCTS as INITIAL_PRODUCTS, MOCK_USERS as INITIAL_USERS, MOCK_REPORTS as INITIAL_REPORTS } from '@/services/mockData';
 import api from '@/services/api';
+import { BACKEND_URL } from '@/utils/imageUtils';
 
 interface AppContextType {
   user: User | null;
@@ -67,33 +68,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   ]);
 
-  // 전역 SSE 구독 - 로그인한 사용자의 포인트 실시간 업데이트
+  // 전역 SSE 구독 - 로그인한 사용자의 포인트/알림 실시간 업데이트
   useEffect(() => {
     if (!user) return;
 
     const memberNo = user.id.replace(/[^0-9]/g, '');
     if (!memberNo) return;
 
-    const eventSource = new EventSource(`http://localhost:8080/api/sse/subscribe?clientId=${memberNo}`);
+    // BACKEND_URL을 사용하여 하드코딩 제거 (imageUtils.ts에서 환경변수 기반 관리)
+    const eventSource = new EventSource(`${BACKEND_URL}/api/sse/subscribe?clientId=${memberNo}`);
 
-    eventSource.addEventListener('pointUpdate', (event: any) => {
+    eventSource.addEventListener('pointUpdate', (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
         if (data && typeof data.points === 'number') {
           setUser(prev => {
             if (!prev) return prev;
-            // 이전 상태와 동일하더라도 참조를 강제로 바꿔 리렌더링 유도
+            // 포인트 값이 실제로 변경된 경우에만 업데이트
+            if (prev.points === data.points) return prev;
             const updated = { ...prev, points: data.points };
+            // localStorage도 동기화하여 새로고침 후에도 유지
             localStorage.setItem('java_user', JSON.stringify(updated));
             return updated;
           });
         }
       } catch (e) {
-        console.error("[SSE] pointUpdate 파싱 오류", e);
+        console.error('[SSE] pointUpdate 파싱 오류', e);
       }
     });
 
-    // 다른 기기에서 로그인 시 즉시 강제 로그아웃 처리 (새로고침 불필요)
+    // 다른 기기에서 로그인 시 즉시 강제 로그아웃 처리
     eventSource.addEventListener('forceLogout', () => {
       eventSource.close();
       localStorage.removeItem('java_token');
@@ -104,8 +108,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     eventSource.onerror = (err) => {
       console.error(`[SSE] 연결 오류 (memberNo: ${memberNo})`, err);
-      // close() 제거 - EventSource 스펙상 오류 시 자동 재연결됨
-      // close()를 호출하면 재연결이 막혀 이후 forceLogout 이벤트를 못 받게 됨
+      // close() 미호출 - EventSource 스펙상 오류 시 자동 재연결됨
     };
 
     return () => {
@@ -119,7 +122,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
-      
+
       const memberNo = parseInt(parsedUser.id.replace(/[^0-9]/g, ''), 10);
       if (!isNaN(memberNo)) {
         api.get(`/members/${memberNo}`).then(res => {
@@ -140,9 +143,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       const response = await api.post('/auth/login', { userId, password });
       const { token, memberNo, nickname } = response.data;
-      
+
       localStorage.setItem('java_token', token);
-      
+
       // FETCH REAL POINTS HERE
       let dbPoints = 0;
       let dbMannerTemp = 36.5;
@@ -155,14 +158,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       const loggedInUser: User = {
-         id: `user_${memberNo}`,
-         nickname: nickname || userId,
-         profileImage: '',
-         points: dbPoints,
-         mannerTemp: dbMannerTemp,
-         joinedAt: new Date().toISOString(),
+        id: `user_${memberNo}`,
+        nickname: nickname || userId,
+        profileImage: '',
+        points: dbPoints,
+        mannerTemp: dbMannerTemp,
+        joinedAt: new Date().toISOString(),
       };
-      
+
       setUser(loggedInUser);
       localStorage.setItem('java_user', JSON.stringify(loggedInUser));
       return true;
@@ -211,7 +214,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const suspendUser = (userId: string, days: number, reason: string) => {
     const isPermanent = days === 999;
     let endDateStr: string | undefined = undefined;
-    
+
     if (!isPermanent) {
       const endDate = new Date();
       endDate.setDate(endDate.getDate() + days);
@@ -219,31 +222,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     // 전체 유저 목록에 정지 상태 반영
-    setUsers(prev => prev.map(u => 
-      u.id === userId ? { 
-        ...u, 
-        isSuspended: true, 
-        suspensionEndDate: endDateStr, 
+    setUsers(prev => prev.map(u =>
+      u.id === userId ? {
+        ...u,
+        isSuspended: true,
+        suspensionEndDate: endDateStr,
         suspensionReason: reason,
-        isPermanentlySuspended: isPermanent 
+        isPermanentlySuspended: isPermanent
       } : u
     ));
 
     // 현재 로그인한 유저가 정지 대상이면 본인 상태도 갱신
     if (user?.id === userId) {
-      const updatedUser = { 
-        ...user, 
-        isSuspended: true, 
-        suspensionEndDate: endDateStr, 
+      const updatedUser = {
+        ...user,
+        isSuspended: true,
+        suspensionEndDate: endDateStr,
         suspensionReason: reason,
-        isPermanentlySuspended: isPermanent 
+        isPermanentlySuspended: isPermanent
       };
       setUser(updatedUser);
       localStorage.setItem('java_user', JSON.stringify(updatedUser));
     }
 
     // 해당 유저의 진행 중인 경매 강제 종료
-    setProducts(prev => prev.map(p => 
+    setProducts(prev => prev.map(p =>
       p.seller.id === userId && p.status === 'active' ? { ...p, status: 'canceled' as const } : p
     ));
 
@@ -252,23 +255,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const unsuspendUser = (userId: string) => {
-    setUsers(prev => prev.map(u => 
-      u.id === userId ? { 
-        ...u, 
-        isSuspended: false, 
-        suspensionEndDate: undefined, 
+    setUsers(prev => prev.map(u =>
+      u.id === userId ? {
+        ...u,
+        isSuspended: false,
+        suspensionEndDate: undefined,
         suspensionReason: undefined,
-        isPermanentlySuspended: false 
+        isPermanentlySuspended: false
       } : u
     ));
 
     if (user?.id === userId) {
-      const updatedUser = { 
-        ...user, 
-        isSuspended: false, 
-        suspensionEndDate: undefined, 
+      const updatedUser = {
+        ...user,
+        isSuspended: false,
+        suspensionEndDate: undefined,
         suspensionReason: undefined,
-        isPermanentlySuspended: false 
+        isPermanentlySuspended: false
       };
       setUser(updatedUser);
       localStorage.setItem('java_user', JSON.stringify(updatedUser));
@@ -283,7 +286,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const cancelAuction = (productId: string, reason: string) => {
-    setProducts(prev => prev.map(p => 
+    setProducts(prev => prev.map(p =>
       p.id === productId ? { ...p, status: 'canceled' as const } : p
     ));
     const product = products.find(p => p.id === productId);
@@ -291,20 +294,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const resolveReport = (reportId: string, action: string) => {
-    setReports(prev => prev.map(r => 
+    setReports(prev => prev.map(r =>
       r.id === reportId ? { ...r, status: 'resolved' as const } : r
     ));
     addActivityLog('신고 처리', `신고 처리: ${reportId} (${action})`, reportId, 'report');
   };
 
   const markNotificationAsRead = (id: string) => {
-    setNotifications(prev => 
+    setNotifications(prev =>
       prev.map(noti => noti.id === id ? { ...noti, read: true } : noti)
     );
   };
 
   const markChatAsRead = (id: string) => {
-    setChats(prev => 
+    setChats(prev =>
       prev.map(chat => chat.id === id ? { ...chat, unreadCount: 0 } : chat)
     );
   };
@@ -326,7 +329,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const targetUser = users.find(u => u.id === userId);
     addActivityLog('권한 변경', `${targetUser?.nickname}님 권한 변경: ${isAdmin ? '관리자' : '일반'}`, userId, 'user');
   };
-  
+
   const updateUserManner = (userId: string, mannerTemp: number, reason: string) => {
     const targetUser = users.find(u => u.id === userId);
     if (!targetUser) return;
@@ -365,12 +368,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const unreadChatsCount = chats.filter(c => c.unreadCount > 0).length;
 
   return (
-    <AppContext.Provider value={{ 
+    <AppContext.Provider value={{
       user,
       users,
       products,
-      notifications, 
-      chats, 
+      notifications,
+      chats,
       withdrawnUsers,
       reports,
       mannerHistory,
@@ -384,7 +387,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addProduct,
       cancelAuction,
       resolveReport,
-      markNotificationAsRead, 
+      markNotificationAsRead,
       markChatAsRead,
       addNotification,
       updateUserRole,
