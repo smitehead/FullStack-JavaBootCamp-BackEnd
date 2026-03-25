@@ -55,10 +55,6 @@ export const NoticeDetail: React.FC = () => {
               <Calendar className="w-4 h-4" />
               {format(new Date(notice.createdAt), 'yyyy.MM.dd')}
             </div>
-            <div className="flex items-center gap-2">
-              <Eye className="w-4 h-4" />
-              {notice.viewCount.toLocaleString()}
-            </div>
           </div>
         </div>
 

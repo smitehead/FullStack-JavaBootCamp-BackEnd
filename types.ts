@@ -1,9 +1,9 @@
 export enum Category {
-  DIGITAL = '디지털기기',
-  FURNITURE = '가구/인테리어',
-  CLOTHING = '의류',
-  BOOKS = '도서',
-  ETC = '기타'
+  DIGITAL = "디지털기기",
+  FURNITURE = "가구/인테리어",
+  CLOTHING = "의류",
+  BOOKS = "도서",
+  ETC = "기타",
 }
 
 export interface CategoryItem {
@@ -12,7 +12,7 @@ export interface CategoryItem {
   subCategories?: CategoryItem[];
 }
 
-export type TransactionMethod = 'face-to-face' | 'delivery' | 'both';
+export type TransactionMethod = "face-to-face" | "delivery" | "both";
 
 export interface UserSettings {
   auctionEnd: boolean;
@@ -40,17 +40,17 @@ export interface User {
   settings?: UserSettings;
   blockedUserIds?: string[];
   auctionCount?: number; // Added for admin management
-  postCount?: number;    // Added for admin management
+  postCount?: number; // Added for admin management
 }
 
 export interface Report {
   id: string;
   reporterId: string;
   targetId: string; // User ID or Product ID
-  targetType: 'user' | 'product';
+  targetType: "user" | "product";
   reason: string;
   details: string;
-  status: 'pending' | 'resolved';
+  status: "pending" | "resolved";
   createdAt: string;
 }
 
@@ -71,7 +71,7 @@ export interface ActivityLog {
   adminNickname: string;
   action: string;
   targetId?: string;
-  targetType?: 'user' | 'product' | 'notice' | 'inquiry' | 'report';
+  targetType?: "user" | "product" | "notice" | "inquiry" | "report";
   details: string;
   createdAt: string;
 }
@@ -98,7 +98,7 @@ export interface Product {
   images: string[];
   participantCount: number;
   bids: BidHistory[];
-  status: 'active' | 'completed' | 'canceled';
+  status: "active" | "completed" | "canceled";
   location: string;
   detailedAddress?: string;
   transactionMethod: TransactionMethod;
@@ -107,7 +107,7 @@ export interface Product {
   winnerId?: string;
 }
 
-export type NotificationType = 'bid' | 'activity';
+export type NotificationType = "bid" | "activity";
 
 export interface Notification {
   id: string;
@@ -134,7 +134,7 @@ export interface ChatRoom {
     id: string;
     nickname: string;
     profileImage: string;
-    role: 'seller' | 'buyer';
+    role: "seller" | "buyer";
   };
   lastMessage: string;
   lastMessageAt: string;
@@ -167,15 +167,15 @@ export interface Order {
   buyerId: string;
   sellerId: string;
   amount: number;
-  status: 'pending' | 'paid' | 'delivered' | 'completed' | 'canceled';
+  status: "pending" | "paid" | "delivered" | "completed" | "canceled";
   shippingAddress?: string;
   shippingDetail?: string;
-  transactionMethod: 'face-to-face' | 'delivery';
+  transactionMethod: "face-to-face" | "delivery";
   depositedAmount: number;
   createdAt: string;
 }
 
-export type NoticeCategory = '업데이트' | '이벤트' | '점검' | '정책';
+export type NoticeCategory = "업데이트" | "이벤트" | "점검" | "정책";
 
 export interface Notice {
   id: string;
@@ -184,13 +184,18 @@ export interface Notice {
   content: string;
   description: string;
   isImportant: boolean;
-  viewCount: number;
   createdAt: string;
 }
 
-export type InquiryCategory = '버그 신고' | '환불 문의' | '계정 문의' | '기타';
-export type BugType = '기능 작동 오류' | '화면/UI 오류' | '데이터/정보 오류' | '로그인/계정 문제' | '속도/접속 저하' | '기타';
-export type InquiryStatus = '답변 대기중' | '답변 완료';
+export type InquiryCategory = "버그 신고" | "환불 문의" | "계정 문의" | "기타";
+export type BugType =
+  | "기능 작동 오류"
+  | "화면/UI 오류"
+  | "데이터/정보 오류"
+  | "로그인/계정 문제"
+  | "속도/접속 저하"
+  | "기타";
+export type InquiryStatus = "답변 대기중" | "답변 완료";
 
 export interface Inquiry {
   id: string;
@@ -206,7 +211,7 @@ export interface Inquiry {
   createdAt: string;
 }
 
-export type BannerType = 'hero' | 'ad';
+export type BannerType = "hero" | "ad";
 
 export interface BannerButton {
   name: string;
@@ -250,4 +255,3 @@ export interface ProductRequestDto {
   minBidUnit: number;
   endTime: string;
 }
-

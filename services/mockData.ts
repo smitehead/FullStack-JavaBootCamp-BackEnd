@@ -476,7 +476,6 @@ export const MOCK_NOTICES: Notice[] = [
       "많은 회원분들이 기다려 주셨던 디지털 아트 카테고리가 새롭게 오픈되었습니다. 지금 바로 혁신적인 예술 작품들을 만나보세요.",
     content: "디지털 아트 카테고리가 추가되었습니다...",
     isImportant: false,
-    viewCount: 850,
     createdAt: "2024-05-18T14:00:00",
   },
   {
@@ -487,7 +486,6 @@ export const MOCK_NOTICES: Notice[] = [
       "본격적인 여름을 맞아 한 달간 모든 낙찰 수수료를 면제해 드립니다. 파격적인 혜택을 놓치지 마세요.",
     content: "여름맞이 수수료 제로 이벤트 안내...",
     isImportant: false,
-    viewCount: 2100,
     createdAt: "2024-05-15T09:00:00",
   },
   {
@@ -498,7 +496,6 @@ export const MOCK_NOTICES: Notice[] = [
       "보다 나은 서비스 제공을 위해 이용약관 및 개인정보 처리방침이 일부 개정될 예정입니다. 변경 내용을 확인하시어 이용에 참고하시기 바랍니다.",
     content: "이용약관 개정 안내...",
     isImportant: false,
-    viewCount: 560,
     createdAt: "2024-05-10T11:00:00",
   },
   {
@@ -509,7 +506,6 @@ export const MOCK_NOTICES: Notice[] = [
       "더 빠르고 편리해진 새로운 앱을 경험해보세요. UI 전면 개편 및 알림 기능이 강화되었습니다.",
     content: "모바일 앱 2.0 출시 안내...",
     isImportant: false,
-    viewCount: 3200,
     createdAt: "2024-05-05T15:00:00",
   },
 ];
