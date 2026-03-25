@@ -4,7 +4,9 @@ import api from '@/services/api';
 import { ProductCard } from '@/components/ProductCard';
 import { CATEGORY_DATA, LOCATION_DATA } from '@/constants';
 import { ChevronRight, Search, RotateCcw, X, Plus, Minus, Loader2 } from 'lucide-react';
-import { Product } from '../../types';
+import { Product } from '@/types';
+import { resolveImageUrls } from '@/utils/imageUtils';
+import { useAppContext } from '@/context/AppContext';
 
 type SortOption = 'all' | 'popular' | 'ending' | 'latest';
 
