@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { Notification, ChatRoom, User, Product, WithdrawnUser, NotificationType, Report, MannerHistory, ActivityLog, SystemSettings } from '../types';
 import { NOTIFICATIONS as INITIAL_NOTIFICATIONS, MOCK_CHATS as INITIAL_CHATS, CURRENT_USER as MOCK_USER, ADMIN_USER, MOCK_PRODUCTS as INITIAL_PRODUCTS, MOCK_USERS as INITIAL_USERS, MOCK_REPORTS as INITIAL_REPORTS } from '../services/mockData';
 import api from '../services/api';
+import { BACKEND_URL } from '../utils/imageUtils';
 
 interface AppContextType {
   user: User | null;
@@ -73,33 +74,36 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   ]);
 
-  // 전역 SSE 구독 - 로그인한 사용자의 포인트 실시간 업데이트
+  // 전역 SSE 구독 - 로그인한 사용자의 포인트/알림 실시간 업데이트
   useEffect(() => {
     if (!user) return;
 
     const memberNo = user.id.replace(/[^0-9]/g, '');
     if (!memberNo) return;
 
-    const eventSource = new EventSource(`http://localhost:8080/api/sse/subscribe?clientId=${memberNo}`);
+    // BACKEND_URL을 사용하여 하드코딩 제거 (imageUtils.ts에서 환경변수 기반 관리)
+    const eventSource = new EventSource(`${BACKEND_URL}/api/sse/subscribe?clientId=${memberNo}`);
 
-    eventSource.addEventListener('pointUpdate', (event: any) => {
+    eventSource.addEventListener('pointUpdate', (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
         if (data && typeof data.points === 'number') {
           setUser(prev => {
             if (!prev) return prev;
-            // 이전 상태와 동일하더라도 참조를 강제로 바꿔 리렌더링 유도
+            // 포인트 값이 실제로 변경된 경우에만 업데이트
+            if (prev.points === data.points) return prev;
             const updated = { ...prev, points: data.points };
+            // localStorage도 동기화하여 새로고침 후에도 유지
             localStorage.setItem('java_user', JSON.stringify(updated));
             return updated;
           });
         }
       } catch (e) {
-        console.error("[SSE] pointUpdate 파싱 오류", e);
+        console.error('[SSE] pointUpdate 파싱 오류', e);
       }
     });
 
-    // 다른 기기에서 로그인 시 즉시 강제 로그아웃 처리 (새로고침 불필요)
+    // 다른 기기에서 로그인 시 즉시 강제 로그아웃 처리
     eventSource.addEventListener('forceLogout', () => {
       eventSource.close();
       localStorage.removeItem('java_token');
@@ -110,8 +114,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
     eventSource.onerror = (err) => {
       console.error(`[SSE] 연결 오류 (memberNo: ${memberNo})`, err);
-      // close() 제거 - EventSource 스펙상 오류 시 자동 재연결됨
-      // close()를 호출하면 재연결이 막혀 이후 forceLogout 이벤트를 못 받게 됨
+      // close() 미호출 - EventSource 스펙상 오류 시 자동 재연결됨
     };
 
     return () => {

@@ -5,12 +5,15 @@ import { ProductCard } from '../../components/ProductCard';
 import { CATEGORY_DATA, LOCATION_DATA } from '../../constants';
 import { ChevronRight, Search, RotateCcw, X, Plus, Minus, Loader2 } from 'lucide-react';
 import { Product } from '../../types';
+import { resolveImageUrls } from '../../utils/imageUtils';
+import { useAppContext } from '../../context/AppContext';
 
 type SortOption = 'all' | 'popular' | 'ending' | 'latest';
 
 export const ProductList: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAppContext(); // 로그인 사용자 정보 (memberNo 전송용)
   
   // 데이터 상태
   const [products, setProducts] = useState<Product[]>([]);
@@ -43,7 +46,7 @@ export const ProductList: React.FC = () => {
   // UI 상태
   const [isCategoryExpanded, setIsCategoryExpanded] = useState(true);
   
-  // 무한 스크롤용 Ref
+  // 두 스크롤 콜백 ref - 마지막 요소 관래
   const observer = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useCallback((node: HTMLDivElement | null) => {
     if (loading) return;
@@ -52,9 +55,12 @@ export const ProductList: React.FC = () => {
       if (entries[0].isIntersecting && hasMore) {
         setPage(prevPage => prevPage + 1);
       }
-    });
+    }, { threshold: 0.1 }); // 10% 보이면 바로 발화
     if (node) observer.current.observe(node);
   }, [loading, hasMore]);
+  
+  // 이전 페이지 ref - 중복 포치 방지
+  const fetchedPageRef = useRef<number>(0);
 
   // 데이터 가져오기 함수
   const fetchProducts = useCallback(async (pageToFetch: number, isNewSearch: boolean) => {
@@ -62,6 +68,8 @@ export const ProductList: React.FC = () => {
     setLoading(true);
 
     try {
+      const memberNo = user ? parseInt(user.id.replace(/[^0-9]/g, '') || '0', 10) : undefined;
+
       const params = {
         page: pageToFetch,
         size: 16,
@@ -73,7 +81,8 @@ export const ProductList: React.FC = () => {
         city: city || undefined,
         delivery: delivery || undefined,
         face: faceToFace || undefined,
-        sort: sort === 'all' ? 'latest' : sort,
+        sort: sort,        // 'all' 포함 그대로 전송 → 백엔드 default 분기에서 처리
+        memberNo: memberNo || undefined, // 찜 여부 확인용
       };
 
       const response = await api.get('/products', { params });
@@ -83,11 +92,7 @@ export const ProductList: React.FC = () => {
         ...item,
         id: String(item.id),
         seller: item.seller || { id: 'unknown', nickname: '판매자' },
-        images: (item.images || []).map((img: string) => {
-          if (!img) return '';
-          let replaced = img.startsWith('/') ? `http://localhost:8080${img}` : img;
-          return replaced.replace('http://loclhost', 'http://localhost');
-        }),
+        images: resolveImageUrls(item.images || []),
         status: item.status || 'active',
         participantCount: item.participantCount || 0,
         currentPrice: item.currentPrice || 0,
@@ -109,18 +114,20 @@ export const ProductList: React.FC = () => {
     }
   }, [largeCat, mediumCat, smallCat, minPrice, maxPrice, city, delivery, faceToFace, sort]);
 
-  // 필터 변경 시 초기화 및 데이터 로드
+  // 필터 변경 시 초기화 + 첨 페이지 로드
   useEffect(() => {
+    fetchedPageRef.current = 1;
     setPage(1);
     fetchProducts(1, true);
   }, [largeCat, mediumCat, smallCat, minPrice, maxPrice, city, delivery, faceToFace, sort]);
 
-  // 페이지 변경 시(무한 스크롤) 데이터 추가 로드
+  // 페이지 변경 시(무한 스크롤) 추가 로드
   useEffect(() => {
-    if (page > 1) {
-      fetchProducts(page, false);
-    }
-  }, [page]);
+    // 페이지 1를 먼저 패치한 경우 다시 요청 안 함 (위 useEffect와 중복 방지)
+    if (page <= 1 || page <= fetchedPageRef.current) return;
+    fetchedPageRef.current = page;
+    fetchProducts(page, false);
+  }, [page, fetchProducts]);
 
   // URL 변경 시 상태 동기화 (예: 뒤로가기 버튼)
   useEffect(() => {
