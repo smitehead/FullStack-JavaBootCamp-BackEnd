@@ -71,15 +71,9 @@ export interface ActivityLog {
   adminNickname: string;
   action: string;
   targetId?: string;
-  targetType?: 'user' | 'product' | 'notice' | 'inquiry' | 'system' | 'report';
+  targetType?: 'user' | 'product' | 'notice' | 'inquiry' | 'report';
   details: string;
   createdAt: string;
-}
-
-export interface SystemSettings {
-  isMaintenanceMode: boolean;
-  maintenanceMessage: string;
-  lastUpdated: string;
 }
 
 export interface BidHistory {
@@ -113,7 +107,7 @@ export interface Product {
   winnerId?: string;
 }
 
-export type NotificationType = 'bid' | 'activity' | 'system';
+export type NotificationType = 'bid' | 'activity';
 
 export interface Notification {
   id: string;

@@ -20,7 +20,6 @@ export const ActivityLogManagement: React.FC = () => {
       case 'user': return User;
       case 'product': return Gavel;
       case 'report': return AlertTriangle;
-      case 'system': return Settings;
       default: return Info;
     }
   };
@@ -89,8 +88,7 @@ export const ActivityLogManagement: React.FC = () => {
                         <TargetIcon className="w-3 h-3" />
                         {log.targetType === 'user' ? '사용자' :
                          log.targetType === 'product' ? '상품/경매' :
-                         log.targetType === 'report' ? '신고' :
-                         log.targetType === 'system' ? '시스템' : '기타'}
+                         log.targetType === 'report' ? '신고' : '기타'}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
