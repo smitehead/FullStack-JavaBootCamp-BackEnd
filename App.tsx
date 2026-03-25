@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 // [ Context & Components ]
 import { AppProvider } from '@/context/AppContext';
@@ -55,7 +55,7 @@ import { MannerHistoryManagement } from '@/pages/admin/MannerHistoryManagement';
 
 const App: React.FC = () => {
   return (
-    <HashRouter>
+    <BrowserRouter>
       <AppProvider>
         <Routes>
           {/* Admin Routes */}
@@ -109,7 +109,7 @@ const App: React.FC = () => {
           } />
         </Routes>
       </AppProvider>
-    </HashRouter>
+    </BrowserRouter>
   );
 };
 
