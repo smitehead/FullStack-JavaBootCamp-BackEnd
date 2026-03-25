@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Bell, Search, Menu, X, User as UserIcon, LogOut, ChevronDown, ChevronUp, Sparkles, Plus, MapPin, Share2, Instagram, Youtube, Info, Headphones, Megaphone, Settings as SettingsIcon, Clock, TrendingUp, ShieldAlert } from 'lucide-react';
-import { CURRENT_USER } from '../services/mockData';
-import { useAppContext } from '../context/AppContext';
-import { Category } from '../types';
-import { CATEGORY_DATA } from '../constants';
+import { CURRENT_USER } from '@/services/mockData';
+import { useAppContext } from '@/context/AppContext';
+import { Category } from '@/types';
+import { CATEGORY_DATA } from '@/constants';
 
 interface HeaderProps {
   onLogout: () => void;

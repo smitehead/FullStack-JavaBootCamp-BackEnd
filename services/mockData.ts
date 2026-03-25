@@ -1,4 +1,4 @@
-import { Product, User, Category, BidHistory, Notification, Review, ReviewTag, ChatRoom, Notice, Inquiry, HeroBanner, Report } from '../types';
+import { Product, User, Category, BidHistory, Notification, Review, ReviewTag, ChatRoom, Notice, Inquiry, HeroBanner, Report } from '@/types';
 
 export const CURRENT_USER: User = {
   id: 'user_1',

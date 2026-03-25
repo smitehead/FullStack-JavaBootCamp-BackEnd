@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, ShieldAlert, Thermometer, Coins, UserX, UserCheck, Shield, User as UserIcon, ArrowUpDown, Filter, AlertCircle } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import { useAppContext } from '../../context/AppContext';
-import { User, WithdrawnUser } from '../../types';
+import { useAppContext } from '@/context/AppContext';
+import { User, WithdrawnUser } from '@/types';
 
 type UserStatus = '정상' | '정지' | '영구정지' | '탈퇴';
 type SortField = 'mannerTemp' | 'points' | 'joinedAt' | 'role' | 'status' | 'postCount';

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CURRENT_USER } from '../../services/mockData';
+import { CURRENT_USER } from '@/services/mockData';
 import { Landmark, ArrowRight, CheckCircle2, ArrowLeft, X, CreditCard } from 'lucide-react';
 
 const MOCK_PAYMENT_METHODS = [

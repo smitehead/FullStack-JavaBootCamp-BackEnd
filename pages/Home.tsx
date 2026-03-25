@@ -1,9 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, TrendingUp, Grid, ChevronLeft, ChevronRight } from 'lucide-react';
-import api from '../services/api';
-import { ProductCard } from '../components/ProductCard';
-import { CATEGORY_DATA } from '../constants';
+import api from '@/services/api';
+import { ProductCard } from '@/components/ProductCard';
+import { CATEGORY_DATA } from '@/constants';
 import { motion, AnimatePresence } from 'motion/react';
 import { resolveImageUrls } from '../utils/imageUtils';
 

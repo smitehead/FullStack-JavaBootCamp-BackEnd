@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { CURRENT_USER, BLOCKED_USERS, MOCK_PRODUCTS } from '../../services/mockData';
+import { CURRENT_USER, BLOCKED_USERS, MOCK_PRODUCTS } from '@/services/mockData';
 import { Bell, Shield, ShieldCheck, LogOut, UserMinus, ChevronRight, X, AlertCircle, CheckCircle2, User, Phone, Mail, MapPin, CreditCard, Settings as SettingsIcon, ArrowLeft, GripVertical } from 'lucide-react';
 import {
   DndContext,

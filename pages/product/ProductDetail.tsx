@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Product, BidHistory } from '../../types';
-import { useAppContext } from '../../context/AppContext';
+import { Product, BidHistory } from '@/types';
+import { useAppContext } from '@/context/AppContext';
 import { Heart, Share2, AlertTriangle, Clock, MapPin, Send, Flag, ShieldCheck, ChevronRight, TrendingUp, Info, X, Wallet, PlusCircle, ArrowLeft, Package, Users, MessageSquare, Edit2, Trash2, Reply } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import api from '../../services/api';
+import api from '@/services/api';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { resolveImageUrls } from '../../utils/imageUtils';

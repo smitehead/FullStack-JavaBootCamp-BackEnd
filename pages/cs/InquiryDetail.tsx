@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Calendar, Clock, CheckCircle2, MessageSquare, User, ShieldCheck, AlertCircle, Info, List } from 'lucide-react';
-import { MOCK_INQUIRIES } from '../../services/mockData';
+import { MOCK_INQUIRIES } from '@/services/mockData';
 import { format } from 'date-fns';
 
 export const InquiryDetail: React.FC = () => {

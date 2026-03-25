@@ -1,8 +1,7 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Notification, ChatRoom, User, Product, WithdrawnUser, NotificationType, Report, MannerHistory, ActivityLog, SystemSettings } from '../types';
 import { NOTIFICATIONS as INITIAL_NOTIFICATIONS, MOCK_CHATS as INITIAL_CHATS, CURRENT_USER as MOCK_USER, ADMIN_USER, MOCK_PRODUCTS as INITIAL_PRODUCTS, MOCK_USERS as INITIAL_USERS, MOCK_REPORTS as INITIAL_REPORTS } from '../services/mockData';
 import api from '../services/api';
-import { BACKEND_URL } from '../utils/imageUtils';
 
 interface AppContextType {
   user: User | null;
@@ -128,7 +127,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
-      
+
       const memberNo = parseInt(parsedUser.id.replace(/[^0-9]/g, ''), 10);
       if (!isNaN(memberNo)) {
         api.get(`/members/${memberNo}`).then(res => {
@@ -149,9 +148,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       const response = await api.post('/auth/login', { userId, password });
       const { token, memberNo, nickname } = response.data;
-      
+
       localStorage.setItem('java_token', token);
-      
+
       // FETCH REAL POINTS HERE
       let dbPoints = 0;
       let dbMannerTemp = 36.5;
@@ -164,14 +163,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
 
       const loggedInUser: User = {
-         id: `user_${memberNo}`,
-         nickname: nickname || userId,
-         profileImage: '',
-         points: dbPoints,
-         mannerTemp: dbMannerTemp,
-         joinedAt: new Date().toISOString(),
+        id: `user_${memberNo}`,
+        nickname: nickname || userId,
+        profileImage: '',
+        points: dbPoints,
+        mannerTemp: dbMannerTemp,
+        joinedAt: new Date().toISOString(),
       };
-      
+
       setUser(loggedInUser);
       localStorage.setItem('java_user', JSON.stringify(loggedInUser));
       return true;
@@ -220,7 +219,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const suspendUser = (userId: string, days: number, reason: string) => {
     const isPermanent = days === 999;
     let endDateStr: string | undefined = undefined;
-    
+
     if (!isPermanent) {
       const endDate = new Date();
       endDate.setDate(endDate.getDate() + days);
@@ -228,31 +227,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
 
     // 전체 유저 목록에 정지 상태 반영
-    setUsers(prev => prev.map(u => 
-      u.id === userId ? { 
-        ...u, 
-        isSuspended: true, 
-        suspensionEndDate: endDateStr, 
+    setUsers(prev => prev.map(u =>
+      u.id === userId ? {
+        ...u,
+        isSuspended: true,
+        suspensionEndDate: endDateStr,
         suspensionReason: reason,
-        isPermanentlySuspended: isPermanent 
+        isPermanentlySuspended: isPermanent
       } : u
     ));
 
     // 현재 로그인한 유저가 정지 대상이면 본인 상태도 갱신
     if (user?.id === userId) {
-      const updatedUser = { 
-        ...user, 
-        isSuspended: true, 
-        suspensionEndDate: endDateStr, 
+      const updatedUser = {
+        ...user,
+        isSuspended: true,
+        suspensionEndDate: endDateStr,
         suspensionReason: reason,
-        isPermanentlySuspended: isPermanent 
+        isPermanentlySuspended: isPermanent
       };
       setUser(updatedUser);
       localStorage.setItem('java_user', JSON.stringify(updatedUser));
     }
 
     // 해당 유저의 진행 중인 경매 강제 종료
-    setProducts(prev => prev.map(p => 
+    setProducts(prev => prev.map(p =>
       p.seller.id === userId && p.status === 'active' ? { ...p, status: 'canceled' as const } : p
     ));
 
@@ -261,23 +260,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const unsuspendUser = (userId: string) => {
-    setUsers(prev => prev.map(u => 
-      u.id === userId ? { 
-        ...u, 
-        isSuspended: false, 
-        suspensionEndDate: undefined, 
+    setUsers(prev => prev.map(u =>
+      u.id === userId ? {
+        ...u,
+        isSuspended: false,
+        suspensionEndDate: undefined,
         suspensionReason: undefined,
-        isPermanentlySuspended: false 
+        isPermanentlySuspended: false
       } : u
     ));
 
     if (user?.id === userId) {
-      const updatedUser = { 
-        ...user, 
-        isSuspended: false, 
-        suspensionEndDate: undefined, 
+      const updatedUser = {
+        ...user,
+        isSuspended: false,
+        suspensionEndDate: undefined,
         suspensionReason: undefined,
-        isPermanentlySuspended: false 
+        isPermanentlySuspended: false
       };
       setUser(updatedUser);
       localStorage.setItem('java_user', JSON.stringify(updatedUser));
@@ -292,7 +291,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const cancelAuction = (productId: string, reason: string) => {
-    setProducts(prev => prev.map(p => 
+    setProducts(prev => prev.map(p =>
       p.id === productId ? { ...p, status: 'canceled' as const } : p
     ));
     const product = products.find(p => p.id === productId);
@@ -300,20 +299,20 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const resolveReport = (reportId: string, action: string) => {
-    setReports(prev => prev.map(r => 
+    setReports(prev => prev.map(r =>
       r.id === reportId ? { ...r, status: 'resolved' as const } : r
     ));
     addActivityLog('신고 처리', `신고 처리: ${reportId} (${action})`, reportId, 'report');
   };
 
   const markNotificationAsRead = (id: string) => {
-    setNotifications(prev => 
+    setNotifications(prev =>
       prev.map(noti => noti.id === id ? { ...noti, read: true } : noti)
     );
   };
 
   const markChatAsRead = (id: string) => {
-    setChats(prev => 
+    setChats(prev =>
       prev.map(chat => chat.id === id ? { ...chat, unreadCount: 0 } : chat)
     );
   };
@@ -335,7 +334,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const targetUser = users.find(u => u.id === userId);
     addActivityLog('권한 변경', `${targetUser?.nickname}님 권한 변경: ${isAdmin ? '관리자' : '일반'}`, userId, 'user');
   };
-  
+
   const updateUserManner = (userId: string, mannerTemp: number, reason: string) => {
     const targetUser = users.find(u => u.id === userId);
     if (!targetUser) return;
@@ -391,12 +390,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const unreadChatsCount = chats.filter(c => c.unreadCount > 0).length;
 
   return (
-    <AppContext.Provider value={{ 
+    <AppContext.Provider value={{
       user,
       users,
       products,
-      notifications, 
-      chats, 
+      notifications,
+      chats,
       withdrawnUsers,
       reports,
       mannerHistory,
@@ -411,7 +410,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       addProduct,
       cancelAuction,
       resolveReport,
-      markNotificationAsRead, 
+      markNotificationAsRead,
       markChatAsRead,
       addNotification,
       updateUserRole,

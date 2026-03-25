@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, MessageSquare, CheckCircle2, Trash2, Send, User } from 'lucide-react';
-import { MOCK_INQUIRIES, MOCK_USERS } from '../../services/mockData';
-import { Inquiry } from '../../types';
+import { MOCK_INQUIRIES, MOCK_USERS } from '@/services/mockData';
+import { Inquiry } from '@/types';
 
 export const InquiryManagement: React.FC = () => {
   const navigate = useNavigate();

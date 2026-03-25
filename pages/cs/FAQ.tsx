@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronUp, Search, HelpCircle, MessageCircle, Phone } from 'lucide-react';
-import { CustomerCenterSidebar } from '../cs/CustomerCenterSidebar';
+import { CustomerCenterSidebar } from '@/pages/cs/CustomerCenterSidebar';
 
 interface FAQItem {
   id: string;

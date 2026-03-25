@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit2, Image, Link as LinkIcon, CheckCircle2, XCircle, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MOCK_HERO_BANNERS } from '../../services/mockData';
-import { HeroBanner, BannerType, BannerButton } from '../../types';
+import { MOCK_HERO_BANNERS } from '@/services/mockData';
+import { HeroBanner, BannerType, BannerButton } from '@/types';
 
 export const BannerManagement: React.FC = () => {
   const [banners, setBanners] = useState<HeroBanner[]>(MOCK_HERO_BANNERS);

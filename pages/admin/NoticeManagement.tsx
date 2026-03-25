@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Search, Edit2, Trash2, AlertCircle } from 'lucide-react';
-import { MOCK_NOTICES } from '../../services/mockData';
-import { Notice, NoticeCategory } from '../../types';
+import { MOCK_NOTICES } from '@/services/mockData';
+import { Notice, NoticeCategory } from '@/types';
 
 export const NoticeManagement: React.FC = () => {
   const [notices, setNotices] = useState<Notice[]>(MOCK_NOTICES);

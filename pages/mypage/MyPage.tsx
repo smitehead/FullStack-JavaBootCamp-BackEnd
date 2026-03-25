@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { CURRENT_USER, MOCK_PRODUCTS, MOCK_REVIEWS, MOCK_REVIEW_TAGS } from '../../services/mockData';
-import { ProductCard } from '../../components/ProductCard';
+import { CURRENT_USER, MOCK_PRODUCTS, MOCK_REVIEWS, MOCK_REVIEW_TAGS } from '@/services/mockData';
+import { ProductCard } from '@/components/ProductCard';
 import { Settings, Package, ShoppingBag, Heart, User, Wallet, PlusCircle, MinusCircle, Thermometer, MessageSquare, EyeOff, Eye, ArrowLeft, Trash2, RefreshCw, AlertTriangle, X } from 'lucide-react';
-import { Review, ReviewTag, Product } from '../../types';
+import { Review, ReviewTag, Product } from '@/types';
 
 export const MyPage: React.FC = () => {
   const navigate = useNavigate();

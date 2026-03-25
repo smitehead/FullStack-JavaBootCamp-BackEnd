@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Users, Bell, MessageSquare, Image, Home, LayoutDashboard, LogOut, UserX, Megaphone, Gavel, Thermometer, AlertTriangle, Settings, History } from 'lucide-react';
-import { useAppContext } from '../../context/AppContext';
+import { useAppContext } from '@/context/AppContext';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
