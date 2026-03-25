@@ -2,6 +2,44 @@
 
 ---
 
+## 배너 관리 API 보완 + 프론트 연동 (2026-03-25)
+
+### 백엔드 수정
+
+**HeroBanner 엔티티** — `BANNER_TYPE` 컬럼 추가 (`VARCHAR2(10)`, 기본값 `"hero"`, hero/ad 구분)
+
+**HeroBannerRequestDto** — `bannerType` 필드 추가
+
+**HeroBannerResponseDto** — `bannerType` 필드 추가 + `from()` 변환 반영
+
+**HeroBannerRepository** — `findAllByOrderBySortOrderAsc()` 추가 (관리자용 전체 배너 조회)
+
+**HeroBannerServiceImpl**
+- `getAllBanners()` 추가 — 활성/비활성 모두 포함, sortOrder 오름차순
+- `create()` — `bannerType` 반영 (미입력 시 기본값 "hero")
+- `update()` — `bannerType` 반영
+- `toggleActive()` 추가 — isActive 0↔1 토글
+
+**HeroBannerController**
+- `GET /api/banners/all` — 관리자용 전체 배너 목록 (활성/비활성 모두)
+- `PATCH /api/banners/{bannerNo}/toggle` — 배너 활성화/비활성화 토글
+
+### 프론트엔드 수정
+
+**types.ts** — `HeroBanner` 인터페이스를 DB 구조에 맞게 변경
+- `id` → `bannerNo`, `type` → `bannerType`, `imageUrl` → `imgUrl`, `link` → `linkUrl`
+- `isActive`: `boolean` → `number` (0/1)
+- 미사용 필드 제거: `title`, `subtitle`, `label`, `buttons`, `isHtml`, `htmlContent`, `BannerButton`
+
+**BannerManagement.tsx** — Mock 데이터 → API 연동
+- 목록 조회: `MOCK_HERO_BANNERS` → `GET /api/banners/all`
+- 등록: `POST /api/banners`
+- 수정: `PUT /api/banners/{bannerNo}`
+- 삭제: `DELETE /api/banners/{bannerNo}`
+- 토글: `PATCH /api/banners/{bannerNo}/toggle`
+
+---
+
 ## 신규 생성
 
 ### `GlobalExceptionHandler.java` (config 패키지)

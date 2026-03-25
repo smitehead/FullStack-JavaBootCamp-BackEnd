@@ -27,9 +27,19 @@ public class HeroBannerController {
     }
 
     /**
+     * 전체 배너 목록 조회 (관리자용)
+     * GET /api/banners/all
+     * 활성/비활성 모두 포함
+     */
+    @GetMapping("/all")
+    public ResponseEntity<List<HeroBannerResponseDto>> getAllBanners() {
+        return ResponseEntity.ok(heroBannerService.getAllBanners());
+    }
+
+    /**
      * 배너 등록 (관리자)
      * POST /api/banners
-     * Body: { imgUrl, linkUrl, sortOrder, isActive, endAt }
+     * Body: { bannerType, imgUrl, linkUrl, sortOrder, isActive, endAt }
      */
     @PostMapping
     public ResponseEntity<Long> create(@Valid @RequestBody HeroBannerRequestDto dto) {
@@ -55,6 +65,16 @@ public class HeroBannerController {
     @DeleteMapping("/{bannerNo}")
     public ResponseEntity<Void> delete(@PathVariable Long bannerNo) {
         heroBannerService.delete(bannerNo);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 배너 활성화/비활성화 토글 (관리자)
+     * PATCH /api/banners/{bannerNo}/toggle
+     */
+    @PatchMapping("/{bannerNo}/toggle")
+    public ResponseEntity<Void> toggleActive(@PathVariable Long bannerNo) {
+        heroBannerService.toggleActive(bannerNo);
         return ResponseEntity.ok().build();
     }
 }
