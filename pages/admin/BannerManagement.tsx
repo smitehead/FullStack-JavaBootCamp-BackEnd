@@ -1,29 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, Image, Link as LinkIcon, CheckCircle2, XCircle, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
+import { Plus, Trash2, Edit2, Image, Link as LinkIcon, CheckCircle2, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MOCK_HERO_BANNERS } from '@/services/mockData';
-import { HeroBanner, BannerType, BannerButton } from '@/types';
+import { HeroBanner, BannerType } from '@/types';
+import api from '@/services/api';
 
 export const BannerManagement: React.FC = () => {
-  const [banners, setBanners] = useState<HeroBanner[]>(MOCK_HERO_BANNERS);
+  const [banners, setBanners] = useState<HeroBanner[]>([]);
   const [activeTab, setActiveTab] = useState<BannerType>('hero');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editingBanner, setEditingBanner] = useState<HeroBanner | null>(null);
-  const [bannerToDelete, setBannerToDelete] = useState<string | null>(null);
+  const [bannerToDelete, setBannerToDelete] = useState<number | null>(null);
 
   // Form States
-  const [imageUrl, setImageUrl] = useState('');
-  const [link, setLink] = useState('');
-  const [isActive, setIsActive] = useState(true);
-  const [type, setType] = useState<BannerType>('hero');
+  const [imgUrl, setImgUrl] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
+  const [isActive, setIsActive] = useState(1);
+  const [bannerType, setBannerType] = useState<BannerType>('hero');
 
   // Preview States
   const [previewIndex, setPreviewIndex] = useState(0);
   const [direction, setDirection] = useState(0);
 
-  const filteredBanners = banners.filter(b => b.type === activeTab);
-  const activeBannersForPreview = banners.filter(b => b.isActive && b.type === activeTab);
+  // API: 전체 배너 목록 조회
+  const fetchBanners = async () => {
+    try {
+      const res = await api.get('/banners/all');
+      setBanners(res.data);
+    } catch (e) {
+      console.error('배너 목록 조회 실패', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchBanners();
+  }, []);
+
+  const filteredBanners = banners.filter(b => b.bannerType === activeTab);
+  const activeBannersForPreview = banners.filter(b => b.isActive === 1 && b.bannerType === activeTab);
 
   useEffect(() => {
     if (activeBannersForPreview.length <= 1) {
@@ -40,61 +54,63 @@ export const BannerManagement: React.FC = () => {
   const handleOpenModal = (banner?: HeroBanner) => {
     if (banner) {
       setEditingBanner(banner);
-      setImageUrl(banner.imageUrl);
-      setLink(banner.link);
+      setImgUrl(banner.imgUrl);
+      setLinkUrl(banner.linkUrl || '');
       setIsActive(banner.isActive);
-      setType(banner.type);
+      setBannerType(banner.bannerType);
     } else {
       setEditingBanner(null);
-      setImageUrl('');
-      setLink('');
-      setIsActive(true);
-      setType(activeTab);
+      setImgUrl('');
+      setLinkUrl('');
+      setIsActive(1);
+      setBannerType(activeTab);
     }
     setIsModalOpen(true);
   };
 
-  const handleSave = () => {
-    if (editingBanner) {
-      setBanners(prev => prev.map(b => b.id === editingBanner.id ? {
-        ...b, imageUrl, link, isActive, type,
-        title: '', subtitle: '', label: '', buttons: [] // Clear old fields
-      } : b));
-    } else {
-      const newBanner: HeroBanner = {
-        id: `banner_${Date.now()}`,
-        type,
-        title: '',
-        subtitle: '',
-        label: '',
-        buttons: [],
-        imageUrl,
-        link,
-        isActive,
-        isHtml: false,
-        htmlContent: '',
-        createdAt: new Date().toISOString()
-      };
-      setBanners([...banners, newBanner]);
+  // API: 배너 등록/수정
+  const handleSave = async () => {
+    try {
+      const body = { bannerType, imgUrl, linkUrl, isActive };
+      if (editingBanner) {
+        await api.put(`/banners/${editingBanner.bannerNo}`, body);
+      } else {
+        await api.post('/banners', body);
+      }
+      setIsModalOpen(false);
+      fetchBanners();
+    } catch (e) {
+      console.error('배너 저장 실패', e);
     }
-    setIsModalOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    setBannerToDelete(id);
+  const handleDelete = (bannerNo: number) => {
+    setBannerToDelete(bannerNo);
     setIsDeleteModalOpen(true);
   };
 
-  const confirmDelete = () => {
+  // API: 배너 삭제
+  const confirmDelete = async () => {
     if (bannerToDelete) {
-      setBanners(prev => prev.filter(b => b.id !== bannerToDelete));
-      setBannerToDelete(null);
-      setIsDeleteModalOpen(false);
+      try {
+        await api.delete(`/banners/${bannerToDelete}`);
+        setBannerToDelete(null);
+        setIsDeleteModalOpen(false);
+        fetchBanners();
+      } catch (e) {
+        console.error('배너 삭제 실패', e);
+      }
     }
   };
 
-  const toggleActive = (id: string) => {
-    setBanners(prev => prev.map(b => b.id === id ? { ...b, isActive: !b.isActive } : b));
+  // API: 배너 활성화/비활성화 토글
+  const toggleActive = async (bannerNo: number) => {
+    try {
+      await api.patch(`/banners/${bannerNo}/toggle`);
+      fetchBanners();
+    } catch (e) {
+      console.error('배너 토글 실패', e);
+    }
   };
 
   const variants = {
@@ -114,8 +130,6 @@ export const BannerManagement: React.FC = () => {
     })
   };
 
-  const currentActiveBanner = activeBannersForPreview[previewIndex] || activeBannersForPreview[0];
-
   return (
     <div className="space-y-6">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -123,7 +137,7 @@ export const BannerManagement: React.FC = () => {
           <h1 className="text-xl font-black text-gray-900 tracking-tight">배너 관리</h1>
           <p className="text-gray-500 mt-1 text-[11px] font-medium">메인 화면의 히어로 배너와 하단 광고 배너를 관리합니다.</p>
         </div>
-        <button 
+        <button
           onClick={() => handleOpenModal()}
           className="bg-[#FF5A5A] text-white px-6 py-2 rounded-none font-black hover:bg-[#E04848] transition-all flex items-center justify-center shadow-lg shadow-red-900/10 active:scale-95 shrink-0 text-sm"
         >
@@ -137,8 +151,8 @@ export const BannerManagement: React.FC = () => {
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`pb-3 text-xs font-black transition-all relative ${
-              activeTab === tab 
-                ? 'text-[#FF5A5A]' 
+              activeTab === tab
+                ? 'text-[#FF5A5A]'
                 : 'text-gray-400 hover:text-gray-600'
             }`}
           >
@@ -161,12 +175,12 @@ export const BannerManagement: React.FC = () => {
             <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Live Preview</span>
           </div>
         </div>
-        
+
         <div className={`relative ${activeTab === 'hero' ? 'h-[400px] md:h-[500px]' : 'h-[250px] md:h-[300px]'} overflow-hidden bg-gray-100 rounded-none group`}>
           <AnimatePresence initial={false} custom={direction}>
             {activeBannersForPreview.length > 0 ? (
               <motion.div
-                key={activeBannersForPreview[previewIndex]?.id}
+                key={activeBannersForPreview[previewIndex]?.bannerNo}
                 custom={direction}
                 variants={variants}
                 initial="enter"
@@ -180,17 +194,17 @@ export const BannerManagement: React.FC = () => {
               >
                 {activeTab === 'hero' ? (
                   <div className="absolute inset-0 bg-black">
-                    <div 
-                      className="absolute inset-0 bg-cover bg-center" 
-                      style={{ backgroundImage: `url('${activeBannersForPreview[previewIndex]?.imageUrl || ''}')` }}
+                    <div
+                      className="absolute inset-0 bg-cover bg-center"
+                      style={{ backgroundImage: `url('${activeBannersForPreview[previewIndex]?.imgUrl || ''}')` }}
                     ></div>
                   </div>
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center px-10">
                     <div className="w-full h-[200px] rounded-[32px] overflow-hidden shadow-2xl border border-white/5 relative group/ad">
-                      <div 
+                      <div
                         className="absolute inset-0 bg-cover bg-center"
-                        style={{ backgroundImage: `url('${activeBannersForPreview[previewIndex]?.imageUrl || ''}')` }}
+                        style={{ backgroundImage: `url('${activeBannersForPreview[previewIndex]?.imgUrl || ''}')` }}
                       ></div>
                     </div>
                   </div>
@@ -206,7 +220,7 @@ export const BannerManagement: React.FC = () => {
           {/* Controls */}
           {activeBannersForPreview.length > 1 && (
             <>
-              <button 
+              <button
                 onClick={() => {
                   setDirection(-1);
                   setPreviewIndex((prev) => (prev - 1 + activeBannersForPreview.length) % activeBannersForPreview.length);
@@ -215,7 +229,7 @@ export const BannerManagement: React.FC = () => {
               >
                 <ChevronLeft className="w-6 h-6" />
               </button>
-              <button 
+              <button
                 onClick={() => {
                   setDirection(1);
                   setPreviewIndex((prev) => (prev + 1) % activeBannersForPreview.length);
@@ -226,8 +240,8 @@ export const BannerManagement: React.FC = () => {
               </button>
               <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex space-x-2">
                 {activeBannersForPreview.map((_, idx) => (
-                  <button 
-                    key={idx} 
+                  <button
+                    key={idx}
                     onClick={() => {
                       setDirection(idx > previewIndex ? 1 : -1);
                       setPreviewIndex(idx);
@@ -244,19 +258,19 @@ export const BannerManagement: React.FC = () => {
       {/* Banner Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredBanners.map((banner) => (
-          <div key={banner.id} className="bg-white rounded-none shadow-sm border border-gray-100 overflow-hidden group hover:shadow-md transition-all">
+          <div key={banner.bannerNo} className="bg-white rounded-none shadow-sm border border-gray-100 overflow-hidden group hover:shadow-md transition-all">
             <div className="relative h-48 overflow-hidden">
-              <img src={banner.imageUrl || undefined} alt="Banner" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+              <img src={banner.imgUrl || undefined} alt="Banner" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
               <div className="absolute inset-0 bg-black/20"></div>
               <div className="absolute top-4 right-4 flex space-x-2">
-                <button 
+                <button
                   onClick={() => handleOpenModal(banner)}
                   className="p-2 bg-white/20 backdrop-blur-md text-white hover:bg-white/40 rounded-none transition-colors"
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
-                <button 
-                  onClick={() => handleDelete(banner.id)}
+                <button
+                  onClick={() => handleDelete(banner.bannerNo)}
                   className="p-2 bg-red-500/80 backdrop-blur-md text-white hover:bg-red-600 rounded-none transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -267,15 +281,10 @@ export const BannerManagement: React.FC = () => {
               <div className="flex items-center space-x-3">
                 <div className="flex items-center space-x-1.5 text-[10px] text-gray-500 font-medium">
                   <LinkIcon className="w-3 h-3" />
-                  <span className="max-w-[100px] truncate">{banner.link}</span>
+                  <span className="max-w-[100px] truncate">{banner.linkUrl}</span>
                 </div>
                 <div className="flex items-center space-x-1.5">
-                  {banner.isHtml && (
-                    <span className="flex items-center text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-none">
-                      HTML
-                    </span>
-                  )}
-                  {banner.isActive ? (
+                  {banner.isActive === 1 ? (
                     <span className="flex items-center text-[9px] font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-none">
                       <CheckCircle2 className="w-2.5 h-2.5 mr-1" /> 활성
                     </span>
@@ -286,15 +295,15 @@ export const BannerManagement: React.FC = () => {
                   )}
                 </div>
               </div>
-              <button 
-                onClick={() => toggleActive(banner.id)}
+              <button
+                onClick={() => toggleActive(banner.bannerNo)}
                 className={`text-[10px] font-black px-4 py-1.5 rounded-none transition-all ${
-                  banner.isActive 
-                    ? 'text-red-600 bg-red-50 hover:bg-red-100' 
+                  banner.isActive === 1
+                    ? 'text-red-600 bg-red-50 hover:bg-red-100'
                     : 'text-green-600 bg-green-50 hover:bg-green-100'
                 }`}
               >
-                {banner.isActive ? '비활성화' : '활성화'}
+                {banner.isActive === 1 ? '비활성화' : '활성화'}
               </button>
             </div>
           </div>
@@ -316,9 +325,9 @@ export const BannerManagement: React.FC = () => {
                 <label className="block text-xs font-black text-gray-700 mb-3 uppercase tracking-widest">배너 타입</label>
                 <div className="flex gap-3">
                   <button
-                    onClick={() => setType('hero')}
+                    onClick={() => setBannerType('hero')}
                     className={`flex-1 py-3 rounded-none font-black text-sm transition-all ${
-                      type === 'hero'
+                      bannerType === 'hero'
                         ? 'bg-[#FF5A5A] text-white shadow-lg shadow-red-500/20'
                         : 'bg-gray-50 text-gray-400 border border-gray-100 hover:bg-gray-100'
                     }`}
@@ -326,9 +335,9 @@ export const BannerManagement: React.FC = () => {
                     히어로 배너
                   </button>
                   <button
-                    onClick={() => setType('ad')}
+                    onClick={() => setBannerType('ad')}
                     className={`flex-1 py-3 rounded-none font-black text-sm transition-all ${
-                      type === 'ad'
+                      bannerType === 'ad'
                         ? 'bg-[#FF5A5A] text-white shadow-lg shadow-red-500/20'
                         : 'bg-gray-50 text-gray-400 border border-gray-100 hover:bg-gray-100'
                     }`}
@@ -343,17 +352,17 @@ export const BannerManagement: React.FC = () => {
                 <div className="flex space-x-3">
                   <div className="flex-1 relative flex items-center">
                     <Image className="absolute left-3 text-gray-400 w-4 h-4" />
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       placeholder="https://..."
                       className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-none focus:outline-none focus:ring-2 focus:ring-[#FF5A5A] font-medium text-sm"
-                      value={imageUrl}
-                      onChange={(e) => setImageUrl(e.target.value)}
+                      value={imgUrl}
+                      onChange={(e) => setImgUrl(e.target.value)}
                     />
                   </div>
-                  {imageUrl && (
+                  {imgUrl && (
                     <div className="w-10 h-10 rounded-none overflow-hidden border border-gray-200 shrink-0">
-                      <img src={imageUrl} alt="미리보기" className="w-full h-full object-cover" />
+                      <img src={imgUrl} alt="미리보기" className="w-full h-full object-cover" />
                     </div>
                   )}
                 </div>
@@ -363,23 +372,23 @@ export const BannerManagement: React.FC = () => {
                 <label className="block text-xs font-black text-gray-700 mb-2">연결 링크 (URL)</label>
                 <div className="relative flex items-center">
                   <LinkIcon className="absolute left-3 text-gray-400 w-4 h-4" />
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     placeholder="/search"
                     className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-none focus:outline-none focus:ring-2 focus:ring-[#FF5A5A] font-medium text-sm"
-                    value={link}
-                    onChange={(e) => setLink(e.target.value)}
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
                   />
                 </div>
               </div>
 
               <div className="flex items-center space-x-2">
                 <label className="flex items-center space-x-2 cursor-pointer group">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     className="w-5 h-5 rounded-none border-gray-300 text-[#FF5A5A] focus:ring-[#FF5A5A] cursor-pointer"
-                    checked={isActive}
-                    onChange={(e) => setIsActive(e.target.checked)}
+                    checked={isActive === 1}
+                    onChange={(e) => setIsActive(e.target.checked ? 1 : 0)}
                   />
                   <span className="text-xs font-black text-gray-700 group-hover:text-[#FF5A5A] transition-colors">배너 활성화</span>
                 </label>
@@ -387,13 +396,13 @@ export const BannerManagement: React.FC = () => {
             </div>
 
             <div className="flex gap-3">
-              <button 
+              <button
                 onClick={() => setIsModalOpen(false)}
                 className="flex-1 py-3 rounded-none font-black text-gray-500 bg-gray-100 hover:bg-gray-200 transition-all active:scale-95 text-sm"
               >
                 취소
               </button>
-              <button 
+              <button
                 onClick={handleSave}
                 className="flex-1 py-3 rounded-none font-black text-white bg-[#FF5A5A] hover:bg-[#E04848] transition-all active:scale-95 shadow-lg shadow-red-500/10 text-sm"
               >
@@ -418,13 +427,13 @@ export const BannerManagement: React.FC = () => {
             </p>
 
             <div className="flex gap-3">
-              <button 
+              <button
                 onClick={() => setIsDeleteModalOpen(false)}
                 className="flex-1 py-3 rounded-none font-black text-gray-500 bg-gray-100 hover:bg-gray-200 transition-all active:scale-95 text-sm"
               >
                 취소
               </button>
-              <button 
+              <button
                 onClick={confirmDelete}
                 className="flex-1 py-3 rounded-none font-black text-white bg-[#FF5A5A] hover:bg-[#E04848] transition-all active:scale-95 shadow-lg shadow-red-500/20 text-sm"
               >
