@@ -4,6 +4,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -11,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SseService {
     // 기본 타임아웃 1시간
     private static final Long DEFAULT_TIMEOUT = 60L * 1000 * 60;
-    
+
     // 스레드 안전한 컬렉션으로 다수의 클라이언트 연결을 관리
     private final Map<String, SseEmitter> emitterMap = new ConcurrentHashMap<>();
 
@@ -29,7 +31,7 @@ public class SseService {
 
         // 503 Service Unavailable 방지용 첫 더미 데이터 전송
         sendToClient(clientId, "SSE Connected");
-        
+
         return emitter;
     }
 
@@ -42,8 +44,8 @@ public class SseService {
             try {
                 emitter.send(SseEmitter.event().name("notification").data(data));
             } catch (IOException e) {
+                // 클라이언트 연결이 끊어진 경우 맵에서 제거
                 emitterMap.remove(clientId);
-                // 클라이언트 연결이 끊어진 경우 무시하거나 로그 처리
             }
         }
     }
@@ -54,7 +56,7 @@ public class SseService {
     public void sendPointUpdate(Long memberNo, Long currentPoints) {
         String clientId = String.valueOf(memberNo);
         SseEmitter emitter = emitterMap.get(clientId);
-        
+
         if (emitter != null) {
             try {
                 Map<String, Object> data = Map.of("points", currentPoints);
@@ -83,16 +85,26 @@ public class SseService {
 
     /**
      * 모든 연결된 클라이언트에게 실시간 입찰가 갱신 브로드캐스트
+     * 【수정】forEach 루프 중 직접 remove 대신, 실패한 ID를 수집하여 루프 후 일괄 제거
+     *         → ConcurrentHashMap 반복 중 구조 변경으로 인한 예외 위험 제거
      */
     public void broadcastPriceUpdate(Long productNo, Long currentPrice) {
         Map<String, Object> data = Map.of("productNo", productNo, "currentPrice", currentPrice);
-        
+
+        // 전송 실패한 클라이언트 ID를 별도 리스트에 수집
+        List<String> deadClients = new ArrayList<>();
+
         emitterMap.forEach((clientId, emitter) -> {
             try {
                 emitter.send(SseEmitter.event().name("priceUpdate").data(data));
             } catch (IOException e) {
-                emitterMap.remove(clientId);
+                // 루프 중에는 수집만 하고, 실제 제거는 루프 종료 후 진행
+                deadClients.add(clientId);
+                emitter.completeWithError(e); // 클라이언트 연결 명시적 종료
             }
         });
+
+        // 루프 종료 후 끊어진 클라이언트 일괄 제거
+        deadClients.forEach(emitterMap::remove);
     }
 }

@@ -10,7 +10,6 @@ import com.javajava.project.repository.BidHistoryRepository;
 import com.javajava.project.repository.MemberRepository;
 import com.javajava.project.repository.PointHistoryRepository;
 import com.javajava.project.repository.ProductRepository;
-import com.javajava.project.service.SseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,9 +27,9 @@ public class BidServiceImpl implements BidService {
     private final ProductRepository productRepository;
     private final MemberRepository memberRepository;
     private final BidHistoryRepository bidHistoryRepository;
-    private final PointHistoryRepository pointHistoryRepository; // 포인트 이력 관리를 위해 추가
-    private final SseService sseService; // SSE 알림 발송 서비스
-    private final NotificationService notificationService; // 알림 저장 및 발송 서비스
+    private final PointHistoryRepository pointHistoryRepository;
+    private final SseService sseService;
+    private final NotificationService notificationService;
 
     /**
      * 입찰 프로세스 실행 (검증 + 포인트 환불/차감 + 상품 갱신 + 입찰 기록)
@@ -38,15 +37,11 @@ public class BidServiceImpl implements BidService {
     @Override
     @Transactional
     public String processBid(BidRequestDto bidDto) {
-        // 1. 상품 정보 조회 (동시성 제어를 위해 비관적 락 적용)
+        // 1. 상품 정보 조회 (비관적 락)
         Product product = productRepository.findByIdWithLock(bidDto.getProductNo())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상품입니다."));
 
-        // 2. 현재 입찰자 정보 조회 (포인트 업데이트를 위한 락)
-        Member currentBidder = memberRepository.findByIdWithLock(bidDto.getMemberNo())
-                .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
-
-        // 3. 유효성 검증
+        // 2. 유효성 검증 (락 획득 전 빠른 실패 조건 먼저 체크)
         if (product.getIsActive() == 0 || product.getEndTime().isBefore(LocalDateTime.now())) {
             return "이미 종료된 경매입니다.";
         }
@@ -57,31 +52,47 @@ public class BidServiceImpl implements BidService {
         if (bidDto.getBidPrice() < minRequiredBid) {
             return "최소 입찰 가능 금액은 " + minRequiredBid + "원입니다.";
         }
-        // --- 4. 기존 최고 입찰자 확인 및 환불 예상 금액 계산 ---
-        long availablePoints = currentBidder.getPoints();
+
+        // 3. 기존 최고 입찰 내역 확인
         Optional<BidHistory> lastBidOpt = bidHistoryRepository
                 .findFirstByProductNoAndIsCancelledOrderByBidPriceDesc(product.getProductNo(), 0);
 
-        if (lastBidOpt.isPresent()) {
-            BidHistory lastBid = lastBidOpt.get();
-            // 현재 최고 입찰자가 본인인 경우, 연속 입찰 방지
-            if (lastBid.getMemberNo().equals(currentBidder.getMemberNo())) {
-                return "현재 최고 입찰자입니다. 추가 입찰이 불가합니다.";
-            }
+        Long previousBidderNo = lastBidOpt.map(BidHistory::getMemberNo).orElse(null);
+
+        if (previousBidderNo != null && previousBidderNo.equals(bidDto.getMemberNo())) {
+            return "현재 최고 입찰자입니다. 추가 입찰이 불가합니다.";
         }
 
-        if (availablePoints < bidDto.getBidPrice()) {
+        // 4. 【수정】비관적 락 순서 고정 - memberNo 오름차순으로 항상 같은 순서 락 획득 (데드락 방지)
+        Member currentBidder;
+        Member previousBidder = null;
+
+        if (previousBidderNo != null && previousBidderNo < bidDto.getMemberNo()) {
+            // 이전 입찰자 번호가 더 작으면 → 이전 입찰자 먼저 락
+            previousBidder = memberRepository.findByIdWithLock(previousBidderNo)
+                    .orElseThrow(() -> new IllegalStateException("이전 입찰자 정보를 찾을 수 없습니다."));
+            currentBidder = memberRepository.findByIdWithLock(bidDto.getMemberNo())
+                    .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
+        } else if (previousBidderNo != null) {
+            // 현재 입찰자 번호가 더 작거나 같으면 → 현재 입찰자 먼저 락
+            currentBidder = memberRepository.findByIdWithLock(bidDto.getMemberNo())
+                    .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
+            previousBidder = memberRepository.findByIdWithLock(previousBidderNo)
+                    .orElseThrow(() -> new IllegalStateException("이전 입찰자 정보를 찾을 수 없습니다."));
+        } else {
+            // 이전 입찰자 없으면 현재 입찰자만 락
+            currentBidder = memberRepository.findByIdWithLock(bidDto.getMemberNo())
+                    .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
+        }
+
+        // 5. 포인트 잔액 검증
+        if (currentBidder.getPoints() < bidDto.getBidPrice()) {
             return "보유 포인트가 부족합니다.";
         }
 
-        // --- 4-2. 기존 최고 입찰자 실제 환불 로직 ---
-        if (lastBidOpt.isPresent()) {
+        // 6. 이전 최고 입찰자 포인트 환불
+        if (previousBidder != null && lastBidOpt.isPresent()) {
             BidHistory lastBid = lastBidOpt.get();
-            
-            Member previousBidder = memberRepository.findByIdWithLock(lastBid.getMemberNo())
-                    .orElseThrow(() -> new IllegalStateException("이전 입찰자 정보를 찾을 수 없습니다."));
-
-            // 포인트 환불 및 이력 저장
             previousBidder.setPoints(previousBidder.getPoints() + lastBid.getBidPrice());
             pointHistoryRepository.save(PointHistory.builder()
                     .memberNo(previousBidder.getMemberNo())
@@ -91,22 +102,23 @@ public class BidServiceImpl implements BidService {
                     .reason("[" + product.getTitle() + "] 상위 입찰 발생으로 인한 자동 환불")
                     .build());
 
-            // 실시간 포인트 업데이트 발송
-            sseService.sendPointUpdate(previousBidder.getMemberNo(), previousBidder.getPoints());
+            // 【수정】SSE 발송 격리: SSE 오류가 트랜잭션 롤백을 유발하지 않음
+            final long prevPoints = previousBidder.getPoints();
+            final Long prevMemberNo = previousBidder.getMemberNo();
+            try {
+                sseService.sendPointUpdate(prevMemberNo, prevPoints);
+            } catch (Exception ignored) {
+                /* SSE 실패는 비즈니스 로직에 영향 없음 */ }
 
-            // 이전 입찰자가 현재 입찰자와 다른 경우에만 알림 진행
-            if (!lastBid.getMemberNo().equals(currentBidder.getMemberNo())) {
-                String messageToPrevBidder = String.format("상위 입찰 발생: %s에 더 높은 입찰가가 등록되었습니다.", product.getTitle());
+            try {
+                String msg = String.format("상위 입찰 발생: %s에 더 높은 입찰가가 등록되었습니다.", product.getTitle());
                 notificationService.sendAndSaveNotification(
-                        previousBidder.getMemberNo(),
-                        "bid",
-                        messageToPrevBidder,
-                        "/product/" + product.getProductNo()
-                );
-            }
+                        prevMemberNo, "bid", msg, "/product/" + product.getProductNo());
+            } catch (Exception ignored) {
+                /* 알림 실패도 트랜잭션에 영향 없음 */ }
         }
 
-        // --- 5. 현재 입찰자 포인트 차감 로직 ---
+        // 7. 현재 입찰자 포인트 차감
         currentBidder.setPoints(currentBidder.getPoints() - bidDto.getBidPrice());
         pointHistoryRepository.save(PointHistory.builder()
                 .memberNo(currentBidder.getMemberNo())
@@ -116,10 +128,15 @@ public class BidServiceImpl implements BidService {
                 .reason("[" + product.getTitle() + "] 경매 입찰 참여")
                 .build());
 
-        // 실시간 포인트 업데이트 발송
-        sseService.sendPointUpdate(currentBidder.getMemberNo(), currentBidder.getPoints());
+        // 【수정】SSE 포인트 업데이트 격리
+        final long curPoints = currentBidder.getPoints();
+        final Long curMemberNo = currentBidder.getMemberNo();
+        try {
+            sseService.sendPointUpdate(curMemberNo, curPoints);
+        } catch (Exception ignored) {
+            /* SSE 실패는 비즈니스 로직에 영향 없음 */ }
 
-        // 6. 상품 및 입찰 기록 업데이트
+        // 8. 상품 및 입찰 기록 업데이트
         product.setCurrentPrice(bidDto.getBidPrice());
         product.setBidCount(product.getBidCount() + 1);
 
@@ -132,20 +149,22 @@ public class BidServiceImpl implements BidService {
                 .isCancelled(0)
                 .isWinner(0)
                 .build();
-
         bidHistoryRepository.save(newBid);
 
-        // [알림 발송] 판매자에게 새로운 입찰 알림 전송 (명세서 반영)
-        String messageToSeller = String.format("새로운 입찰: 등록하신 %s에 새로운 입찰자가 등장했습니다.", product.getTitle());
-        notificationService.sendAndSaveNotification(
-                product.getSellerNo(),
-                "bid",
-                messageToSeller,
-                "/product/" + product.getProductNo()
-        );
+        // 9. 판매자 알림 전송 (격리)
+        try {
+            String msgToSeller = String.format(
+                    "새로운 입찰: 등록하신 %s에 새로운 입찰자가 등장했습니다.", product.getTitle());
+            notificationService.sendAndSaveNotification(
+                    product.getSellerNo(), "bid", msgToSeller, "/product/" + product.getProductNo());
+        } catch (Exception ignored) {
+            /* 알림 실패는 트랜잭션에 영향 없음 */ }
 
-        // --- 접속 중인 모든 클라이언트(비로그인 포함)에게 변경된 입찰가 브로드캐스트 ---
-        sseService.broadcastPriceUpdate(product.getProductNo(), bidDto.getBidPrice());
+        // 10. 전체 클라이언트 가격 브로드캐스트 (격리)
+        try {
+            sseService.broadcastPriceUpdate(product.getProductNo(), bidDto.getBidPrice());
+        } catch (Exception ignored) {
+            /* 브로드캐스트 실패는 트랜잭션에 영향 없음 */ }
 
         return "SUCCESS";
     }
@@ -171,6 +190,7 @@ public class BidServiceImpl implements BidService {
 
     /**
      * 입찰 취소 로직
+     * 【수정】취소 시 해당 입찰자에게 포인트 환불 및 PointHistory 기록 추가
      */
     @Override
     @Transactional
@@ -178,10 +198,31 @@ public class BidServiceImpl implements BidService {
         BidHistory bid = bidHistoryRepository.findById(bidNo)
                 .orElseThrow(() -> new IllegalArgumentException("입찰 기록을 찾을 수 없습니다."));
 
+        if (bid.getIsCancelled() == 1) {
+            throw new IllegalStateException("이미 취소된 입찰입니다.");
+        }
+
         bid.setIsCancelled(1);
         bid.setCancelReason(reason);
-        
-        // 실제 서비스에서는 취소 시 포인트 환불 로직이 추가되어야 함
+
+        // 【추가】포인트 환불 처리
+        Member bidder = memberRepository.findByIdWithLock(bid.getMemberNo())
+                .orElseThrow(() -> new IllegalStateException("입찰자 정보를 찾을 수 없습니다."));
+
+        bidder.setPoints(bidder.getPoints() + bid.getBidPrice());
+        pointHistoryRepository.save(PointHistory.builder()
+                .memberNo(bidder.getMemberNo())
+                .type("입찰취소환불")
+                .amount(bid.getBidPrice())
+                .balance(bidder.getPoints())
+                .reason("입찰 취소 환불: " + (reason != null ? reason : "사유 없음"))
+                .build());
+
+        // 환불 SSE 알림 (격리)
+        try {
+            sseService.sendPointUpdate(bidder.getMemberNo(), bidder.getPoints());
+        } catch (Exception ignored) {
+            /* SSE 실패는 트랜잭션에 영향 없음 */ }
     }
 
     @Override

@@ -29,6 +29,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -105,12 +108,20 @@ public class ProductServiceImpl implements ProductService {
         int pageNumber = page > 0 ? page - 1 : 0;
 
         // 프론트엔드 정렬 조건 매핑
-        Sort sort = switch (sortOption) {
-            case "popular" -> Sort.by(Sort.Direction.DESC, "bidCount");
-            case "ending" -> Sort.by(Sort.Direction.ASC, "endTime");
-            default -> Sort.by(Sort.Direction.DESC, "createdAt"); // "latest"
+        // - popular(인기순): 입찰 횟수 많은 순 → 조회수 많은 순 (복합 정렬)
+        // - ending(종료임박순): 경매 종료 시간이 가장 가까운 것 먼저
+        // - latest(최신순): 등록 날짜 최근 순
+        // - all / 기타: 최신순과 동일 (기본값)
+        Sort sort = switch (sortOption != null ? sortOption : "latest") {
+            case "popular" -> Sort.by(
+                    Sort.Order.desc("bidCount"),   // 1순위: 입찰 수 많은 것
+                    Sort.Order.desc("viewCount")   // 2순위: 조회수 많은 것 (동점 시)
+            );
+            case "ending" -> Sort.by(Sort.Order.asc("endTime"));   // 종료 임박 순
+            case "latest" -> Sort.by(Sort.Order.desc("createdAt")); // 최신 등록 순
+            default -> Sort.by(Sort.Order.desc("createdAt"));       // all 또는 기타 → 최신순
         };
-        
+
         Pageable pageable = PageRequest.of(pageNumber, size, sort);
 
         // 동적 쿼리 (다중 필터 적용)
@@ -118,6 +129,9 @@ public class ProductServiceImpl implements ProductService {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("isActive"), 1)); // 진행 중인 상품
             predicates.add(cb.equal(root.get("isDeleted"), 0)); // 삭제 안 된 상품
+
+            // 【추가】종료된 경매 제외: endTime이 현재 시각보다 미래인 것만 조회
+            predicates.add(cb.greaterThan(root.get("endTime"), LocalDateTime.now()));
 
             // 카테고리 필터 (임시: 실제로는 Category 테이블 JOIN 필요)
             if (small != null) predicates.add(cb.equal(root.get("categoryNo"), small));
@@ -131,20 +145,36 @@ public class ProductServiceImpl implements ProductService {
             if (city != null && !city.isEmpty()) predicates.add(cb.like(root.get("tradeAddrDetail"), "%" + city + "%"));
 
             // 거래 방식 필터 (택배, 대면)
-            if (Boolean.TRUE.equals(delivery) && Boolean.TRUE.equals(face)) predicates.add(cb.in(root.get("tradeType")).value(Arrays.asList("택배", "직거래", "혼합")));
-            else if (Boolean.TRUE.equals(delivery)) predicates.add(cb.in(root.get("tradeType")).value(Arrays.asList("택배", "혼합")));
+            if (Boolean.TRUE.equals(delivery) && Boolean.TRUE.equals(face)) predicates.add(cb.in(root.get("tradeType")).value(Arrays.asList("택배거래", "직거래", "혼합")));
+            else if (Boolean.TRUE.equals(delivery)) predicates.add(cb.in(root.get("tradeType")).value(Arrays.asList("택배거래", "혼합")));
             else if (Boolean.TRUE.equals(face)) predicates.add(cb.in(root.get("tradeType")).value(Arrays.asList("직거래", "혼합")));
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
-        return productRepository.findAll(spec, pageable).map(product -> {
-            List<ProductImage> productImages = productImageRepository.findByProductNoOrderByIsMainDesc(product.getProductNo());
-            List<String> imageUrls = productImages.stream()
-                    .map(img -> "/api/images/" + img.getUuidName())
-                    .collect(Collectors.toList());
+        // 【수정 - N+1 제거】먼저 페이지 데이터를 가져온 후 배치 쿼리로 연관 데이터를 일괄 조회
+        Page<Product> productPage = productRepository.findAll(spec, pageable);
+        List<Long> productNos = productPage.getContent().stream()
+                .map(Product::getProductNo)
+                .collect(Collectors.toList());
 
-            
+        // 메인 이미지 배치 조회 (상품 수 만큼 쿼리 → 1번 IN 쿼리)
+        Map<Long, ProductImage> mainImageMap = productNos.isEmpty() ? Map.of() :
+                productImageRepository.findMainImagesByProductNos(productNos).stream()
+                        .collect(Collectors.toMap(ProductImage::getProductNo, Function.identity(),
+                                (a, b) -> a)); // 중복 시 첫 번째 유지
+
+        // 찜 여부 배치 조회 (상품 수 만큼 쿼리 → 1번 IN 쿼리)
+        Set<Long> wishlistedNos = (memberNo != null && !productNos.isEmpty())
+                ? Set.copyOf(wishlistRepository.findWishlistedProductNos(memberNo, productNos))
+                : Set.of();
+
+        return productPage.map(product -> {
+            ProductImage mainImg = mainImageMap.get(product.getProductNo());
+            List<String> imageUrls = mainImg != null
+                    ? List.of("/api/images/" + mainImg.getUuidName())
+                    : List.of();
+
             return ProductListResponseDto.builder()
                     .id(product.getProductNo())
                     .title(product.getTitle())
@@ -154,7 +184,7 @@ public class ProductServiceImpl implements ProductService {
                     .participantCount(bidHistoryRepository.countDistinctParticipants(product.getProductNo()))
                     .status(product.getEndTime().isBefore(LocalDateTime.now()) ? "completed" : "active")
                     .images(imageUrls)
-                    .isWishlisted(memberNo != null ? wishlistRepository.existsByMemberNoAndProductNo(memberNo, product.getProductNo()) : false)
+                    .isWishlisted(wishlistedNos.contains(product.getProductNo()))
                     .build();
         });
     }
