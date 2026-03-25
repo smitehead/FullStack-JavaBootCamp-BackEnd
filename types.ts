@@ -208,24 +208,15 @@ export interface Inquiry {
 
 export type BannerType = 'hero' | 'ad';
 
-export interface BannerButton {
-  name: string;
-  link: string;
-}
-
 export interface HeroBanner {
-  id: string;
-  type: BannerType;
-  imageUrl: string;
-  title: string;
-  subtitle: string;
-  label?: string;
-  buttons?: BannerButton[];
-  link: string;
-  isActive: boolean;
-  isHtml?: boolean;
-  htmlContent?: string;
+  bannerNo: number;
+  bannerType: BannerType;
+  imgUrl: string;
+  linkUrl: string;
+  sortOrder: number;
+  isActive: number;       // 1=활성, 0=비활성
   createdAt: string;
+  endAt: string | null;
 }
 
 export interface WithdrawnUser {
