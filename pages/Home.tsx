@@ -6,25 +6,7 @@ import { ProductCard } from '@/components/ProductCard';
 import { CATEGORY_DATA } from '@/constants';
 import { BACKEND_URL } from '@/utils/imageUtils';
 import { motion, AnimatePresence } from 'motion/react';
-import { resolveImageUrls } from '../utils/imageUtils';
-
-const HERO_BANNERS = [
-  {
-    id: 1,
-    image: 'https://images.unsplash.com/photo-1449034446853-66c86144b0ad?auto=format&fit=crop&w=1920&q=80',
-    link: '/search'
-  },
-  {
-    id: 2,
-    image: 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=1920&q=80',
-    link: '/cs'
-  },
-  {
-    id: 3,
-    image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1920&q=80',
-    link: '/search'
-  }
-];
+import { resolveImageUrl, resolveImageUrls } from '../utils/imageUtils';
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -36,6 +18,27 @@ export const Home: React.FC = () => {
   const [currentBanner, setCurrentBanner] = useState(0);
   const [direction, setDirection] = useState(0);
   const [popularProducts, setPopularProducts] = useState<any[]>([]);
+  const [heroBanners, setHeroBanners] = useState<{id: number; image: string; link: string}[]>([]);
+
+  // 히어로 배너 API 로드
+  useEffect(() => {
+    const fetchBanners = async () => {
+      try {
+        const res = await api.get('/banners');
+        const banners = (res.data || []).map((b: any) => ({
+          id: b.bannerNo,
+          image: resolveImageUrl(b.imgUrl) || b.imgUrl,
+          link: b.linkUrl || '/search',
+        }));
+        if (banners.length > 0) {
+          setHeroBanners(banners);
+        }
+      } catch (error) {
+        console.error('Failed to fetch banners', error);
+      }
+    };
+    fetchBanners();
+  }, []);
 
   useEffect(() => {
     const fetchPopularProducts = async () => {
@@ -88,21 +91,24 @@ export const Home: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (heroBanners.length === 0) return;
     const timer = setInterval(() => {
       setDirection(1);
-      setCurrentBanner((prev) => (prev + 1) % HERO_BANNERS.length);
+      setCurrentBanner((prev) => (prev + 1) % heroBanners.length);
     }, 6000);
     return () => clearInterval(timer);
-  }, []);
+  }, [heroBanners.length]);
 
   const nextBanner = () => {
+    if (heroBanners.length === 0) return;
     setDirection(1);
-    setCurrentBanner((prev) => (prev + 1) % HERO_BANNERS.length);
+    setCurrentBanner((prev) => (prev + 1) % heroBanners.length);
   };
 
   const prevBanner = () => {
+    if (heroBanners.length === 0) return;
     setDirection(-1);
-    setCurrentBanner((prev) => (prev - 1 + HERO_BANNERS.length) % HERO_BANNERS.length);
+    setCurrentBanner((prev) => (prev - 1 + heroBanners.length) % heroBanners.length);
   };
 
   // popularProducts는 위에서 API를 통해 가져와서 State로 관리합니다.
@@ -143,6 +149,7 @@ export const Home: React.FC = () => {
     <div className="pb-20">
       {/* Hero Banner */}
       <section className="relative h-[360px] text-white overflow-hidden w-full bg-black">
+        {heroBanners.length > 0 && (
         <AnimatePresence initial={false} custom={direction}>
           <motion.div
             key={currentBanner}
@@ -172,20 +179,21 @@ export const Home: React.FC = () => {
             }}
             className="absolute inset-0"
           >
-            <Link to={HERO_BANNERS[currentBanner].link} className="block w-full h-full">
-              <div 
-                className="absolute inset-0 bg-cover bg-center" 
-                style={{ backgroundImage: `url('${HERO_BANNERS[currentBanner].image}')` }}
+            <Link to={heroBanners[currentBanner].link} className="block w-full h-full">
+              <div
+                className="absolute inset-0 bg-cover bg-center"
+                style={{ backgroundImage: `url('${heroBanners[currentBanner].image}')` }}
               >
               </div>
             </Link>
           </motion.div>
         </AnimatePresence>
+        )}
 
         {/* Banner Controls */}
         <div className="absolute bottom-10 right-10 z-20 flex items-center gap-4">
           <div className="flex gap-2">
-            {HERO_BANNERS.map((_, idx) => (
+            {heroBanners.map((_, idx) => (
               <button
                 key={idx}
                 onClick={() => setCurrentBanner(idx)}

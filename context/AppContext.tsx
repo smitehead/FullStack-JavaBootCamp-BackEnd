@@ -1,9 +1,53 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { Notification, ChatRoom, User, Product, WithdrawnUser, NotificationType, Report, MannerHistory, ActivityLog } from '@/types';
 import { NOTIFICATIONS as INITIAL_NOTIFICATIONS, MOCK_CHATS as INITIAL_CHATS, CURRENT_USER as MOCK_USER, ADMIN_USER, MOCK_PRODUCTS as INITIAL_PRODUCTS, MOCK_USERS as INITIAL_USERS, MOCK_REPORTS as INITIAL_REPORTS } from '@/services/mockData';
 import api from '@/services/api';
 import { BACKEND_URL } from '@/utils/imageUtils';
 import { getMemberNo } from '@/utils/memberUtils';
+
+// ── API 응답 → 프론트 타입 변환 헬퍼 ──
+
+const extractMemberNo = (userId: string): number =>
+  parseInt(userId.replace(/\D/g, ''), 10);
+
+const mapMemberToUser = (m: any): User => ({
+  id: `user_${m.memberNo}`,
+  nickname: m.nickname,
+  profileImage: '',
+  points: m.points || 0,
+  mannerTemp: m.mannerTemp || 36.5,
+  joinedAt: m.joinedAt,
+  email: m.email,
+  phoneNum: m.phoneNum,
+  isActive: m.isActive === 1,
+  isAdmin: m.isAdmin === 1,
+  isSuspended: m.isSuspended === 1,
+  suspensionEndDate: m.suspendUntil,
+  suspensionReason: m.suspendReason,
+  isPermanentlySuspended: m.isPermanentSuspended === 1,
+});
+
+const mapReportToFrontend = (r: any): Report => ({
+  id: `rep_${r.reportNo}`,
+  reporterId: `user_${r.reporterNo}`,
+  targetId: r.targetMemberNo ? `user_${r.targetMemberNo}` : `prod_${r.targetProductNo}`,
+  targetType: r.targetMemberNo ? 'user' as const : 'product' as const,
+  reason: r.type,
+  details: r.content || '',
+  status: (r.status === '완료' || r.status === '반려') ? 'resolved' as const : 'pending' as const,
+  createdAt: r.createdAt,
+});
+
+const mapMannerHistoryToFrontend = (h: any): MannerHistory => ({
+  id: `mh_${h.historyNo}`,
+  userId: `user_${h.memberNo}`,
+  userNickname: h.memberNickname || '',
+  previousTemp: h.previousTemp,
+  newTemp: h.newTemp,
+  reason: h.reason,
+  adminId: h.adminNo ? `user_${h.adminNo}` : '',
+  createdAt: h.createdAt,
+});
 
 interface AppContextType {
   user: User | null;
@@ -150,10 +194,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // FETCH REAL POINTS HERE
       let dbPoints = 0;
       let dbMannerTemp = 36.5;
+      let dbIsAdmin = false;
       try {
         const memberRes = await api.get(`/members/${memberNo}`);
         dbPoints = memberRes.data.points || 0;
         dbMannerTemp = memberRes.data.mannerTemp || 36.5;
+        dbIsAdmin = memberRes.data.isAdmin === 1;
       } catch (err) {
         console.error("Failed to fetch user points during login", err);
       }
@@ -165,6 +211,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         points: dbPoints,
         mannerTemp: dbMannerTemp,
         joinedAt: new Date().toISOString(),
+        isAdmin: dbIsAdmin,
       };
 
       setUser(loggedInUser);
@@ -197,6 +244,30 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     return () => window.removeEventListener('forceLogout', handleForceLogout);
   }, []);
 
+  // ── 관리자 데이터 API 로딩 ──
+
+  const fetchAdminData = useCallback(async () => {
+    try {
+      const [membersRes, reportsRes, historyRes] = await Promise.all([
+        api.get('/admin/members'),
+        api.get('/admin/reports'),
+        api.get('/admin/members/manner-history'),
+      ]);
+      setUsers(membersRes.data.map(mapMemberToUser));
+      setReports(reportsRes.data.map(mapReportToFrontend));
+      setMannerHistory(historyRes.data.map(mapMannerHistoryToFrontend));
+    } catch (err) {
+      console.error('[Admin] 데이터 로딩 실패:', err);
+    }
+  }, []);
+
+  // 관리자 로그인 시 실제 데이터 로딩
+  useEffect(() => {
+    if (user?.isAdmin) {
+      fetchAdminData();
+    }
+  }, [user?.isAdmin, fetchAdminData]);
+
   const addActivityLog = (action: string, details: string, targetId?: string, targetType?: ActivityLog['targetType']) => {
     if (!user?.isAdmin) return;
     const newLog: ActivityLog = {
@@ -212,74 +283,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setActivityLogs(prev => [newLog, ...prev]);
   };
 
-  const suspendUser = (userId: string, days: number, reason: string) => {
-    const isPermanent = days === 999;
-    let endDateStr: string | undefined = undefined;
-
-    if (!isPermanent) {
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + days);
-      endDateStr = endDate.toISOString();
+  const suspendUser = async (userId: string, days: number, reason: string) => {
+    const memberNo = extractMemberNo(userId);
+    try {
+      await api.put(`/admin/members/${memberNo}/suspend`, {
+        suspendDays: days,
+        suspendReason: reason,
+      });
+      await fetchAdminData();
+    } catch (err) {
+      console.error('정지 처리 실패:', err);
+      alert('정지 처리에 실패했습니다.');
     }
-
-    // 전체 유저 목록에 정지 상태 반영
-    setUsers(prev => prev.map(u =>
-      u.id === userId ? {
-        ...u,
-        isSuspended: true,
-        suspensionEndDate: endDateStr,
-        suspensionReason: reason,
-        isPermanentlySuspended: isPermanent
-      } : u
-    ));
-
-    // 현재 로그인한 유저가 정지 대상이면 본인 상태도 갱신
-    if (user?.id === userId) {
-      const updatedUser = {
-        ...user,
-        isSuspended: true,
-        suspensionEndDate: endDateStr,
-        suspensionReason: reason,
-        isPermanentlySuspended: isPermanent
-      };
-      setUser(updatedUser);
-      sessionStorage.setItem('java_user', JSON.stringify(updatedUser));
-    }
-
-    // 해당 유저의 진행 중인 경매 강제 종료
-    setProducts(prev => prev.map(p =>
-      p.seller.id === userId && p.status === 'active' ? { ...p, status: 'canceled' as const } : p
-    ));
-
-    const suspendedUser = users.find(u => u.id === userId);
-    addActivityLog('사용자 정지', `${suspendedUser?.nickname}님 정지 처리 (${isPermanent ? '영구' : days + '일'}): ${reason}`, userId, 'user');
   };
 
-  const unsuspendUser = (userId: string) => {
-    setUsers(prev => prev.map(u =>
-      u.id === userId ? {
-        ...u,
-        isSuspended: false,
-        suspensionEndDate: undefined,
-        suspensionReason: undefined,
-        isPermanentlySuspended: false
-      } : u
-    ));
-
-    if (user?.id === userId) {
-      const updatedUser = {
-        ...user,
-        isSuspended: false,
-        suspensionEndDate: undefined,
-        suspensionReason: undefined,
-        isPermanentlySuspended: false
-      };
-      setUser(updatedUser);
-      sessionStorage.setItem('java_user', JSON.stringify(updatedUser));
+  const unsuspendUser = async (userId: string) => {
+    const memberNo = extractMemberNo(userId);
+    try {
+      await api.put(`/admin/members/${memberNo}/unsuspend`);
+      await fetchAdminData();
+    } catch (err) {
+      console.error('정지 해제 실패:', err);
+      alert('정지 해제에 실패했습니다.');
     }
-
-    const unsuspendedUser = users.find(u => u.id === userId);
-    addActivityLog('사용자 정지 해제', `${unsuspendedUser?.nickname}님 정지 해제`, userId, 'user');
   };
 
   const addProduct = (newProduct: Product) => {
@@ -294,11 +320,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     addActivityLog('경매 강제 종료', `경매 종료: ${product?.title} (${reason})`, productId, 'product');
   };
 
-  const resolveReport = (reportId: string, action: string) => {
-    setReports(prev => prev.map(r =>
-      r.id === reportId ? { ...r, status: 'resolved' as const } : r
-    ));
-    addActivityLog('신고 처리', `신고 처리: ${reportId} (${action})`, reportId, 'report');
+  const resolveReport = async (reportId: string, action: string) => {
+    const reportNo = parseInt(reportId.replace(/\D/g, ''), 10);
+    try {
+      await api.put(`/admin/reports/${reportNo}/resolve`, {
+        status: '완료',
+        penaltyMsg: action,
+      });
+      await fetchAdminData();
+    } catch (err) {
+      console.error('신고 처리 실패:', err);
+      alert('신고 처리에 실패했습니다.');
+    }
   };
 
   const markNotificationAsRead = (id: string) => {
@@ -325,36 +358,40 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setNotifications(prev => [newNoti, ...prev]);
   };
 
-  const updateUserRole = (userId: string, isAdmin: boolean) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, isAdmin } : u));
-    const targetUser = users.find(u => u.id === userId);
-    addActivityLog('권한 변경', `${targetUser?.nickname}님 권한 변경: ${isAdmin ? '관리자' : '일반'}`, userId, 'user');
+  const updateUserRole = async (userId: string, isAdmin: boolean) => {
+    const memberNo = extractMemberNo(userId);
+    try {
+      await api.put(`/admin/members/${memberNo}/role`, { isAdmin: isAdmin ? 1 : 0 });
+      await fetchAdminData();
+    } catch (err) {
+      console.error('권한 변경 실패:', err);
+      alert('권한 변경에 실패했습니다.');
+    }
   };
 
-  const updateUserManner = (userId: string, mannerTemp: number, reason: string) => {
-    const targetUser = users.find(u => u.id === userId);
-    if (!targetUser) return;
-
-    const newHistory: MannerHistory = {
-      id: `mh_${Date.now()}`,
-      userId,
-      userNickname: targetUser.nickname,
-      previousTemp: targetUser.mannerTemp,
-      newTemp: mannerTemp,
-      reason,
-      adminId: user?.id || 'admin',
-      createdAt: new Date().toISOString()
-    };
-
-    setMannerHistory(prev => [newHistory, ...prev]);
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, mannerTemp } : u));
-    addActivityLog('매너온도 변경', `${targetUser.nickname}님 매너온도 변경: ${targetUser.mannerTemp} -> ${mannerTemp}`, userId, 'user');
+  const updateUserManner = async (userId: string, mannerTemp: number, reason: string) => {
+    const memberNo = extractMemberNo(userId);
+    try {
+      await api.put(`/admin/members/${memberNo}/manner-temp`, {
+        newTemp: mannerTemp,
+        reason,
+      });
+      await fetchAdminData();
+    } catch (err) {
+      console.error('매너온도 변경 실패:', err);
+      alert('매너온도 변경에 실패했습니다.');
+    }
   };
 
-  const updateUserPoints = (userId: string, points: number) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, points: u.points + points } : u));
-    const targetUser = users.find(u => u.id === userId);
-    addActivityLog('포인트 변경', `${targetUser?.nickname}님 포인트 변경: ${points > 0 ? '+' : ''}${points}P`, userId, 'user');
+  const updateUserPoints = async (userId: string, points: number) => {
+    const memberNo = extractMemberNo(userId);
+    try {
+      await api.put(`/admin/members/${memberNo}/points`, { pointAmount: points });
+      await fetchAdminData();
+    } catch (err) {
+      console.error('포인트 변경 실패:', err);
+      alert('포인트 변경에 실패했습니다.');
+    }
   };
 
   const updateCurrentUserPoints = (points: number) => {

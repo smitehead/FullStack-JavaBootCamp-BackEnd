@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, Image, Link as LinkIcon, CheckCircle2, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Edit2, Image, Link as LinkIcon, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { HeroBanner, BannerType } from '@/types';
 import api from '@/services/api';
+import { resolveImageUrl } from '@/utils/imageUtils';
 
 export const BannerManagement: React.FC = () => {
   const [banners, setBanners] = useState<HeroBanner[]>([]);
@@ -15,8 +16,11 @@ export const BannerManagement: React.FC = () => {
   // Form States
   const [imgUrl, setImgUrl] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
   const [isActive, setIsActive] = useState(1);
   const [bannerType, setBannerType] = useState<BannerType>('hero');
+  const [sortOrder, setSortOrder] = useState(0);
+  const [endAt, setEndAt] = useState('');
 
   // Preview States
   const [previewIndex, setPreviewIndex] = useState(0);
@@ -58,12 +62,16 @@ export const BannerManagement: React.FC = () => {
       setLinkUrl(banner.linkUrl || '');
       setIsActive(banner.isActive);
       setBannerType(banner.bannerType);
+      setSortOrder(banner.sortOrder ?? 0);
+      setEndAt(banner.endAt ? banner.endAt.slice(0, 16) : '');
     } else {
       setEditingBanner(null);
       setImgUrl('');
       setLinkUrl('');
       setIsActive(1);
       setBannerType(activeTab);
+      setSortOrder(0);
+      setEndAt('');
     }
     setIsModalOpen(true);
   };
@@ -71,7 +79,7 @@ export const BannerManagement: React.FC = () => {
   // API: 배너 등록/수정
   const handleSave = async () => {
     try {
-      const body = { bannerType, imgUrl, linkUrl, isActive };
+      const body = { bannerType, imgUrl, linkUrl, isActive, sortOrder, endAt: endAt || null };
       if (editingBanner) {
         await api.put(`/banners/${editingBanner.bannerNo}`, body);
       } else {
@@ -196,7 +204,7 @@ export const BannerManagement: React.FC = () => {
                   <div className="absolute inset-0 bg-black">
                     <div
                       className="absolute inset-0 bg-cover bg-center"
-                      style={{ backgroundImage: `url('${activeBannersForPreview[previewIndex]?.imgUrl || ''}')` }}
+                      style={{ backgroundImage: `url('${resolveImageUrl(activeBannersForPreview[previewIndex]?.imgUrl) || activeBannersForPreview[previewIndex]?.imgUrl || ''}')` }}
                     ></div>
                   </div>
                 ) : (
@@ -204,7 +212,7 @@ export const BannerManagement: React.FC = () => {
                     <div className="w-full h-[200px] rounded-[32px] overflow-hidden shadow-2xl border border-white/5 relative group/ad">
                       <div
                         className="absolute inset-0 bg-cover bg-center"
-                        style={{ backgroundImage: `url('${activeBannersForPreview[previewIndex]?.imgUrl || ''}')` }}
+                        style={{ backgroundImage: `url('${resolveImageUrl(activeBannersForPreview[previewIndex]?.imgUrl) || activeBannersForPreview[previewIndex]?.imgUrl || ''}')` }}
                       ></div>
                     </div>
                   </div>
@@ -260,7 +268,7 @@ export const BannerManagement: React.FC = () => {
         {filteredBanners.map((banner) => (
           <div key={banner.bannerNo} className="bg-white rounded-none shadow-sm border border-gray-100 overflow-hidden group hover:shadow-md transition-all">
             <div className="relative h-48 overflow-hidden">
-              <img src={banner.imgUrl || undefined} alt="Banner" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+              <img src={resolveImageUrl(banner.imgUrl) || banner.imgUrl || undefined} alt="Banner" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
               <div className="absolute inset-0 bg-black/20"></div>
               <div className="absolute top-4 right-4 flex space-x-2">
                 <button
@@ -348,13 +356,45 @@ export const BannerManagement: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-black text-gray-700 mb-2">이미지 경로 (URL)</label>
+                <label className="block text-xs font-black text-gray-700 mb-2">이미지</label>
+                {/* 파일 업로드 */}
+                <div className="mb-2">
+                  <label
+                    className={`flex items-center justify-center gap-2 w-full py-2.5 border-2 border-dashed border-gray-300 bg-gray-50 hover:border-[#FF5A5A] hover:bg-red-50/30 transition-all cursor-pointer text-sm font-bold text-gray-500 ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
+                  >
+                    <Upload className="w-4 h-4" />
+                    {isUploading ? '업로드 중...' : '파일 선택하여 업로드'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setIsUploading(true);
+                        try {
+                          const formData = new FormData();
+                          formData.append('file', file);
+                          const res = await api.post('/images/upload', formData);
+                          setImgUrl(res.data.url);
+                        } catch (err) {
+                          console.error('이미지 업로드 실패', err);
+                          alert('이미지 업로드에 실패했습니다.');
+                        } finally {
+                          setIsUploading(false);
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+                {/* 또는 URL 직접 입력 */}
                 <div className="flex space-x-3">
                   <div className="flex-1 relative flex items-center">
                     <Image className="absolute left-3 text-gray-400 w-4 h-4" />
                     <input
                       type="text"
-                      placeholder="https://..."
+                      placeholder="또는 URL 직접 입력 (https://...)"
                       className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-none focus:outline-none focus:ring-2 focus:ring-[#FF5A5A] font-medium text-sm"
                       value={imgUrl}
                       onChange={(e) => setImgUrl(e.target.value)}
@@ -362,7 +402,7 @@ export const BannerManagement: React.FC = () => {
                   </div>
                   {imgUrl && (
                     <div className="w-10 h-10 rounded-none overflow-hidden border border-gray-200 shrink-0">
-                      <img src={imgUrl} alt="미리보기" className="w-full h-full object-cover" />
+                      <img src={resolveImageUrl(imgUrl) || imgUrl} alt="미리보기" className="w-full h-full object-cover" />
                     </div>
                   )}
                 </div>
@@ -379,6 +419,31 @@ export const BannerManagement: React.FC = () => {
                     value={linkUrl}
                     onChange={(e) => setLinkUrl(e.target.value)}
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black text-gray-700 mb-2">노출 순서</label>
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="0"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-none focus:outline-none focus:ring-2 focus:ring-[#FF5A5A] font-medium text-sm"
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(Number(e.target.value))}
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">숫자가 작을수록 먼저 노출</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-gray-700 mb-2">종료 일시</label>
+                  <input
+                    type="datetime-local"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-none focus:outline-none focus:ring-2 focus:ring-[#FF5A5A] font-medium text-sm"
+                    value={endAt}
+                    onChange={(e) => setEndAt(e.target.value)}
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">미설정 시 계속 노출</p>
                 </div>
               </div>
 
