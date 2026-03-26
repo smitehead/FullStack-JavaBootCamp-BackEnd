@@ -73,9 +73,38 @@ public class Member {
     @Column(name = "SUSPEND_UNTIL")
     private LocalDateTime suspendUntil;
 
+    // 정지 사유
+    @Column(name = "SUSPEND_REASON", length = 500)
+    private String suspendReason;
+
+    // 영구 정지 여부. 1이면 영구 정지
+    @Column(name = "IS_PERMANENT_SUSPENDED")
+    private Integer isPermanentSuspended;
+
+    // 알림 수신 전체 ON/OFF
     @Builder.Default
     @Column(name = "NOTIFY_ON", nullable = false)
     private Integer notifyOn = 1;
+
+    //경매 종료 알림. 0=꺼짐, 1=켜짐
+    @Builder.Default
+    @Column(name = "NOTI_AUCTION_END")
+    private Integer notiAuctionEnd = 1;
+
+    // 새 입찰 알림. 0=꺼짐, 1=켜짐
+    @Builder.Default
+    @Column(name = "NOTI_NEW_BID")
+    private Integer notiNewBid = 1;
+
+    // 채팅 알림. 0=꺼짐, 1=켜짐
+    @Builder.Default
+    @Column(name = "NOTI_CHAT")
+    private Integer notiChat = 1;
+
+    // 마케팅 알림. 0=꺼짐, 1=켜짐
+    @Builder.Default
+    @Column(name = "NOTI_MARKETING")
+    private Integer notiMarketing = 0;
 
     @Builder.Default
     @Column(name = "MARKETING_AGREE", nullable = false)

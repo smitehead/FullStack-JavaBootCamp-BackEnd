@@ -4,7 +4,7 @@ import com.javajava.project.entity.Product;
 
 import jakarta.persistence.LockModeType;
 
-import org.springframework.data.domain.Sort; // 추가
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -16,16 +16,17 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
-// 입찰 중 다른 사용자가 가격을 수정하지 못하도록 락을 겁니다.
+
+    // 입찰 중 다른 사용자가 가격을 수정하지 못하도록 락 적용
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Product p WHERE p.productNo = :productNo")
     Optional<Product> findByIdWithLock(@Param("productNo") Long productNo);
 
     List<Product> findBySellerNo(Long sellerNo);
-    
-    // Sort 매개변수를 추가하여 정렬 기능을 지원하도록 수정
-    List<Product> findByIsActiveAndIsDeleted(Integer isActive, Integer isDeleted, Sort sort);
 
-    // 종료 시간이 현재 시간보다 이전이면서 여전히 활성 상태인 상품 조회
-    List<Product> findByEndTimeBeforeAndIsActive(LocalDateTime now, Integer isActive);
+    // 진행 중(status=0)이고 삭제되지 않은 상품 조회 (정렬 지원)
+    List<Product> findByStatusAndIsDeleted(Integer status, Integer isDeleted, Sort sort);
+
+    // 종료 시간이 지났지만 아직 진행 중(status=0)인 상품 조회 → 스케줄러용
+    List<Product> findByEndTimeBeforeAndStatus(LocalDateTime now, Integer status);
 }
