@@ -68,7 +68,7 @@ public class ProductServiceImpl implements ProductService {
                 .createdAt(LocalDateTime.now()) // Oracle NOT NULL 제약 조건(ORA-01400) 해결
                 .viewCount(0L)
                 .bidCount(0L)
-                .isActive(1)
+                .status(0)      // [수정] isActive(1) → status(0=active)
                 .isDeleted(0)
                 .build();
 
@@ -85,7 +85,8 @@ public class ProductServiceImpl implements ProductService {
             default -> Sort.by(Sort.Direction.DESC, "createdAt");
         };
 
-        List<Product> products = productRepository.findByIsActiveAndIsDeleted(1, 0, sort);
+        // [수정] findByIsActiveAndIsDeleted(1, 0) → findByStatusAndIsDeleted(0, 0)
+        List<Product> products = productRepository.findByStatusAndIsDeleted(0, 0, sort);
 
         return products.stream().map(product -> {
             ProductImage mainImage = productImageRepository.findFirstByProductNoAndIsMainOrderByImageNoAsc(product.getProductNo(), 1);
@@ -96,7 +97,7 @@ public class ProductServiceImpl implements ProductService {
                 .currentPrice(product.getCurrentPrice())
                 .location(product.getTradeAddrDetail())
                 .endTime(product.getEndTime())
-                .isActive(product.getIsActive())
+                .status(product.getStatus())    // [수정] isActive → status
                 .mainImageUrl(imageUrl)
                 .build();
         }).collect(Collectors.toList());
@@ -106,7 +107,7 @@ public class ProductServiceImpl implements ProductService {
     public Page<ProductListResponseDto> getProductList(int page, int size, Long large, Long medium, Long small,
                                                        Long minPrice, Long maxPrice, String city,
                                                        Boolean delivery, Boolean face, String sortOption, Long memberNo) {
-        
+
         // 리액트는 1페이지부터 보내므로 백엔드용(0-index)으로 보정
         int pageNumber = page > 0 ? page - 1 : 0;
 
@@ -130,10 +131,12 @@ public class ProductServiceImpl implements ProductService {
         // 동적 쿼리 (다중 필터 적용)
         Specification<Product> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(root.get("isActive"), 1)); // 진행 중인 상품
+
+            // [수정] isActive=1 → status=0 (진행 중인 상품)
+            predicates.add(cb.equal(root.get("status"), 0));
             predicates.add(cb.equal(root.get("isDeleted"), 0)); // 삭제 안 된 상품
 
-            // 【추가】종료된 경매 제외: endTime이 현재 시각보다 미래인 것만 조회
+            // 종료된 경매 제외: endTime이 현재 시각보다 미래인 것만 조회
             predicates.add(cb.greaterThan(root.get("endTime"), LocalDateTime.now()));
 
             // 카테고리 필터 (임시: 실제로는 Category 테이블 JOIN 필요)
@@ -155,14 +158,15 @@ public class ProductServiceImpl implements ProductService {
             return cb.and(predicates.toArray(new Predicate[0]));
         };
 
-        // 【수정 - N+1 제거】먼저 페이지 데이터를 가져온 후 배치 쿼리로 연관 데이터를 일괄 조회
+        // N+1 제거: 먼저 페이지 데이터를 가져온 후 배치 쿼리로 연관 데이터를 일괄 조회
         Page<Product> productPage = productRepository.findAll(spec, pageable);
         List<Long> productNos = productPage.getContent().stream()
                 .map(Product::getProductNo)
                 .collect(Collectors.toList());
 
         // 메인 이미지 배치 조회 (상품 수 만큼 쿼리 → 1번 IN 쿼리)
-        Map<Long, ProductImage> mainImageMap = productNos.isEmpty() ? Map.of() :
+        Map<Long, ProductImage> mainImageMap = productNos.isEmpty() ?
+                Map.of() :
                 productImageRepository.findMainImagesByProductNos(productNos).stream()
                         .collect(Collectors.toMap(ProductImage::getProductNo, Function.identity(),
                                 (a, b) -> a)); // 중복 시 첫 번째 유지
@@ -211,12 +215,12 @@ public class ProductServiceImpl implements ProductService {
 
         // 3. 최적화된 JOIN 쿼리로 입찰 기록 조회 (N+1 문제 해결)
         List<Object[]> results = bidHistoryRepository.findBidHistoryWithNickname(productNo);
-        
+
         List<ProductDetailResponseDto.BidHistoryDto> bidHistory = results.stream()
                 .map(result -> {
                     BidHistory bid = (BidHistory) result[0];
                     String nickname = (String) result[1];
-                    
+
                     return ProductDetailResponseDto.BidHistoryDto.builder()
                             .bidderNickname(nickname)
                             .bidPrice(bid.getBidPrice())
@@ -229,7 +233,6 @@ public class ProductServiceImpl implements ProductService {
         List<String> imageUrls = productImages.stream()
                 .map(img -> "/api/images/" + img.getUuidName())
                 .collect(Collectors.toList());
-
 
         // 5. 상세 데이터 조립 및 반환
         return ProductDetailResponseDto.builder()
@@ -258,17 +261,18 @@ public class ProductServiceImpl implements ProductService {
     public ProductResponseDto findById(Long productNo) {
         Product product = productRepository.findById(productNo)
                 .orElseThrow(() -> new IllegalArgumentException("해당 상품이 없습니다. ID: " + productNo));
-                
+
         ProductImage mainImage = productImageRepository.findFirstByProductNoAndIsMainOrderByImageNoAsc(productNo, 1);
-        String imageUrl = mainImage != null ? "/api/images/" + mainImage.getUuidName() : null;
-        
+        String imageUrl = mainImage != null ?
+                "/api/images/" + mainImage.getUuidName() : null;
+
         return ProductResponseDto.builder()
                 .productNo(product.getProductNo())
                 .title(product.getTitle())
                 .currentPrice(product.getCurrentPrice())
                 .location(product.getTradeAddrDetail())
                 .endTime(product.getEndTime())
-                .isActive(product.getIsActive())
+                .status(product.getStatus())    // [수정] isActive → status
                 .mainImageUrl(imageUrl)
                 .build();
     }
@@ -277,11 +281,11 @@ public class ProductServiceImpl implements ProductService {
     public List<ProductDetailResponseDto.BidHistoryDto> getBidHistory(Long productNo) {
         // 최적화된 JOIN 쿼리로 입찰 기록과 닉네임을 한 번에 조회
         List<Object[]> results = bidHistoryRepository.findBidHistoryWithNickname(productNo);
-        
+
         return results.stream().map(result -> {
             BidHistory bid = (BidHistory) result[0];
             String nickname = (String) result[1];
-            
+
             return ProductDetailResponseDto.BidHistoryDto.builder()
                     .bidderNickname(nickname)
                     .bidPrice(bid.getBidPrice())

@@ -11,4 +11,7 @@ public interface HeroBannerRepository extends JpaRepository<HeroBanner, Long> {
     // Oracle 11g 호환을 위해 CURRENT_TIMESTAMP 사용
     @Query("SELECT b FROM HeroBanner b WHERE b.isActive = 1 AND (b.endAt IS NULL OR b.endAt > CURRENT_TIMESTAMP) ORDER BY b.sortOrder ASC")
     List<HeroBanner> findActiveBanners();
+
+    // 전체 배너 목록 조회 (관리자용, 활성/비활성 모두 포함)
+    List<HeroBanner> findAllByOrderBySortOrderAsc();
 }

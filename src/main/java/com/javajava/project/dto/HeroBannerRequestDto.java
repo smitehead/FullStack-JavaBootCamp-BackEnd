@@ -11,6 +11,9 @@ import java.time.LocalDateTime;
 @Builder
 public class HeroBannerRequestDto {
 
+    @Size(max = 10, message = "배너 타입은 10자 이하여야 합니다.")
+    private String bannerType;  // 배너 타입 (hero, ad) 미입력 시 기본값 hero
+
     @NotBlank(message = "이미지 URL은 필수입니다.")
     @Size(max = 255, message = "이미지 URL은 255자 이하여야 합니다.")
     private String imgUrl;      // 배너 이미지 URL

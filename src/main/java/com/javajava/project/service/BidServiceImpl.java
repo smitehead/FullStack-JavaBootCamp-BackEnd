@@ -44,7 +44,8 @@ public class BidServiceImpl implements BidService {
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상품입니다."));
 
         // 2. 유효성 검증 (락 획득 전 빠른 실패 조건 먼저 체크)
-        if (product.getIsActive() == 0 || product.getEndTime().isBefore(LocalDateTime.now())) {
+        // [수정] isActive == 0 → status != 0 (0=active, 1=completed, 2=canceled)
+        if (product.getStatus() != 0 || product.getEndTime().isBefore(LocalDateTime.now())) {
             return "이미 종료된 경매입니다.";
         }
         if (product.getSellerNo().equals(bidDto.getMemberNo())) {
@@ -65,7 +66,7 @@ public class BidServiceImpl implements BidService {
             return "현재 최고 입찰자입니다. 추가 입찰이 불가합니다.";
         }
 
-        // 4. 【수정】비관적 락 순서 고정 - memberNo 오름차순으로 항상 같은 순서 락 획득 (데드락 방지)
+        // 4. 비관적 락 순서 고정 - memberNo 오름차순으로 항상 같은 순서 락 획득 (데드락 방지)
         Member currentBidder;
         Member previousBidder = null;
 
@@ -104,7 +105,7 @@ public class BidServiceImpl implements BidService {
                     .reason("[" + product.getTitle() + "] 상위 입찰 발생으로 인한 자동 환불")
                     .build());
 
-            // 【수정】SSE 발송 격리: SSE 오류가 트랜잭션 롤백을 유발하지 않음
+            // SSE 발송 격리: SSE 오류가 트랜잭션 롤백을 유발하지 않음
             final long prevPoints = previousBidder.getPoints();
             final Long prevMemberNo = previousBidder.getMemberNo();
             try {
@@ -130,7 +131,7 @@ public class BidServiceImpl implements BidService {
                 .reason("[" + product.getTitle() + "] 경매 입찰 참여")
                 .build());
 
-        // 【수정】SSE 포인트 업데이트 격리
+        // SSE 포인트 업데이트 격리
         final long curPoints = currentBidder.getPoints();
         final Long curMemberNo = currentBidder.getMemberNo();
         try {
@@ -192,7 +193,7 @@ public class BidServiceImpl implements BidService {
 
     /**
      * 입찰 취소 로직
-     * 【수정】취소 시 해당 입찰자에게 포인트 환불 및 PointHistory 기록 추가
+     * 취소 시 해당 입찰자에게 포인트 환불 및 PointHistory 기록 추가
      */
     @Override
     @Transactional
@@ -207,7 +208,7 @@ public class BidServiceImpl implements BidService {
         bid.setIsCancelled(1);
         bid.setCancelReason(reason);
 
-        // 【추가】포인트 환불 처리
+        // 포인트 환불 처리
         Member bidder = memberRepository.findByIdWithLock(bid.getMemberNo())
                 .orElseThrow(() -> new IllegalStateException("입찰자 정보를 찾을 수 없습니다."));
 

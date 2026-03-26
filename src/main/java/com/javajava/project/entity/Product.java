@@ -40,12 +40,10 @@ public class Product {
     @Column(name = "TRADE_ADDR_DETAIL", length = 255)
     private String tradeAddrDetail;
 
-    // ★ Builder 사용 시에도 기본값 0L이 들어가도록 설정
     @Builder.Default
     @Column(name = "VIEW_COUNT", nullable = false)
     private Long viewCount = 0L;
 
-    // ★ 중요: Builder 사용 시 현재 시간이 자동으로 들어가도록 설정
     @Builder.Default
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
@@ -73,7 +71,17 @@ public class Product {
     @Column(name = "END_TIME", nullable = false)
     private LocalDateTime endTime;
 
+    /**
+     * 경매 진행 상태
+     * 0 : active (진행중)
+     * 1 : completed (낙찰 완료)
+     * 2 : canceled (취소)
+     */
     @Builder.Default
-    @Column(name = "IS_ACTIVE", nullable = false)
-    private Integer isActive = 1;
+    @Column(name = "STATUS", nullable = false)
+    private Integer status = 0;
+
+    // 최종 낙찰자 회원번호. 낙찰 전에는 NULL
+    @Column(name = "WINNER_NO")
+    private Long winnerNo;
 }

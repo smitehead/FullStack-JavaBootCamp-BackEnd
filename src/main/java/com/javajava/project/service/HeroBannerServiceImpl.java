@@ -34,10 +34,23 @@ public class HeroBannerServiceImpl implements HeroBannerService {
      * 배너 등록 (관리자)
      * sortOrder, isActive 미입력 시 엔티티 기본값(0, 1) 적용
      */
+    /**
+     * 전체 배너 목록 조회 (관리자용)
+     * 활성/비활성 모두 포함, sortOrder 오름차순
+     */
+    @Override
+    public List<HeroBannerResponseDto> getAllBanners() {
+        return heroBannerRepository.findAllByOrderBySortOrderAsc()
+                .stream()
+                .map(HeroBannerResponseDto::from)
+                .collect(Collectors.toList());
+    }
+
     @Override
     @Transactional
     public Long create(HeroBannerRequestDto dto) {
         HeroBanner banner = HeroBanner.builder()
+                .bannerType(dto.getBannerType() != null ? dto.getBannerType() : "hero")
                 .imgUrl(dto.getImgUrl())
                 .linkUrl(dto.getLinkUrl())
                 .sortOrder(dto.getSortOrder() != null ? dto.getSortOrder() : 0)
@@ -57,11 +70,23 @@ public class HeroBannerServiceImpl implements HeroBannerService {
         HeroBanner banner = heroBannerRepository.findById(bannerNo)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 배너입니다."));
 
+        if (dto.getBannerType() != null) banner.setBannerType(dto.getBannerType());
         banner.setImgUrl(dto.getImgUrl());
         banner.setLinkUrl(dto.getLinkUrl());
         if (dto.getSortOrder() != null) banner.setSortOrder(dto.getSortOrder());
         if (dto.getIsActive() != null) banner.setIsActive(dto.getIsActive());
         banner.setEndAt(dto.getEndAt());
+    }
+
+    /**
+     * 배너 활성화/비활성화 토글 (관리자)
+     */
+    @Override
+    @Transactional
+    public void toggleActive(Long bannerNo) {
+        HeroBanner banner = heroBannerRepository.findById(bannerNo)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 배너입니다."));
+        banner.setIsActive(banner.getIsActive() == 1 ? 0 : 1);
     }
 
     /**

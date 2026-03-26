@@ -18,6 +18,10 @@ public class HeroBanner {
     @Column(name = "BANNER_NO")
     private Long bannerNo;
 
+    @Builder.Default
+    @Column(name = "BANNER_TYPE", nullable = false, length = 10)
+    private String bannerType = "hero"; // 배너 타입 (hero, ad)
+
     @Column(name = "IMG_URL", nullable = false, length = 255)
     private String imgUrl; // 배너 이미지 URL
 

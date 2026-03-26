@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 public class HeroBannerResponseDto {
 
     private Long bannerNo;
+    private String bannerType;
     private String imgUrl;
     private String linkUrl;
     private Integer sortOrder;
@@ -22,6 +23,7 @@ public class HeroBannerResponseDto {
     public static HeroBannerResponseDto from(HeroBanner banner) {
         return HeroBannerResponseDto.builder()
                 .bannerNo(banner.getBannerNo())
+                .bannerType(banner.getBannerType())
                 .imgUrl(banner.getImgUrl())
                 .linkUrl(banner.getLinkUrl())
                 .sortOrder(banner.getSortOrder())
