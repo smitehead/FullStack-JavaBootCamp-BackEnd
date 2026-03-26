@@ -2,6 +2,115 @@
 
 ---
 
+## 배너 이미지 파일 업로드 지원 (2026-03-26)
+
+**백엔드**
+- `FileStore.java` — `storeGenericFile()` 메서드 추가 (배너/프로필 등 범용 이미지 저장, UUID 파일명 반환)
+- `ImageController.java` — `POST /api/images/upload` 엔드포인트 추가 (MultipartFile → `{ "url": "/api/images/uuid.jpg" }` 응답)
+
+**프론트엔드 (BannerManagement.tsx)**
+- 배너 등록/수정 모달에 파일 업로드 버튼 추가 (파일 선택 → `/api/images/upload` → imgUrl 자동 세팅)
+- 기존 URL 직접 입력도 유지 (둘 다 사용 가능)
+- 배너 이미지 표시에 `resolveImageUrl()` 적용 (상대경로 `/api/images/...` → 절대 URL 변환)
+
+---
+
+## Home.tsx 히어로배너 API 연동 (2026-03-26)
+
+**Home.tsx** — Mock 하드코딩 → `GET /api/banners` API 연동
+- `HERO_BANNERS` 상수 배열 제거
+- `heroBanners` state + `useEffect`로 API에서 활성 배너 로드
+- `resolveImageUrl()`로 이미지 경로 변환 (상대경로 → 절대 URL)
+- 배너 0개일 때 슬라이드/컨트롤 안전 처리 (빈 화면 방지)
+
+---
+
+## 관리자 페이지 4대 기능 일괄 구현 (2026-03-26)
+
+### 신규 생성
+
+**DTO (7개)**
+
+| 파일 | 용도 |
+|------|------|
+| `AdminMemberResponseDto.java` | 관리자용 회원 응답 (password 제외, 정지/권한 정보 포함) |
+| `SuspendRequestDto.java` | 회원 정지 요청 (`suspendDays`, `suspendReason`) |
+| `MannerTempRequestDto.java` | 매너온도 변경 요청 (`newTemp`, `reason`) |
+| `PointsRequestDto.java` | 포인트 증감 요청 (`pointAmount`) |
+| `ReportResponseDto.java` | 신고 응답 (신고자/피신고자 닉네임 포함) |
+| `ReportResolveRequestDto.java` | 신고 처리 요청 (`status`, `penaltyMsg`) |
+| `MannerHistoryResponseDto.java` | 매너온도 변동 이력 응답 (닉네임 포함) |
+
+**Repository**
+- `ReportRepository.java` — 전체/상태별/대상별 신고 조회
+
+**Service (4개)**
+- `AdminService.java` (인터페이스) — 회원 관리 기능 정의
+- `AdminServiceImpl.java` — 회원 목록/검색, 정지/해제, 매너온도, 포인트, 권한, 매너온도 이력
+- `ReportService.java` (인터페이스) — 신고 관리 기능 정의
+- `ReportServiceImpl.java` — 신고 목록/상태별 조회, 신고 처리 (상태변경 + 제재 + 알림)
+
+**Controller (2개)**
+- `AdminMemberController.java` (`/api/admin/members`) — 회원 관리 API
+- `AdminReportController.java` (`/api/admin/reports`) — 신고 관리 API
+
+### API 엔드포인트
+
+**회원 관리 (`/api/admin/members`)**
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/admin/members?keyword=xxx` | 회원 목록 (닉네임/이메일 검색) |
+| PUT | `/api/admin/members/{memberNo}/suspend` | 정지 (일수 + 사유, 999=영구) |
+| PUT | `/api/admin/members/{memberNo}/unsuspend` | 정지 해제 |
+| PUT | `/api/admin/members/{memberNo}/manner-temp` | 매너온도 변경 (사유 기록) |
+| PUT | `/api/admin/members/{memberNo}/points` | 포인트 증감 |
+| PUT | `/api/admin/members/{memberNo}/role` | 권한 변경 (`{ "isAdmin": 1 }`) |
+| GET | `/api/admin/members/manner-history?memberNo=xxx` | 매너온도 변동 이력 |
+
+**신고 관리 (`/api/admin/reports`)**
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/admin/reports?status=접수` | 신고 목록 (상태 필터) |
+| PUT | `/api/admin/reports/{reportNo}/resolve` | 신고 처리 (상태변경 + 제재 + 알림) |
+
+### 기존 파일 수정
+
+**MemberRepository.java**
+- `findAllByOrderByJoinedAtDesc()` 추가 — 관리자용 전체 회원 목록
+- `searchByKeyword(String keyword)` 추가 — 닉네임/이메일 검색 (JPQL)
+- `findByNickname(String nickname)` 추가
+
+**MannerHistoryRepository.java**
+- `findAllByOrderByCreatedAtDesc()` 추가 — 관리자용 전체 매너온도 이력
+
+### 프론트엔드 연동 (AppContext.tsx)
+
+**데이터 로딩**: 관리자 로그인 시 Mock → API 자동 전환
+- `users` ← `GET /api/admin/members` (mapMemberToUser 변환)
+- `reports` ← `GET /api/admin/reports` (mapReportToFrontend 변환)
+- `mannerHistory` ← `GET /api/admin/members/manner-history` (mapMannerHistoryToFrontend 변환)
+
+**액션 함수 API 연동** (Mock → 실제 API 호출 + fetchAdminData 새로고침)
+- `suspendUser()` → `PUT /api/admin/members/{memberNo}/suspend`
+- `unsuspendUser()` → `PUT /api/admin/members/{memberNo}/unsuspend`
+- `updateUserManner()` → `PUT /api/admin/members/{memberNo}/manner-temp`
+- `updateUserPoints()` → `PUT /api/admin/members/{memberNo}/points`
+- `updateUserRole()` → `PUT /api/admin/members/{memberNo}/role`
+- `resolveReport()` → `PUT /api/admin/reports/{reportNo}/resolve`
+
+**로그인 개선**: `login()` 시 `isAdmin` 필드 DB에서 가져와 설정 (관리자 자동 감지)
+
+**타입 변환 헬퍼**: `extractMemberNo`, `mapMemberToUser`, `mapReportToFrontend`, `mapMannerHistoryToFrontend`
+
+### 부가 기능
+- **활동 로그 자동 기록**: 모든 관리자 액션 시 `ActivityLog` 테이블에 자동 기록
+- **알림 자동 발송**: 정지/해제/신고처리 시 대상 회원에게 SSE 실시간 알림
+- **매너온도 이력**: 매너온도 변경 시 `MannerHistory` 테이블에 변동 전/후 온도 + 사유 기록
+
+---
+
 ## 배너 관리 API 보완 + 프론트 연동 (2026-03-25)
 
 ### 백엔드 수정

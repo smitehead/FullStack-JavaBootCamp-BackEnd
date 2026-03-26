@@ -4,11 +4,23 @@ import com.javajava.project.entity.Member;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import java.util.List;
 import java.util.Optional;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
 
 public interface MemberRepository extends JpaRepository<Member, Long> {
+
+    // 관리자용: 전체 회원 목록 (가입일 최신순)
+    List<Member> findAllByOrderByJoinedAtDesc();
+
+    // 관리자용: 닉네임 또는 이메일로 검색
+    @Query("SELECT m FROM Member m WHERE LOWER(m.nickname) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "OR LOWER(m.email) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY m.joinedAt DESC")
+    List<Member> searchByKeyword(@Param("keyword") String keyword);
+
+    // 닉네임으로 회원 조회
+    Optional<Member> findByNickname(String nickname);
     Optional<Member> findByUserId(String userId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

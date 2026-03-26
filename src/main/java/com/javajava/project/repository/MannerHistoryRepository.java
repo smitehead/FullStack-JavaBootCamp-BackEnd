@@ -7,6 +7,9 @@ import java.util.List;
 
 public interface MannerHistoryRepository extends JpaRepository<MannerHistory, Long> {
 
+    // 전체 매너온도 변동 이력 (최신순) - 관리자용
+    List<MannerHistory> findAllByOrderByCreatedAtDesc();
+
     // 특정 회원의 매너온도 변동 이력 조회 (최신순)
     List<MannerHistory> findByMemberNoOrderByCreatedAtDesc(Long memberNo);
 

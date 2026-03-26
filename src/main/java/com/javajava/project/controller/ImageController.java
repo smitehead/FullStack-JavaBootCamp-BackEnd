@@ -9,11 +9,13 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @RestController
@@ -22,6 +24,25 @@ import java.util.concurrent.TimeUnit;
 public class ImageController {
 
     private final FileStore fileStore;
+
+    /**
+     * 범용 이미지 업로드
+     * POST /api/images/upload
+     * 배너, 프로필 등 상품 외 이미지 업로드 용도
+     * 응답: { "url": "/api/images/uuid.jpg" }
+     */
+    @PostMapping("/upload")
+    public ResponseEntity<?> uploadImage(@RequestParam("file") MultipartFile file) {
+        try {
+            String uuidName = fileStore.storeGenericFile(file);
+            return ResponseEntity.ok(Map.of("url", "/api/images/" + uuidName));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "파일 저장에 실패했습니다."));
+        }
+    }
 
     /**
      * 이미지 파일 서빙 엔드포인트

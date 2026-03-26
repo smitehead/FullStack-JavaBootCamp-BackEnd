@@ -130,6 +130,40 @@ public class FileStore {
     }
 
     /**
+     * 범용 이미지 파일 저장 (배너, 프로필 등 상품 외 용도)
+     * ProductImage 엔티티 생성 없이 파일만 저장하고 UUID 파일명 반환
+     */
+    public String storeGenericFile(MultipartFile multipartFile) throws IOException {
+        if (multipartFile == null || multipartFile.isEmpty()) {
+            throw new IllegalArgumentException("파일이 비어있습니다.");
+        }
+
+        if (multipartFile.getSize() > MAX_FILE_SIZE) {
+            throw new IllegalArgumentException("파일 크기는 10MB를 초과할 수 없습니다.");
+        }
+
+        String contentType = multipartFile.getContentType();
+        if (contentType == null || !ALLOWED_MIME_TYPES.contains(contentType.toLowerCase())) {
+            throw new IllegalArgumentException("허용되지 않는 파일 형식입니다. 이미지 파일만 업로드 가능합니다.");
+        }
+
+        String ext = extractExt(multipartFile.getOriginalFilename());
+        if (!ALLOWED_EXTENSIONS.contains(ext.toLowerCase())) {
+            throw new IllegalArgumentException("허용되지 않는 파일 확장자입니다: " + ext);
+        }
+
+        String uuidName = UUID.randomUUID().toString() + "." + ext.toLowerCase();
+
+        File dir = new File(getUploadDir());
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+
+        multipartFile.transferTo(new File(dir, uuidName));
+        return uuidName;
+    }
+
+    /**
      * 물리적 파일을 삭제합니다. (상품 삭제 등에 활용)
      * @return 삭제 성공 여부
      */
