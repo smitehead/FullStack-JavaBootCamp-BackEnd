@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Notification, ChatRoom, User, Product, WithdrawnUser, NotificationType, Report, MannerHistory, ActivityLog, SystemSettings } from '@/types';
+import { Notification, ChatRoom, User, Product, WithdrawnUser, NotificationType, Report, MannerHistory, ActivityLog } from '@/types';
 import { NOTIFICATIONS as INITIAL_NOTIFICATIONS, MOCK_CHATS as INITIAL_CHATS, CURRENT_USER as MOCK_USER, ADMIN_USER, MOCK_PRODUCTS as INITIAL_PRODUCTS, MOCK_USERS as INITIAL_USERS, MOCK_REPORTS as INITIAL_REPORTS } from '@/services/mockData';
 import api from '@/services/api';
 import { BACKEND_URL } from '@/utils/imageUtils';
@@ -15,7 +15,6 @@ interface AppContextType {
   reports: Report[];
   mannerHistory: MannerHistory[];
   activityLogs: ActivityLog[];
-  systemSettings: SystemSettings;
   login: (userId: string, password: string) => Promise<boolean>;
   logout: () => void;
   forceLogoutModalOpen: boolean;
@@ -51,11 +50,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [mannerHistory, setMannerHistory] = useState<MannerHistory[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [forceLogoutModalOpen, setForceLogoutModalOpen] = useState(false);
-  const [systemSettings, setSystemSettings] = useState<SystemSettings>({
-    isMaintenanceMode: false,
-    maintenanceMessage: '현재 시스템 점검 중입니다. 잠시 후 다시 시도해 주세요.',
-    lastUpdated: new Date().toISOString()
-  });
   const [withdrawnUsers, setWithdrawnUsers] = useState<WithdrawnUser[]>([
     {
       id: 'w1',
@@ -319,7 +313,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
   };
 
-  const addNotification = (message: string, link: string, type: NotificationType = 'system') => {
+  const addNotification = (message: string, link: string, type: NotificationType = 'activity') => {
     const newNoti: Notification = {
       id: `n_${Date.now()}`,
       message,
@@ -371,23 +365,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const toggleMaintenanceMode = (enabled: boolean, message?: string) => {
-    setSystemSettings(prev => ({
-      ...prev,
-      isMaintenanceMode: enabled,
-      maintenanceMessage: message || prev.maintenanceMessage,
-      lastUpdated: new Date().toISOString()
-    }));
-    addActivityLog('시스템 설정', `점검 모드 ${enabled ? '활성화' : '비활성화'}`, undefined, 'system');
-  };
-
-  const sendAdminMessage = (userId: string, content: string) => {
-    // 임시 구현 - 실제 연동 시 채팅방 생성/업데이트 API 호출로 교체 필요
-    console.log(`Admin message to ${userId}: ${content}`);
-    alert(`${userId}님에게 메시지를 보냈습니다: ${content}`);
-    addActivityLog('메시지 발송', `${userId}님에게 관리자 메시지 발송`, userId, 'user');
-  };
-
   const unreadNotificationsCount = notifications.filter(n => !n.read).length;
   const unreadChatsCount = chats.filter(c => c.unreadCount > 0).length;
 
@@ -402,7 +379,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       reports,
       mannerHistory,
       activityLogs,
-      systemSettings,
       login,
       logout,
       forceLogoutModalOpen,
@@ -419,8 +395,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updateUserManner,
       updateUserPoints,
       updateCurrentUserPoints,
-      sendAdminMessage,
-      toggleMaintenanceMode,
       addActivityLog,
       unreadNotificationsCount,
       unreadChatsCount
