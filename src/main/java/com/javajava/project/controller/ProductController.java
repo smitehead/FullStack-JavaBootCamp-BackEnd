@@ -8,11 +8,8 @@ import com.javajava.project.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
 
@@ -42,8 +39,8 @@ public class ProductController {
     @GetMapping("/{id}")
     public ResponseEntity<ProductDetailResponseDto> getProductDetail(
             @PathVariable("id") Long productNo,
-            @RequestParam(name = "memberNo", required = false) Long currentMemberNo) {
-        // 로그인 기능 연동 전이므로 memberNo는 파라미터로 받거나 null 처리가 가능하도록 설정
+            Authentication authentication) {
+        Long currentMemberNo = getMemberNoOrNull(authentication);
         return ResponseEntity.ok(productService.getProductDetail(productNo, currentMemberNo));
     }
 
@@ -61,8 +58,9 @@ public class ProductController {
             @RequestParam(name = "delivery", required = false) Boolean delivery,
             @RequestParam(name = "face", required = false) Boolean face,
             @RequestParam(name = "sort", defaultValue = "latest") String sort,
-            @RequestParam(name = "memberNo", required = false) Long memberNo // 찜 여부 확인용
+            Authentication authentication
     ) {
+        Long memberNo = getMemberNoOrNull(authentication);
         Page<ProductListResponseDto> productPage = productService.getProductList(
                 page, size, large, medium, small, minPrice, maxPrice, city, delivery, face, sort, memberNo);
         return ResponseEntity.ok(productPage);
@@ -73,5 +71,45 @@ public class ProductController {
     public ResponseEntity<List<ProductDetailResponseDto.BidHistoryDto>> getProductBids(
             @PathVariable("id") Long productNo) {
         return ResponseEntity.ok(productService.getBidHistory(productNo));
+    }
+
+    // 마이페이지: 내가 등록한 상품 목록
+    @GetMapping("/my-selling")
+    public ResponseEntity<List<ProductListResponseDto>> getMySellingProducts(Authentication authentication) {
+        Long memberNo = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(productService.getMySellingProducts(memberNo));
+    }
+
+    // 마이페이지: 내가 입찰한 상품 목록 (입찰상태 포함)
+    @GetMapping("/my-bidding")
+    public ResponseEntity<List<ProductListResponseDto>> getMyBiddingProducts(Authentication authentication) {
+        Long memberNo = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(productService.getMyBiddingProducts(memberNo));
+    }
+
+    // 마이페이지: 구매 완료(구매확정) 상품 목록
+    @GetMapping("/my-purchased")
+    public ResponseEntity<List<ProductListResponseDto>> getMyPurchasedProducts(Authentication authentication) {
+        Long memberNo = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(productService.getMyPurchasedProducts(memberNo));
+    }
+
+    // 상품 삭제 (soft delete)
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProduct(@PathVariable("id") Long productNo, Authentication authentication) {
+        Long memberNo = (Long) authentication.getPrincipal();
+        productService.deleteProduct(productNo, memberNo);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Authentication에서 memberNo 추출. 비로그인 시 null 반환.
+     */
+    private Long getMemberNoOrNull(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return null;
+        }
+        Object principal = authentication.getPrincipal();
+        return (principal instanceof Long) ? (Long) principal : null;
     }
 }

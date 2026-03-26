@@ -28,4 +28,19 @@ public interface ProductService {
     List<ProductResponseDto> findByCategory(Long categoryNo);
 
     void saveImages(Long productNo, List<org.springframework.web.multipart.MultipartFile> images) throws java.io.IOException;
+
+    // 마이페이지: 내가 등록한 상품 목록
+    List<ProductListResponseDto> getMySellingProducts(Long memberNo);
+
+    // 마이페이지: 내가 입찰한 상품 목록 (입찰상태 포함)
+    List<ProductListResponseDto> getMyBiddingProducts(Long memberNo);
+
+    // 마이페이지: 구매 완료(구매확정) 상품 목록
+    List<ProductListResponseDto> getMyPurchasedProducts(Long memberNo);
+
+    // 마이페이지: 내 찜 목록
+    List<ProductListResponseDto> getMyWishlistProducts(Long memberNo);
+
+    // 상품 삭제 (soft delete)
+    void deleteProduct(Long productNo, Long memberNo);
 }

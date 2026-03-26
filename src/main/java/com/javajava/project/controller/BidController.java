@@ -5,6 +5,7 @@ import com.javajava.project.dto.ProductDetailResponseDto;
 import com.javajava.project.service.BidService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,8 +21,12 @@ public class BidController {
      * 1. 실시간 입찰버튼
      */
     @PostMapping
-    public ResponseEntity<String> placeBid(@RequestBody BidRequestDto bidDto) {
-        // 검증 로직(포인트, 최소입찰가 등)을 포함한 입찰 프로세스 실행
+    public ResponseEntity<String> placeBid(@RequestBody BidRequestDto bidDto,
+                                           Authentication authentication) {
+        // SecurityContext에서 인증된 사용자의 memberNo를 강제 세팅 (클라이언트 조작 방지)
+        Long memberNo = (Long) authentication.getPrincipal();
+        bidDto.setMemberNo(memberNo);
+
         String result = bidService.processBid(bidDto);
         
         if ("SUCCESS".equals(result)) {

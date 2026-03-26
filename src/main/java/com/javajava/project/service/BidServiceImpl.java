@@ -11,6 +11,7 @@ import com.javajava.project.repository.MemberRepository;
 import com.javajava.project.repository.PointHistoryRepository;
 import com.javajava.project.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -107,15 +109,15 @@ public class BidServiceImpl implements BidService {
             final Long prevMemberNo = previousBidder.getMemberNo();
             try {
                 sseService.sendPointUpdate(prevMemberNo, prevPoints);
-            } catch (Exception ignored) {
-                /* SSE 실패는 비즈니스 로직에 영향 없음 */ }
+            } catch (Exception e) {
+                log.warn("[BidService] SSE 전송 실패: {}", e.getMessage()); }
 
             try {
                 String msg = String.format("상위 입찰 발생: %s에 더 높은 입찰가가 등록되었습니다.", product.getTitle());
                 notificationService.sendAndSaveNotification(
                         prevMemberNo, "bid", msg, "/product/" + product.getProductNo());
-            } catch (Exception ignored) {
-                /* 알림 실패도 트랜잭션에 영향 없음 */ }
+            } catch (Exception e) {
+                log.warn("[BidService] 알림 전송 실패: {}", e.getMessage()); }
         }
 
         // 7. 현재 입찰자 포인트 차감
@@ -157,14 +159,14 @@ public class BidServiceImpl implements BidService {
                     "새로운 입찰: 등록하신 %s에 새로운 입찰자가 등장했습니다.", product.getTitle());
             notificationService.sendAndSaveNotification(
                     product.getSellerNo(), "bid", msgToSeller, "/product/" + product.getProductNo());
-        } catch (Exception ignored) {
-            /* 알림 실패는 트랜잭션에 영향 없음 */ }
+        } catch (Exception e) {
+            log.warn("[BidService] 알림 전송 실패: {}", e.getMessage()); }
 
         // 10. 전체 클라이언트 가격 브로드캐스트 (격리)
         try {
             sseService.broadcastPriceUpdate(product.getProductNo(), bidDto.getBidPrice());
-        } catch (Exception ignored) {
-            /* 브로드캐스트 실패는 트랜잭션에 영향 없음 */ }
+        } catch (Exception e) {
+            log.warn("[BidService] 브로드캐스트 실패: {}", e.getMessage()); }
 
         return "SUCCESS";
     }
@@ -221,8 +223,8 @@ public class BidServiceImpl implements BidService {
         // 환불 SSE 알림 (격리)
         try {
             sseService.sendPointUpdate(bidder.getMemberNo(), bidder.getPoints());
-        } catch (Exception ignored) {
-            /* SSE 실패는 트랜잭션에 영향 없음 */ }
+        } catch (Exception e) {
+            log.warn("[BidService] SSE 전송 실패: {}", e.getMessage()); }
     }
 
     @Override

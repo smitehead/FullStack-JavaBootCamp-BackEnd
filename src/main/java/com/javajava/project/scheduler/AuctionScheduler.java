@@ -26,9 +26,9 @@ public class AuctionScheduler {
     private final AuctionResultRepository auctionResultRepository;
 
     /**
-     * 매 1분마다 종료된 경매를 체크하여 낙찰 처리
+     * 매 30초마다 종료된 경매를 체크하여 낙찰 처리
      */
-    @Scheduled(cron = "0 * * * * *")
+    @Scheduled(cron = "*/30 * * * * *")
     @Transactional
     public void closeExpiredAuctions() {
         LocalDateTime now = LocalDateTime.now();

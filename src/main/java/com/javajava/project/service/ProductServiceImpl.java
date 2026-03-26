@@ -13,6 +13,8 @@ import com.javajava.project.repository.ProductRepository;
 import com.javajava.project.entity.ProductImage;
 import com.javajava.project.repository.ProductImageRepository;
 import com.javajava.project.repository.WishlistRepository;
+import com.javajava.project.repository.AuctionResultRepository;
+import com.javajava.project.entity.AuctionResult;
 import com.javajava.project.util.FileStore;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +46,7 @@ public class ProductServiceImpl implements ProductService {
     private final BidHistoryRepository bidHistoryRepository;
     private final ProductImageRepository productImageRepository;
     private final WishlistRepository wishlistRepository;
+    private final AuctionResultRepository auctionResultRepository;
     private final FileStore fileStore;
 
     @Override
@@ -169,6 +172,13 @@ public class ProductServiceImpl implements ProductService {
                 ? Set.copyOf(wishlistRepository.findWishlistedProductNos(memberNo, productNos))
                 : Set.of();
 
+        // 참여자 수 배치 조회 (N+1 제거: 상품 수만큼 쿼리 → 1번 IN 쿼리)
+        Map<Long, Long> participantCountMap = productNos.isEmpty() ? Map.of() :
+                bidHistoryRepository.countDistinctParticipantsByProductNos(productNos).stream()
+                        .collect(Collectors.toMap(
+                                row -> (Long) row[0],
+                                row -> (Long) row[1]));
+
         return productPage.map(product -> {
             ProductImage mainImg = mainImageMap.get(product.getProductNo());
             List<String> imageUrls = mainImg != null
@@ -181,7 +191,7 @@ public class ProductServiceImpl implements ProductService {
                     .location(product.getTradeAddrDetail())
                     .currentPrice(product.getCurrentPrice())
                     .endTime(product.getEndTime())
-                    .participantCount(bidHistoryRepository.countDistinctParticipants(product.getProductNo()))
+                    .participantCount(participantCountMap.getOrDefault(product.getProductNo(), 0L))
                     .status(product.getEndTime().isBefore(LocalDateTime.now()) ? "completed" : "active")
                     .images(imageUrls)
                     .isWishlisted(wishlistedNos.contains(product.getProductNo()))
@@ -293,5 +303,189 @@ public class ProductServiceImpl implements ProductService {
         if (!storedImages.isEmpty()) {
             productImageRepository.saveAll(storedImages);
         }
+    }
+
+    @Override
+    public List<ProductListResponseDto> getMySellingProducts(Long memberNo) {
+        List<Product> products = productRepository.findBySellerNo(memberNo);
+        return toProductListDtos(products, memberNo);
+    }
+
+    @Override
+    public List<ProductListResponseDto> getMyBiddingProducts(Long memberNo) {
+        List<Long> productNos = bidHistoryRepository.findDistinctProductNosByMemberNo(memberNo);
+        if (productNos.isEmpty()) return List.of();
+        List<Product> products = productRepository.findAllById(productNos);
+
+        // 낙찰 여부 배치 조회 (어떤 상품에서 내가 낙찰자인지)
+        Set<Long> wonProductNos = Set.copyOf(
+                bidHistoryRepository.findWonProductNosInList(memberNo, productNos));
+
+        return toProductListDtosWithBidStatus(products, memberNo, wonProductNos);
+    }
+
+    @Override
+    public List<ProductListResponseDto> getMyPurchasedProducts(Long memberNo) {
+        // 1. 내가 낙찰받은 상품 번호 목록
+        List<Long> wonProductNos = bidHistoryRepository.findWonProductNosByMemberNo(memberNo);
+        if (wonProductNos.isEmpty()) return List.of();
+
+        // 2. 해당 상품들의 낙찰 입찰번호를 찾고, AuctionResult에서 구매확정된 것만 필터
+        List<Product> products = productRepository.findAllById(wonProductNos);
+
+        // 낙찰된 bid 조회
+        List<BidHistory> winnerBids = wonProductNos.stream()
+                .map(pNo -> bidHistoryRepository.findWinnerByProductNo(pNo).orElse(null))
+                .filter(b -> b != null)
+                .collect(Collectors.toList());
+
+        List<Long> bidNos = winnerBids.stream().map(BidHistory::getBidNo).collect(Collectors.toList());
+        if (bidNos.isEmpty()) return List.of();
+
+        // AuctionResult 중 구매확정된 것만 필터
+        List<AuctionResult> results = auctionResultRepository.findByBidNos(bidNos);
+        Set<Long> confirmedBidNos = results.stream()
+                .filter(ar -> "구매확정".equals(ar.getStatus()))
+                .map(AuctionResult::getBidNo)
+                .collect(Collectors.toSet());
+
+        // 구매확정된 bid의 productNo만 추출
+        Set<Long> confirmedProductNos = winnerBids.stream()
+                .filter(b -> confirmedBidNos.contains(b.getBidNo()))
+                .map(BidHistory::getProductNo)
+                .collect(Collectors.toSet());
+
+        List<Product> confirmedProducts = products.stream()
+                .filter(p -> confirmedProductNos.contains(p.getProductNo()))
+                .collect(Collectors.toList());
+
+        return toProductListDtos(confirmedProducts, memberNo);
+    }
+
+    @Override
+    public List<ProductListResponseDto> getMyWishlistProducts(Long memberNo) {
+        List<Long> productNos = wishlistRepository.findProductNosByMemberNo(memberNo);
+        if (productNos.isEmpty()) return List.of();
+        List<Product> products = productRepository.findAllById(productNos);
+        return toProductListDtos(products, memberNo);
+    }
+
+    @Override
+    @Transactional
+    public void deleteProduct(Long productNo, Long memberNo) {
+        Product product = productRepository.findById(productNo)
+                .orElseThrow(() -> new IllegalArgumentException("해당 상품이 없습니다. ID: " + productNo));
+        if (!product.getSellerNo().equals(memberNo)) {
+            throw new IllegalStateException("본인의 상품만 삭제할 수 있습니다.");
+        }
+        product.setIsDeleted(1);
+        product.setIsActive(0);
+    }
+
+    /**
+     * Product 엔티티 리스트를 ProductListResponseDto 리스트로 변환 (입찰 상태 포함)
+     */
+    private List<ProductListResponseDto> toProductListDtosWithBidStatus(
+            List<Product> products, Long memberNo, Set<Long> wonProductNos) {
+        products = products.stream()
+                .filter(p -> p.getIsDeleted() == 0)
+                .collect(Collectors.toList());
+        if (products.isEmpty()) return List.of();
+
+        List<Long> productNos = products.stream().map(Product::getProductNo).collect(Collectors.toList());
+
+        Map<Long, ProductImage> mainImageMap =
+                productImageRepository.findMainImagesByProductNos(productNos).stream()
+                        .collect(Collectors.toMap(ProductImage::getProductNo, Function.identity(), (a, b) -> a));
+
+        Set<Long> wishlistedNos = (memberNo != null)
+                ? Set.copyOf(wishlistRepository.findWishlistedProductNos(memberNo, productNos))
+                : Set.of();
+
+        Map<Long, Long> participantCountMap =
+                bidHistoryRepository.countDistinctParticipantsByProductNos(productNos).stream()
+                        .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+
+        return products.stream().map(product -> {
+            ProductImage mainImg = mainImageMap.get(product.getProductNo());
+            List<String> imageUrls = mainImg != null
+                    ? List.of("/api/images/" + mainImg.getUuidName())
+                    : List.of();
+
+            boolean isFinished = product.getEndTime().isBefore(LocalDateTime.now()) || product.getIsActive() == 0;
+
+            // 입찰 상태 결정: 경매중 / 낙찰 / 낙찰실패
+            String bidStatus;
+            if (!isFinished) {
+                bidStatus = "bidding";    // 경매중
+            } else if (wonProductNos.contains(product.getProductNo())) {
+                bidStatus = "won";        // 낙찰
+            } else {
+                bidStatus = "lost";       // 낙찰실패
+            }
+
+            return ProductListResponseDto.builder()
+                    .id(product.getProductNo())
+                    .title(product.getTitle())
+                    .location(product.getTradeAddrDetail())
+                    .currentPrice(product.getCurrentPrice())
+                    .endTime(product.getEndTime())
+                    .participantCount(participantCountMap.getOrDefault(product.getProductNo(), 0L))
+                    .status(isFinished ? "completed" : "active")
+                    .images(imageUrls)
+                    .isWishlisted(wishlistedNos.contains(product.getProductNo()))
+                    .bidStatus(bidStatus)
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * Product 엔티티 리스트를 ProductListResponseDto 리스트로 변환 (배치 쿼리 사용)
+     */
+    private List<ProductListResponseDto> toProductListDtos(List<Product> products, Long memberNo) {
+        // 삭제된 상품 제외
+        products = products.stream()
+                .filter(p -> p.getIsDeleted() == 0)
+                .collect(Collectors.toList());
+
+        if (products.isEmpty()) return List.of();
+
+        List<Long> productNos = products.stream().map(Product::getProductNo).collect(Collectors.toList());
+
+        // 메인 이미지 배치 조회
+        Map<Long, ProductImage> mainImageMap =
+                productImageRepository.findMainImagesByProductNos(productNos).stream()
+                        .collect(Collectors.toMap(ProductImage::getProductNo, Function.identity(), (a, b) -> a));
+
+        // 찜 여부 배치 조회
+        Set<Long> wishlistedNos = (memberNo != null)
+                ? Set.copyOf(wishlistRepository.findWishlistedProductNos(memberNo, productNos))
+                : Set.of();
+
+        // 참여자 수 배치 조회
+        Map<Long, Long> participantCountMap =
+                bidHistoryRepository.countDistinctParticipantsByProductNos(productNos).stream()
+                        .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+
+        return products.stream().map(product -> {
+            ProductImage mainImg = mainImageMap.get(product.getProductNo());
+            List<String> imageUrls = mainImg != null
+                    ? List.of("/api/images/" + mainImg.getUuidName())
+                    : List.of();
+
+            boolean isFinished = product.getEndTime().isBefore(LocalDateTime.now()) || product.getIsActive() == 0;
+
+            return ProductListResponseDto.builder()
+                    .id(product.getProductNo())
+                    .title(product.getTitle())
+                    .location(product.getTradeAddrDetail())
+                    .currentPrice(product.getCurrentPrice())
+                    .endTime(product.getEndTime())
+                    .participantCount(participantCountMap.getOrDefault(product.getProductNo(), 0L))
+                    .status(isFinished ? "completed" : "active")
+                    .images(imageUrls)
+                    .isWishlisted(wishlistedNos.contains(product.getProductNo()))
+                    .build();
+        }).collect(Collectors.toList());
     }
 }
