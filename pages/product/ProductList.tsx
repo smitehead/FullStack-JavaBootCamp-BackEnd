@@ -7,6 +7,7 @@ import { ChevronRight, Search, RotateCcw, X, Plus, Minus, Loader2 } from 'lucide
 import { Product } from '@/types';
 import { resolveImageUrls } from '@/utils/imageUtils';
 import { useAppContext } from '@/context/AppContext';
+import { getMemberNo } from '@/utils/memberUtils';
 
 type SortOption = 'all' | 'popular' | 'ending' | 'latest';
 
@@ -68,7 +69,7 @@ export const ProductList: React.FC = () => {
     setLoading(true);
 
     try {
-      const memberNo = user ? parseInt(user.id.replace(/[^0-9]/g, '') || '0', 10) : undefined;
+      const memberNo = getMemberNo(user) ?? undefined;
 
       const params = {
         page: pageToFetch,

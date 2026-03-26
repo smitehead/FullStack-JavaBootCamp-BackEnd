@@ -7,8 +7,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import api from '@/services/api';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { resolveImageUrls } from '../../utils/imageUtils';
-import { BACKEND_URL } from '../../utils/imageUtils';
+import { resolveImageUrls, BACKEND_URL } from '../../utils/imageUtils';
+import { getMemberNo } from '@/utils/memberUtils';
 
 export const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -60,7 +60,7 @@ export const ProductDetail: React.FC = () => {
   // 입찰 성공 후 상품 데이터 재조회에 사용 (재호출 가능하도록 단돈으로 분리)
   const fetchProduct = React.useCallback(async () => {
     try {
-      const memberNo = user ? parseInt(user.id.replace(/[^0-9]/g, '') || '1', 10) : null;
+      const memberNo = getMemberNo(user);
       let url = `/products/${id}`;
       if (memberNo) url += `?memberNo=${memberNo}`;
 
@@ -152,14 +152,14 @@ export const ProductDetail: React.FC = () => {
   // - priceUpdate: 다른 사람이 입찰하면 현재 가격 즉시 갱신
   // - pointUpdate: 내 포인트가 변경되면(입찰차감/환불) 즉시 팝업과 헤더에 반영
   // -----------------------------------------------------------------------------
-  const [priceHighlight, setPriceHighlight] = useState(false);
+  const [priceToast, setPriceToast] = useState(false);
 
   useEffect(() => {
     if (!product || !product.id) return;
 
     // 로그인한 사용자는 memberNo를 clientId로 사용 (AppContext SSE와 같은 채널)
     // 비로그인은 게스트 ID 사용 (priceUpdate만 수신)
-    const clientId = user ? user.id.replace(/[^0-9]/g, '') : `guest_${id}`;
+    const clientId = getMemberNo(user)?.toString() ?? `guest_${id}`;
     const sseUrl = `${BACKEND_URL}/api/sse/subscribe?clientId=${clientId}`;
     const eventSource = new EventSource(sseUrl);
 
@@ -169,8 +169,8 @@ export const ProductDetail: React.FC = () => {
         const data = JSON.parse(event.data);
         if (String(data.productNo) === String(product.id)) {
           setProduct(prev => prev ? ({ ...prev, currentPrice: data.currentPrice }) : prev);
-          setPriceHighlight(true);
-          setTimeout(() => setPriceHighlight(false), 5000);
+          setPriceToast(true);
+          setTimeout(() => setPriceToast(false), 5000);
         }
       } catch (e) {
         console.error('[SSE] priceUpdate 파싱 오류', e);
@@ -262,7 +262,8 @@ export const ProductDetail: React.FC = () => {
 
     // 백엔드에서 실시간 포인트 조회
     try {
-      const memberNo = parseInt(user.id.replace(/[^0-9]/g, '') || '1', 10);
+      const memberNo = getMemberNo(user);
+      if (!memberNo) return;
       const res = await api.get(`/members/${memberNo}`);
       updateCurrentUserPoints(res.data.points);
     } catch (e) {
@@ -298,7 +299,8 @@ export const ProductDetail: React.FC = () => {
     }
 
     try {
-      const memberNo = parseInt(user.id.replace(/[^0-9]/g, '') || '1', 10);
+      const memberNo = getMemberNo(user);
+      if (!memberNo) return;
       await api.post('/bids', {
         productNo: product.id,
         memberNo: memberNo,
@@ -340,7 +342,8 @@ export const ProductDetail: React.FC = () => {
       return;
     }
     try {
-      const memberNo = parseInt(user.id.replace(/[^0-9]/g, '') || '1', 10);
+      const memberNo = getMemberNo(user);
+      if (!memberNo) return;
       const response = await api.post(`/wishlists/toggle?memberNo=${memberNo}&productNo=${product?.id}`);
       const newState = response.data; // returns boolean
 
@@ -509,9 +512,9 @@ export const ProductDetail: React.FC = () => {
                 <span className="text-gray-500">최소 입찰 단위</span>
                 <span className="font-bold text-gray-900">{(product.minBidIncrement || 0).toLocaleString()} 원</span>
               </div>
-              <div className={`flex justify-between items-center p-3 -mx-3 rounded-2xl transition-all duration-500 ${priceHighlight ? 'bg-red-50 border border-red-200 shadow-sm scale-105' : 'bg-transparent border border-transparent'}`}>
-                <span className={`font-bold transition-colors ${priceHighlight ? 'text-red-500' : 'text-gray-500'}`}>현재 입찰가</span>
-                <span className={`text-3xl font-black transition-colors duration-500 ${priceHighlight ? 'text-red-600 animate-pulse' : 'text-orange-500'}`}>
+              <div className="flex justify-between items-center p-3 -mx-3 rounded-2xl bg-transparent border border-transparent">
+                <span className="font-bold text-gray-500">현재 입찰가</span>
+                <span className="text-3xl font-black text-orange-500">
                   {(product.currentPrice || 0).toLocaleString()} 원
                 </span>
               </div>
@@ -775,14 +778,6 @@ export const ProductDetail: React.FC = () => {
             </div>
 
             <div className="p-8 space-y-8">
-              {/* 실시간 알림 경고 확인용 */}
-              {priceHighlight && (
-                <div className="bg-red-50 text-red-500 p-4 rounded-xl text-sm mb-4 font-bold border border-red-200 shadow-sm animate-pulse flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-                  동시에 누군가 더 높은 금액으로 먼저 입찰하여 현재가가 변동되었습니다!
-                </div>
-              )}
-
               {/* Point Info */}
               <div className="bg-gray-900 rounded-2xl p-5 text-white flex justify-between items-center shadow-lg">
                 <div className="flex items-center gap-3">
@@ -796,9 +791,9 @@ export const ProductDetail: React.FC = () => {
 
               {/* Price Info */}
               <div className="grid grid-cols-2 gap-4">
-                <div className={`p-4 rounded-2xl border transition-colors duration-500 ${priceHighlight ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100'}`}>
-                  <p className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${priceHighlight ? 'text-red-400' : 'text-gray-400'}`}>현재가</p>
-                  <p className={`text-lg font-black ${priceHighlight ? 'text-red-600 animate-pulse' : 'text-gray-900'}`}>{(product.currentPrice || 0).toLocaleString()}원</p>
+                <div className="p-4 rounded-2xl border bg-gray-50 border-gray-100">
+                  <p className="text-[10px] font-bold uppercase tracking-wider mb-1 text-gray-400">현재가</p>
+                  <p className="text-lg font-black text-gray-900">{(product.currentPrice || 0).toLocaleString()}원</p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">최소 입찰 단위</p>
@@ -885,6 +880,14 @@ export const ProductDetail: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 가격 변동 토스트 메시지 */}
+      {priceToast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-white text-red-600 px-8 py-4 rounded-xl shadow-xl border border-red-200 text-sm font-bold flex items-center gap-2">
+          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+          상품의 현재 입찰가가 변동되었습니다.
         </div>
       )}
     </div>

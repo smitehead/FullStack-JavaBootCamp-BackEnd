@@ -1,3 +1,8 @@
+// TODO: 이 파일은 전체가 Mock 데이터 기반입니다.
+// 백엔드에 주문(Order) API 구현 후 실제 API 연동으로 교체해야 합니다.
+// - GET /api/orders/{id} 로 낙찰 주문 조회
+// - POST /api/orders/{id}/pay 로 결제 처리
+// - POST /api/orders/{id}/confirm 로 구매 확정
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { CURRENT_USER, MOCK_PRODUCTS, MOCK_REVIEW_TAGS } from '@/services/mockData';

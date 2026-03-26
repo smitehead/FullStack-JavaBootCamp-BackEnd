@@ -116,10 +116,10 @@ export const BLOCKED_USERS: User[] = [
 
 const generateBids = (basePrice: number): BidHistory[] => {
   return [
-    { id: 'bid_1', bidderName: '입찰자A', amount: basePrice, timestamp: '2023-10-25T10:00:00' },
-    { id: 'bid_2', bidderName: '입찰자B', amount: basePrice + 5000, timestamp: '2023-10-25T10:30:00' },
-    { id: 'bid_3', bidderName: '입찰자C', amount: basePrice + 12000, timestamp: '2023-10-25T11:15:00' },
-    { id: 'bid_4', bidderName: '입찰자A', amount: basePrice + 15000, timestamp: '2023-10-25T12:00:00' },
+    { id: 'bid_1', bidderId: 'user_10', bidderName: '입찰자A', amount: basePrice, timestamp: '2023-10-25T10:00:00' },
+    { id: 'bid_2', bidderId: 'user_11', bidderName: '입찰자B', amount: basePrice + 5000, timestamp: '2023-10-25T10:30:00' },
+    { id: 'bid_3', bidderId: 'user_12', bidderName: '입찰자C', amount: basePrice + 12000, timestamp: '2023-10-25T11:15:00' },
+    { id: 'bid_4', bidderId: 'user_10', bidderName: '입찰자A', amount: basePrice + 15000, timestamp: '2023-10-25T12:00:00' },
   ];
 };
 
@@ -223,8 +223,8 @@ export const MOCK_PRODUCTS: Product[] = [
     images: ['https://picsum.photos/seed/watch/600/400'],
     participantCount: 8,
     bids: [
-      { id: 'bid_w1', bidderName: '입찰자X', amount: 700000, timestamp: '2023-10-20T10:00:00' },
-      { id: 'bid_w2', bidderName: '경매왕', amount: 850000, timestamp: '2023-10-24T17:30:00' },
+      { id: 'bid_w1', bidderId: 'user_20', bidderName: '입찰자X', amount: 700000, timestamp: '2023-10-20T10:00:00' },
+      { id: 'bid_w2', bidderId: 'user_1', bidderName: '경매왕', amount: 850000, timestamp: '2023-10-24T17:30:00' },
     ],
     status: 'completed',
     location: '서울 마포구',
@@ -246,7 +246,7 @@ export const MOCK_PRODUCTS: Product[] = [
     images: ['https://picsum.photos/seed/switch/600/400'],
     participantCount: 15,
     bids: [
-      { id: 'bid_s1', bidderName: '홈스타일링', amount: 320000, timestamp: '2023-10-24T19:45:00' },
+      { id: 'bid_s1', bidderId: 'user_30', bidderName: '홈스타일링', amount: 320000, timestamp: '2023-10-24T19:45:00' },
     ],
     status: 'completed',
     location: '서울 강남구',

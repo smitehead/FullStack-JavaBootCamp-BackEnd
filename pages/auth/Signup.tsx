@@ -160,7 +160,9 @@ export const Signup: React.FC = () => {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setSentCode(code);
     setTimer(180); // 3분
-    alert(`인증번호가 발송되었습니다: ${code} (실제 서비스에서는 이메일로 발송됩니다)`);
+    // 실제 서비스에서는 이메일/SMS 발송 API 연동 필요
+    console.log('[DEV] 인증번호:', code);
+    alert('인증번호가 발송되었습니다. 이메일을 확인해주세요.');
   };
 
   const verifyCode = () => {

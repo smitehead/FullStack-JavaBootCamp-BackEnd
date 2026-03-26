@@ -6,6 +6,7 @@ import { useAppContext } from '@/context/AppContext';
 import { Camera, Calendar, DollarSign, MapPin, Truck, Info, AlignLeft, Package, ArrowLeft } from 'lucide-react';
 import api from '@/services/api';
 import { ProductRequestDto } from '@/types';
+import { getMemberNo } from '@/utils/memberUtils';
 
 export const ProductRegister: React.FC = () => {
   const navigate = useNavigate();
@@ -176,7 +177,8 @@ export const ProductRegister: React.FC = () => {
     }
 
     try {
-      const sellerNo = parseInt(user.id.replace(/[^0-9]/g, '') || '1', 10);
+      const sellerNo = getMemberNo(user);
+      if (!sellerNo) { alert('로그인 정보를 확인할 수 없습니다.'); return; }
       const categoryNoStr = smallCat || mediumCat || largeCat || 'cat_1';
       const categoryNo = parseInt(categoryNoStr.replace(/[^0-9]/g, '') || '1', 10);
 

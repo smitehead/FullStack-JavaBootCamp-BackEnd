@@ -7,6 +7,7 @@ import { ko } from 'date-fns/locale';
 import { useAppContext } from '@/context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import api from '@/services/api';
+import { getMemberNo } from '@/utils/memberUtils';
 
 interface ProductCardProps {
   product: Product;
@@ -79,8 +80,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     }
     
     try {
-      const memberNo = parseInt(user.id.replace(/[^0-9]/g, '') || '1', 10);
-      const response = await api.post(`/wishlists/toggle?memberNo=${memberNo}&productNo=${product.id}`);
+      const memberNo = getMemberNo(user);
+      if (!memberNo) return;
+      const response = await api.post(`/wishlists/toggle?productNo=${product.id}`);
       setIsWishlisted(response.data);
     } catch (error) {
       console.error('Failed to toggle wishlist', error);

@@ -4,6 +4,7 @@ import { ArrowRight, TrendingUp, Grid, ChevronLeft, ChevronRight } from 'lucide-
 import api from '@/services/api';
 import { ProductCard } from '@/components/ProductCard';
 import { CATEGORY_DATA } from '@/constants';
+import { BACKEND_URL } from '@/utils/imageUtils';
 import { motion, AnimatePresence } from 'motion/react';
 import { resolveImageUrls } from '../utils/imageUtils';
 
@@ -66,7 +67,7 @@ export const Home: React.FC = () => {
   // 홈 페이지 실시간 가격 업데이트 SSE 연결
   useEffect(() => {
     const clientId = 'guest_home_' + Math.random().toString(36).substring(7);
-    const eventSource = new EventSource(`http://localhost:8080/api/sse/subscribe?clientId=${clientId}`);
+    const eventSource = new EventSource(`${BACKEND_URL}/api/sse/subscribe?clientId=${clientId}`);
     
     eventSource.addEventListener('priceUpdate', (event: any) => {
       try {

@@ -84,6 +84,7 @@ export interface SystemSettings {
 
 export interface BidHistory {
   id: string;
+  bidderId: string;
   bidderName: string;
   amount: number;
   timestamp: string;

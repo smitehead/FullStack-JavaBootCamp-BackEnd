@@ -3,6 +3,7 @@ import { Notification, ChatRoom, User, Product, WithdrawnUser, NotificationType,
 import { NOTIFICATIONS as INITIAL_NOTIFICATIONS, MOCK_CHATS as INITIAL_CHATS, CURRENT_USER as MOCK_USER, ADMIN_USER, MOCK_PRODUCTS as INITIAL_PRODUCTS, MOCK_USERS as INITIAL_USERS, MOCK_REPORTS as INITIAL_REPORTS } from '@/services/mockData';
 import api from '@/services/api';
 import { BACKEND_URL } from '@/utils/imageUtils';
+import { getMemberNo } from '@/utils/memberUtils';
 
 interface AppContextType {
   user: User | null;
@@ -78,11 +79,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     if (!user) return;
 
-    const memberNo = user.id.replace(/[^0-9]/g, '');
+    const memberNo = getMemberNo(user);
     if (!memberNo) return;
 
     // BACKEND_URL을 사용하여 하드코딩 제거 (imageUtils.ts에서 환경변수 기반 관리)
-    const eventSource = new EventSource(`${BACKEND_URL}/api/sse/subscribe?clientId=${memberNo}`);
+    const eventSource = new EventSource(`${BACKEND_URL}/api/sse/subscribe?clientId=${String(memberNo)}`);
 
     eventSource.addEventListener('pointUpdate', (event: MessageEvent) => {
       try {
@@ -93,8 +94,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             // 포인트 값이 실제로 변경된 경우에만 업데이트
             if (prev.points === data.points) return prev;
             const updated = { ...prev, points: data.points };
-            // localStorage도 동기화하여 새로고침 후에도 유지
-            localStorage.setItem('java_user', JSON.stringify(updated));
+            // sessionStorage도 동기화하여 새로고침 후에도 유지
+            sessionStorage.setItem('java_user', JSON.stringify(updated));
             return updated;
           });
         }
@@ -106,8 +107,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // 다른 기기에서 로그인 시 즉시 강제 로그아웃 처리
     eventSource.addEventListener('forceLogout', () => {
       eventSource.close();
-      localStorage.removeItem('java_token');
-      localStorage.removeItem('java_user');
+      sessionStorage.removeItem('java_token');
+      sessionStorage.removeItem('java_user');
       setUser(null);
       setForceLogoutModalOpen(true);
     });
@@ -122,9 +123,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
   }, [user?.id]); // 사용자 ID가 바뀔 때(로그인/로그아웃) 재연결
 
-  // 앱 시작 시 localStorage에 저장된 로그인 정보 복원
+  // 앱 시작 시 sessionStorage에 저장된 로그인 정보 복원
   useEffect(() => {
-    const savedUser = localStorage.getItem('java_user');
+    const savedUser = sessionStorage.getItem('java_user');
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
@@ -136,7 +137,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             setUser(prev => {
               if (!prev) return prev;
               const updated = { ...prev, points: res.data.points || 0, mannerTemp: res.data.mannerTemp || 36.5 };
-              localStorage.setItem('java_user', JSON.stringify(updated));
+              sessionStorage.setItem('java_user', JSON.stringify(updated));
               return updated;
             });
           }
@@ -150,7 +151,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       const response = await api.post('/auth/login', { userId, password });
       const { token, memberNo, nickname } = response.data;
 
-      localStorage.setItem('java_token', token);
+      sessionStorage.setItem('java_token', token);
 
       // FETCH REAL POINTS HERE
       let dbPoints = 0;
@@ -173,7 +174,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       };
 
       setUser(loggedInUser);
-      localStorage.setItem('java_user', JSON.stringify(loggedInUser));
+      sessionStorage.setItem('java_user', JSON.stringify(loggedInUser));
       return true;
     } catch (error) {
       console.error('Login failed', error);
@@ -184,8 +185,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const logout = () => {
     api.post('/auth/logout').catch(console.error);
     setUser(null);
-    localStorage.removeItem('java_user');
-    localStorage.removeItem('java_token');
+    sessionStorage.removeItem('java_user');
+    sessionStorage.removeItem('java_token');
   };
 
   const closeForceLogoutModal = () => setForceLogoutModalOpen(false);
@@ -193,8 +194,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // api.ts의 401 인터셉터에서 발생시키는 커스텀 이벤트 처리 (SSE 미연결 상태 백업)
   useEffect(() => {
     const handleForceLogout = () => {
-      localStorage.removeItem('java_token');
-      localStorage.removeItem('java_user');
+      sessionStorage.removeItem('java_token');
+      sessionStorage.removeItem('java_user');
       setUser(null);
       setForceLogoutModalOpen(true);
     };
@@ -248,7 +249,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         isPermanentlySuspended: isPermanent
       };
       setUser(updatedUser);
-      localStorage.setItem('java_user', JSON.stringify(updatedUser));
+      sessionStorage.setItem('java_user', JSON.stringify(updatedUser));
     }
 
     // 해당 유저의 진행 중인 경매 강제 종료
@@ -280,7 +281,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         isPermanentlySuspended: false
       };
       setUser(updatedUser);
-      localStorage.setItem('java_user', JSON.stringify(updatedUser));
+      sessionStorage.setItem('java_user', JSON.stringify(updatedUser));
     }
 
     const unsuspendedUser = users.find(u => u.id === userId);
@@ -366,7 +367,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     if (user) {
       const updated = { ...user, points };
       setUser(updated);
-      localStorage.setItem('java_user', JSON.stringify(updated));
+      sessionStorage.setItem('java_user', JSON.stringify(updated));
     }
   };
 
