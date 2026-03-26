@@ -383,7 +383,7 @@ public class ProductServiceImpl implements ProductService {
             throw new IllegalStateException("본인의 상품만 삭제할 수 있습니다.");
         }
         product.setIsDeleted(1);
-        product.setIsActive(0);
+        product.setStatus(2);
     }
 
     /**
@@ -416,7 +416,7 @@ public class ProductServiceImpl implements ProductService {
                     ? List.of("/api/images/" + mainImg.getUuidName())
                     : List.of();
 
-            boolean isFinished = product.getEndTime().isBefore(LocalDateTime.now()) || product.getIsActive() == 0;
+            boolean isFinished = product.getEndTime().isBefore(LocalDateTime.now()) || product.getStatus() != 0;
 
             // 입찰 상태 결정: 경매중 / 낙찰 / 낙찰실패
             String bidStatus;
@@ -477,7 +477,7 @@ public class ProductServiceImpl implements ProductService {
                     ? List.of("/api/images/" + mainImg.getUuidName())
                     : List.of();
 
-            boolean isFinished = product.getEndTime().isBefore(LocalDateTime.now()) || product.getIsActive() == 0;
+            boolean isFinished = product.getEndTime().isBefore(LocalDateTime.now()) || product.getStatus() != 0;
 
             return ProductListResponseDto.builder()
                     .id(product.getProductNo())
