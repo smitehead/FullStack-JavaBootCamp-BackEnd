@@ -1,4 +1,5 @@
 import React from 'react';
+import { Toaster } from 'sonner';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 // [ Context & Components ]
@@ -57,6 +58,13 @@ const App: React.FC = () => {
   return (
     <BrowserRouter>
       <AppProvider>
+        <Toaster 
+          position="top-center" 
+          expand={false} 
+          visibleToasts={5} 
+          gap={12} 
+          richColors 
+        />
         <Routes>
           {/* Admin Routes */}
           <Route path="/admin/*" element={

@@ -2,13 +2,48 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Product, BidHistory } from '@/types';
 import { useAppContext } from '@/context/AppContext';
-import { Heart, Share2, AlertTriangle, Clock, MapPin, Send, Flag, ShieldCheck, ChevronRight, TrendingUp, Info, X, Wallet, PlusCircle, ArrowLeft, Package, Users, MessageSquare, Edit2, Trash2, Reply } from 'lucide-react';
+import { Heart, Share2, AlertTriangle, Clock, MapPin, Send, Flag, ShieldCheck, ChevronRight, TrendingUp, Info, X, Wallet, PlusCircle, ArrowLeft, Package, Users, MessageSquare, Edit2, Trash2, Reply, Sparkles } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '@/services/api';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { resolveImageUrls, BACKEND_URL } from '../../utils/imageUtils';
 import { getMemberNo } from '@/utils/memberUtils';
+import { toast } from 'sonner';
+import { motion } from 'motion/react';
+
+const notifyBid = (productTitle: string) => {
+  const truncatedTitle = productTitle.length > 10 
+    ? productTitle.substring(0, 10) + '..' 
+    : productTitle;
+
+  toast.custom((t) => (
+    <motion.div
+      initial={{ opacity: 0, y: -20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="bg-white border border-gray-100 shadow-2xl rounded-full py-3 px-6 flex items-center justify-center gap-3 relative mx-auto w-max"
+    >
+      <div className="flex items-center justify-center shrink-0">
+        <Sparkles className="w-4 h-4 text-red-500 animate-pulse" />
+      </div>
+
+      <p className="text-sm font-black text-gray-900 leading-none whitespace-nowrap pr-4">
+        누군가 <span className="text-red-500">'{truncatedTitle}'</span> 상품에 입찰했습니다!
+      </p>
+
+      <button 
+        onClick={() => toast.dismiss(t)}
+        className="p-1 hover:bg-gray-50 rounded-md transition-colors text-gray-400"
+      >
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </motion.div>
+  ), {
+    position: 'top-center',
+    duration: 4000,
+  });
+};
 
 export const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -152,7 +187,6 @@ export const ProductDetail: React.FC = () => {
   // - priceUpdate: 다른 사람이 입찰하면 현재 가격 즉시 갱신
   // - pointUpdate: 내 포인트가 변경되면(입찰차감/환불) 즉시 팝업과 헤더에 반영
   // -----------------------------------------------------------------------------
-  const [priceToast, setPriceToast] = useState(false);
 
   useEffect(() => {
     if (!product || !product.id) return;
@@ -169,8 +203,7 @@ export const ProductDetail: React.FC = () => {
         const data = JSON.parse(event.data);
         if (String(data.productNo) === String(product.id)) {
           setProduct(prev => prev ? ({ ...prev, currentPrice: data.currentPrice }) : prev);
-          setPriceToast(true);
-          setTimeout(() => setPriceToast(false), 5000);
+          notifyBid(product?.title || '이 상품');
         }
       } catch (e) {
         console.error('[SSE] priceUpdate 파싱 오류', e);
@@ -883,13 +916,6 @@ export const ProductDetail: React.FC = () => {
         </div>
       )}
 
-      {/* 가격 변동 토스트 메시지 */}
-      {priceToast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-white text-red-600 px-8 py-4 rounded-xl shadow-xl border border-red-200 text-sm font-bold flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-          상품의 현재 입찰가가 변동되었습니다.
-        </div>
-      )}
     </div>
   );
 };
