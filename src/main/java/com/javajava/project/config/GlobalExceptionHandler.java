@@ -1,6 +1,7 @@
 package com.javajava.project.config;
 
 import io.jsonwebtoken.JwtException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -52,6 +53,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
         return ResponseEntity.badRequest()
                 .body(Map.of("error", ex.getMessage()));
+    }
+
+    /**
+     * DB 유니크 제약조건 위반 처리 (409 Conflict)
+     * 발생 시점: 동시 가입 요청 시 validateDuplicate를 통과했으나 INSERT 시점에 중복 발생
+     * Member 엔티티의 userId, nickname, email에 unique = true 설정되어 있음
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, String>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", "이미 사용 중인 아이디, 닉네임, 또는 이메일입니다."));
     }
 
     /**

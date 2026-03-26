@@ -29,7 +29,7 @@ public class AuctionScheduler {
      * 매 1분마다 종료된 경매를 체크하여 낙찰 처리
      * - status=0(진행중) 이면서 endTime이 지난 상품을 대상으로 함
      */
-    @Scheduled(cron = "0 * * * * *")
+    @Scheduled(cron = "*/30 * * * * *")
     @Transactional
     public void closeExpiredAuctions() {
         LocalDateTime now = LocalDateTime.now();
