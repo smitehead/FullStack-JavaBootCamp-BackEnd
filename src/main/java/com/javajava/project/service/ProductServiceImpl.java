@@ -1,5 +1,6 @@
 package com.javajava.project.service;
 
+import com.javajava.project.dto.AdminProductResponseDto;
 import com.javajava.project.dto.ProductRequestDto;
 import com.javajava.project.dto.ProductResponseDto;
 import com.javajava.project.dto.ProductDetailResponseDto;
@@ -441,6 +442,58 @@ public class ProductServiceImpl implements ProductService {
                     .bidStatus(bidStatus)
                     .build();
         }).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<AdminProductResponseDto> getAllProductsForAdmin() {
+        List<Product> products = productRepository.findByIsDeletedOrderByCreatedAtDesc(0);
+
+        List<Long> productNos = products.stream().map(Product::getProductNo).collect(Collectors.toList());
+        if (productNos.isEmpty()) return List.of();
+
+        // 판매자 닉네임 배치 조회
+        List<Long> sellerNos = products.stream().map(Product::getSellerNo).distinct().collect(Collectors.toList());
+        Map<Long, String> sellerNicknameMap = memberRepository.findAllById(sellerNos).stream()
+                .collect(Collectors.toMap(Member::getMemberNo, Member::getNickname));
+
+        // 메인 이미지 배치 조회
+        Map<Long, ProductImage> mainImageMap =
+                productImageRepository.findMainImagesByProductNos(productNos).stream()
+                        .collect(Collectors.toMap(ProductImage::getProductNo, Function.identity(), (a, b) -> a));
+
+        // 참여자 수 배치 조회
+        Map<Long, Long> participantCountMap =
+                bidHistoryRepository.countDistinctParticipantsByProductNos(productNos).stream()
+                        .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+
+        return products.stream().map(product -> {
+            ProductImage mainImg = mainImageMap.get(product.getProductNo());
+            String imageUrl = mainImg != null ? "/api/images/" + mainImg.getUuidName() : null;
+
+            return AdminProductResponseDto.builder()
+                    .productNo(product.getProductNo())
+                    .title(product.getTitle())
+                    .mainImageUrl(imageUrl)
+                    .sellerNickname(sellerNicknameMap.getOrDefault(product.getSellerNo(), "알 수 없음"))
+                    .sellerNo(product.getSellerNo())
+                    .startPrice(product.getStartPrice())
+                    .currentPrice(product.getCurrentPrice())
+                    .participantCount(participantCountMap.getOrDefault(product.getProductNo(), 0L))
+                    .endTime(product.getEndTime())
+                    .status(product.getStatus())
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void cancelAuctionByAdmin(Long productNo) {
+        Product product = productRepository.findById(productNo)
+                .orElseThrow(() -> new IllegalArgumentException("해당 상품이 없습니다. ID: " + productNo));
+        if (product.getStatus() != 0) {
+            throw new IllegalStateException("진행 중인 경매만 강제 종료할 수 있습니다.");
+        }
+        product.setStatus(2); // canceled
     }
 
     /**

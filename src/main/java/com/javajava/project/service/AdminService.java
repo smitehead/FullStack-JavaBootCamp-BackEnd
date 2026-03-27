@@ -1,11 +1,18 @@
 package com.javajava.project.service;
 
+import com.javajava.project.dto.ActivityLogResponseDto;
 import com.javajava.project.dto.AdminMemberResponseDto;
 import com.javajava.project.dto.MannerHistoryResponseDto;
 
 import java.util.List;
 
 public interface AdminService {
+
+    // 활동 로그 조회 (전체, 최신순)
+    List<ActivityLogResponseDto> getAllActivityLogs();
+
+    // 활동 로그 조회 (대상 유형별)
+    List<ActivityLogResponseDto> getActivityLogsByTargetType(String targetType);
 
     // 회원 목록 조회 (전체)
     List<AdminMemberResponseDto> getAllMembers();
