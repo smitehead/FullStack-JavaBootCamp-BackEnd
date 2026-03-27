@@ -6,6 +6,22 @@
 
 ---
 
+### 0. 환경변수 분리 (.env)
+
+#### 신규 생성
+- **`.env`** — 민감 정보 저장 (git 제외): DB 접속 정보, JWT secret, Gmail SMTP 계정
+- **`pom.xml`** — `spring-dotenv 4.0.0` 의존성 추가
+
+#### 수정
+- **`application.properties`** — DB/JWT/SMTP 하드코딩 값 → `${변수명}` 환경변수 참조로 교체
+- **`.gitignore`** — `.env` 추가 (깃 업로드 차단)
+
+---
+
+## 날짜: 2026-03-27
+
+---
+
 ### 1. 이메일 인증 SMTP 구현
 
 #### 신규 생성
