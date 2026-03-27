@@ -10,23 +10,23 @@ interface AdminLayoutProps {
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAppContext();
+  const { isInitialized, user, logout } = useAppContext();
 
   useEffect(() => {
-    // Check if user is admin
+    if (!isInitialized) return;
     if (!user || !user.isAdmin) {
       alert('관리자 권한이 필요합니다.');
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [isInitialized, user, navigate]);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  if (!user || !user.isAdmin) {
-    return null; // Don't render anything while redirecting
+  if (!isInitialized || !user || !user.isAdmin) {
+    return null;
   }
 
   const menuGroups = [

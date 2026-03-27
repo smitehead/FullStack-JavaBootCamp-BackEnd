@@ -111,7 +111,7 @@ export const ProductDetail: React.FC = () => {
       setIsWishlisted(mappedProduct.isWishlisted || false);
 
     } catch (error) {
-      console.error('Failed to fetch product details', error);
+      console.error('상품 상세 조회 실패', error);
       setProduct(undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -270,7 +270,7 @@ export const ProductDetail: React.FC = () => {
       const res = await api.get(`/members/${memberNo}`);
       updateCurrentUserPoints(res.data.points);
     } catch (e) {
-      console.error("Failed to fetch user points", e);
+      console.error("포인트 조회 실패", e);
     }
 
     setModalType(type);
@@ -357,8 +357,8 @@ export const ProductDetail: React.FC = () => {
         wishlistCount: Math.max(0, (prev.wishlistCount || 0) + (newState ? 1 : -1))
       }) : null);
     } catch (error) {
-      console.error('Failed to toggle wishlist', error);
-      showToast('찜하기 처리 중 오류가 발생했습니다.', 'error');
+      console.error('위시리스트 변경 실패', error);
+      alert('찜하기 처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -612,8 +612,8 @@ export const ProductDetail: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <LineChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                       <XAxis dataKey="time" tick={{ fontSize: 10 }} stroke="#9ca3af" />

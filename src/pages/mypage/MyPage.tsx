@@ -361,18 +361,14 @@ export const MyPage: React.FC = () => {
                   </div>
                 ))}
 
-                {/* 입찰 내역 (상태 뱃지 + 낙찰 시 클릭 이동) */}
+                {/* 입찰 내역 — won: ProductCard 내부 Link가 /won/:id로 이동, 나머지: /products/:id */}
                 {activeTab === 'bidding' && biddingProducts.map(p => (
                   <div key={p.id} className="flex flex-col gap-2">
-                    <div
-                      className={p.bidStatus === 'won' ? 'cursor-pointer' : ''}
-                      onClick={() => {
-                        if (p.bidStatus === 'won') navigate(`/won/${p.id}`);
-                        else if (p.bidStatus === 'bidding') navigate(`/product/${p.id}`);
-                      }}
-                    >
-                      <ProductCard product={p} isSold={p.status === 'completed'} />
-                    </div>
+                    <ProductCard
+                      product={p}
+                      isWon={p.bidStatus === 'won'}
+                      isSold={p.bidStatus === 'lost'}
+                    />
                     <div className="flex items-center justify-between px-1">
                       {getBidStatusBadge(p.bidStatus)}
                       {p.bidStatus === 'won' && (

@@ -19,18 +19,18 @@ export const ProductRegister: React.FC = () => {
   const [title, setTitle] = useState<string>('');
   const [description, setDescription] = useState<string>('');
 
-  // Category State
+  // 카테고리 상태
   const [largeCat, setLargeCat] = useState<string>('');
   const [mediumCat, setMediumCat] = useState<string>('');
   const [smallCat, setSmallCat] = useState<string>('');
 
-  // Price State
+  // 가격 상태
   const [startPrice, setStartPrice] = useState<number>(0);
   const [instantPrice, setInstantPrice] = useState<number>(0);
   const [isInstantPriceEnabled, setIsInstantPriceEnabled] = useState<boolean>(true);
   const [minBidIncrement, setMinBidIncrement] = useState<number>(1000);
 
-  // Time State
+  // 시간 상태
   const [duration, setDuration] = useState<string>('3');
   const [endTime, setEndTime] = useState<string>('');
   const [isManualTime, setIsManualTime] = useState(false);
@@ -41,7 +41,7 @@ export const ProductRegister: React.FC = () => {
   maxDate.setMonth(maxDate.getMonth() + 3);
   const maxDateString = maxDate.toISOString().split('T')[0];
 
-  // Transaction State
+  // 거래 상태
   const [methods, setMethods] = useState<{ face: boolean; delivery: boolean }>({ face: true, delivery: false });
   const [address, setAddress] = useState('');
   const [detailedAddress, setDetailedAddress] = useState('');
@@ -68,7 +68,7 @@ export const ProductRegister: React.FC = () => {
   const toggleMethod = (type: 'face' | 'delivery') => {
     setMethods(prev => {
       const next = { ...prev, [type]: !prev[type] };
-      // Prevent unselecting both
+      // 둘 다 해제 방지
       if (!next.face && !next.delivery) return prev;
       return next;
     });
@@ -141,13 +141,13 @@ export const ProductRegister: React.FC = () => {
       showToast('계정이 정지된 상태에서는 상품을 등록할 수 없습니다.', 'error');
       return;
     }
-    // Basic Price Validation
+    // 시작가 검증
     if (startPrice < 0 || minBidIncrement < 0 || (isInstantPriceEnabled && instantPrice < 0)) {
       showToast('금액은 0원 이상이어야 합니다.', 'error');
       return;
     }
 
-    // Instant Price Validation
+    // 즉시낙찰가 검증
     if (isInstantPriceEnabled) {
       if (instantPrice <= startPrice) {
         showToast('즉시 구매가는 경매 시작가보다 커야 합니다.', 'error');
@@ -159,7 +159,7 @@ export const ProductRegister: React.FC = () => {
       }
     }
 
-    // Bid Increment Validation
+    // 입찰 단위 검증
     if (startPrice < 10000) {
       if (minBidIncrement % 100 !== 0) {
         showToast('1만원 미만 상품은 100원 단위로 입찰 단위를 설정해주세요.', 'error');
@@ -183,9 +183,16 @@ export const ProductRegister: React.FC = () => {
       const categoryNoStr = smallCat || mediumCat || largeCat || 'cat_1';
       const categoryNo = parseInt(categoryNoStr.replace(/[^0-9]/g, '') || '1', 10);
 
+      // toISOString()은 UTC 변환 → 한국 서버(KST)와 9시간 차이 발생
+      // LocalDateTime 형식(타임존 없이 로컬 시간)으로 전송
+      const toLocalISO = (d: Date) => {
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      };
+
       const computedEndTime = isManualTime && manualDate && manualTime
-        ? new Date(`${manualDate}T${manualTime}`).toISOString().slice(0, 19)
-        : new Date(Date.now() + parseInt(duration) * 24 * 60 * 60 * 1000).toISOString().slice(0, 19);
+        ? `${manualDate}T${manualTime}:00`
+        : toLocalISO(new Date(Date.now() + parseInt(duration) * 24 * 60 * 60 * 1000));
 
       const productDto: ProductRequestDto = {
         sellerNo,
@@ -220,8 +227,8 @@ export const ProductRegister: React.FC = () => {
       showToast('상품이 성공적으로 등록되었습니다.', 'success');
       navigate('/');
     } catch (error) {
-      console.error('Failed to register product', error);
-      showToast('상품 등록 중 오류가 발생했습니다.', 'error');
+      console.error('상품 등록 실패', error);
+      alert('상품 등록 중 오류가 발생했습니다.');
     }
   };
 

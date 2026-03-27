@@ -14,7 +14,7 @@ export const PointCharge: React.FC = () => {
   const [amount, setAmount] = useState<string>('');
   const [isSuccess, setIsSuccess] = useState(false);
   
-  // Payment Method State
+  // 결제 수단 상태
   const [paymentMethods] = useState(MOCK_PAYMENT_METHODS);
   const [selectedMethodId, setSelectedMethodId] = useState('pm_1');
   const [isMethodModalOpen, setIsMethodModalOpen] = useState(false);
@@ -25,7 +25,7 @@ export const PointCharge: React.FC = () => {
     const numAmount = Number(amount);
     if (!numAmount || isNaN(numAmount) || numAmount <= 0) return;
     setIsSuccess(true);
-    // Removed automatic navigation bug
+    // 자동 이동 버그 제거
   };
 
   if (isSuccess) {

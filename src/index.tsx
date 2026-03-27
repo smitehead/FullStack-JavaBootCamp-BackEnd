@@ -4,7 +4,7 @@ import App from "@/App";
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
+  throw new Error("루트 엘리먼트를 찾을 수 없습니다.");
 }
 
 const root = ReactDOM.createRoot(rootElement);
