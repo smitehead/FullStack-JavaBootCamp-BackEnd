@@ -78,8 +78,15 @@ export const BannerManagement: React.FC = () => {
 
   // API: 배너 등록/수정
   const handleSave = async () => {
+    if (!imgUrl.trim()) {
+      alert('이미지를 업로드하거나 URL을 입력해주세요.');
+      return;
+    }
+    // datetime-local 입력값은 "2026-03-26T12:00" 형식(초 없음)이라
+    // 백엔드 LocalDateTime 파싱을 위해 초(:00)를 붙여줌
+    const endAtFormatted = endAt ? (endAt.length === 16 ? endAt + ':00' : endAt) : null;
     try {
-      const body = { bannerType, imgUrl, linkUrl, isActive, sortOrder, endAt: endAt || null };
+      const body = { bannerType, imgUrl, linkUrl, isActive, sortOrder, endAt: endAtFormatted };
       if (editingBanner) {
         await api.put(`/banners/${editingBanner.bannerNo}`, body);
       } else {
@@ -89,6 +96,7 @@ export const BannerManagement: React.FC = () => {
       fetchBanners();
     } catch (e) {
       console.error('배너 저장 실패', e);
+      alert('배너 저장에 실패했습니다. 다시 시도해주세요.');
     }
   };
 

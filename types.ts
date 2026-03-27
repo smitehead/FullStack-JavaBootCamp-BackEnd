@@ -37,6 +37,7 @@ export interface User {
   suspensionEndDate?: string;
   suspensionReason?: string;
   isPermanentlySuspended?: boolean;
+  isWithdrawn?: boolean;
   settings?: UserSettings;
   blockedUserIds?: string[];
   auctionCount?: number; // Added for admin management

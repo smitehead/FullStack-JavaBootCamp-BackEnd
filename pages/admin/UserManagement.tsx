@@ -100,6 +100,10 @@ export const UserManagement: React.FC = () => {
       }
       updateUserManner(selectedUser.id, mannerValue, mannerReason);
     } else if (modalType === 'points') {
+      if (isNaN(pointAmount) || !Number.isFinite(pointAmount)) {
+        alert('올바른 포인트 금액을 입력해주세요.');
+        return;
+      }
       updateUserPoints(selectedUser.id, pointAmount);
     }
 
@@ -395,7 +399,10 @@ export const UserManagement: React.FC = () => {
                         step="0.1"
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-none focus:outline-none focus:ring-2 focus:ring-[#FF5A5A] font-black text-lg"
                         value={mannerValue}
-                        onChange={(e) => setMannerValue(parseFloat(e.target.value))}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          if (!isNaN(val)) setMannerValue(val);
+                        }}
                       />
                     </div>
                     <div>
@@ -477,7 +484,7 @@ export const UserManagement: React.FC = () => {
                     placeholder="예: 10000 또는 -5000"
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-none focus:outline-none focus:ring-2 focus:ring-[#FF5A5A] font-black text-lg"
                     value={pointAmount}
-                    onChange={(e) => setPointAmount(parseInt(e.target.value))}
+                    onChange={(e) => setPointAmount(e.target.value === '' ? 0 : parseInt(e.target.value, 10))}
                   />
                 </div>
               )}

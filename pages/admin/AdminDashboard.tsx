@@ -1,11 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Bell, MessageSquare, AlertCircle, TrendingUp, Gavel, DollarSign, BarChart3, Clock } from 'lucide-react';
-import { 
-  PieChart, Pie, Cell, Tooltip, ResponsiveContainer, 
-  LineChart, Line 
+import {
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
+  LineChart, Line
 } from 'recharts';
-import { MOCK_USERS, MOCK_INQUIRIES, MOCK_NOTICES, MOCK_REPORTS, MOCK_PRODUCTS } from '@/services/mockData';
+import { MOCK_INQUIRIES, MOCK_NOTICES } from '@/services/mockData';
+import { useAppContext } from '@/context/AppContext';
 import { Category } from '@/types';
 
 const MONTHLY_DATA = [
@@ -38,9 +39,10 @@ const BID_TRAFFIC_DATA = [
 
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { reports } = useAppContext();
 
   const unprocessedInquiries = MOCK_INQUIRIES.filter(i => i.status === '답변 대기중').length;
-  const unprocessedReports = MOCK_REPORTS.filter(r => r.status === 'pending').length;
+  const unprocessedReports = reports.filter(r => r.status === 'pending').length;
 
   const stats = [
     { label: '미처리 신고', value: unprocessedReports, icon: AlertCircle, color: 'bg-red-500', path: '/admin/reports' },

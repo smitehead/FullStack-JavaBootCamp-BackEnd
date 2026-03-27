@@ -1,18 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bell, Send, Link as LinkIcon, Info, Plus, X } from 'lucide-react';
-import { useAppContext } from '@/context/AppContext';
-import { NotificationType } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
+import api from '@/services/api';
+
+interface AdminNotification {
+  notiNo: number;
+  type: string;
+  content: string;
+  linkUrl: string | null;
+  isRead: number;
+  createdAt: string;
+}
 
 export const NotificationManagement: React.FC = () => {
-  const { addNotification, notifications } = useAppContext();
+  const [recentNotifications, setRecentNotifications] = useState<AdminNotification[]>([]);
   const [message, setMessage] = useState('');
   const [link, setLink] = useState('');
-  const [type, setType] = useState<NotificationType>('system');
+  const [type, setType] = useState('시스템');
   const [isSending, setIsSending] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
-  const handleSend = (e: React.FormEvent) => {
+  const fetchRecentNotifications = async () => {
+    try {
+      const res = await api.get('/admin/notifications/recent');
+      setRecentNotifications(res.data);
+    } catch (err) {
+      console.error('알림 내역 조회 실패:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchRecentNotifications();
+  }, []);
+
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || !link.trim()) {
       alert('메시지와 링크를 모두 입력해주세요.');
@@ -20,17 +41,31 @@ export const NotificationManagement: React.FC = () => {
     }
 
     setIsSending(true);
-    // Simulate network delay
-    setTimeout(() => {
-      addNotification(message, link, type);
+    try {
+      await api.post('/admin/notifications/broadcast', {
+        type,
+        content: message,
+        linkUrl: link,
+      });
       setMessage('');
       setLink('');
-      setType('system');
-      setIsSending(false);
+      setType('시스템');
       setShowForm(false);
       alert('알림이 성공적으로 전송되었습니다.');
-    }, 500);
+      await fetchRecentNotifications();
+    } catch (err) {
+      console.error('알림 발송 실패:', err);
+      alert('알림 발송에 실패했습니다.');
+    } finally {
+      setIsSending(false);
+    }
   };
+
+  const typeOptions = [
+    { value: '시스템', label: '시스템' },
+    { value: '활동', label: '활동' },
+    { value: '입찰', label: '입찰' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -39,7 +74,7 @@ export const NotificationManagement: React.FC = () => {
           <h1 className="text-xl font-black text-gray-900 tracking-tight">알림 관리</h1>
           <p className="text-gray-500 mt-1 text-[11px] font-medium">사용자에게 새로운 알림을 발송하고 내역을 확인합니다.</p>
         </div>
-        <button 
+        <button
           onClick={() => setShowForm(!showForm)}
           className="flex items-center justify-center gap-2 px-4 py-2 bg-[#FF5A5A] text-white font-black rounded-none hover:bg-[#E04848] transition-all shadow-lg shadow-red-500/20 active:scale-95 text-sm"
         >
@@ -59,25 +94,23 @@ export const NotificationManagement: React.FC = () => {
             <h2 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2">
               <Send className="w-5 h-5 text-[#FF5A5A]" /> 새 알림 발송
             </h2>
-            
+
             <form onSubmit={handleSend} className="flex flex-col lg:flex-row items-end gap-6">
               <div className="w-full lg:w-48 shrink-0">
                 <label className="block text-xs font-black text-gray-700 mb-2 uppercase tracking-widest">알림 유형</label>
                 <div className="grid grid-cols-3 gap-2">
-                  {(['system', 'activity', 'bid'] as NotificationType[]).map((t) => (
+                  {typeOptions.map((t) => (
                     <button
-                      key={t}
+                      key={t.value}
                       type="button"
-                      onClick={() => setType(t)}
+                      onClick={() => setType(t.value)}
                       className={`py-2 text-[10px] font-black rounded-none transition-all ${
-                        type === t 
-                          ? 'bg-[#FF5A5A] text-white shadow-lg shadow-red-100' 
+                        type === t.value
+                          ? 'bg-[#FF5A5A] text-white shadow-lg shadow-red-100'
                           : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
                       }`}
                     >
-                      {t === 'system' && '시스템'}
-                      {t === 'activity' && '활동'}
-                      {t === 'bid' && '입찰'}
+                      {t.label}
                     </button>
                   ))}
                 </div>
@@ -131,29 +164,33 @@ export const NotificationManagement: React.FC = () => {
           </h2>
           <span className="text-xs font-bold text-gray-400">최근 50건</span>
         </div>
-        
+
         <div className="divide-y divide-gray-50 max-h-[600px] overflow-y-auto">
-          {notifications.map((noti) => (
-            <div key={noti.id} className="px-8 py-5 hover:bg-gray-50 transition-colors group">
+          {recentNotifications.map((noti) => (
+            <div key={noti.notiNo} className="px-8 py-5 hover:bg-gray-50 transition-colors group">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-4">
                   <div className={`mt-1 w-8 h-8 rounded-none flex items-center justify-center shrink-0 ${
-                    noti.type === 'system' ? 'bg-blue-50 text-blue-500' :
-                    noti.type === 'activity' ? 'bg-purple-50 text-purple-500' :
+                    noti.type === '시스템' ? 'bg-blue-50 text-blue-500' :
+                    noti.type === '활동' ? 'bg-purple-50 text-purple-500' :
                     'bg-orange-50 text-orange-500'
                   }`}>
                     <Bell className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-gray-900 leading-relaxed">{noti.message}</p>
+                    <p className="text-sm font-bold text-gray-900 leading-relaxed">{noti.content}</p>
                     <div className="flex items-center gap-3 mt-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                        {noti.type === 'system' ? '시스템' : noti.type === 'activity' ? '활동' : '입찰'}
+                        {noti.type}
                       </span>
-                      <span className="text-[10px] font-medium text-gray-300">|</span>
-                      <span className="text-[10px] font-medium text-gray-400 flex items-center gap-1">
-                        <LinkIcon className="w-2.5 h-2.5" /> {noti.link}
-                      </span>
+                      {noti.linkUrl && (
+                        <>
+                          <span className="text-[10px] font-medium text-gray-300">|</span>
+                          <span className="text-[10px] font-medium text-gray-400 flex items-center gap-1">
+                            <LinkIcon className="w-2.5 h-2.5" /> {noti.linkUrl}
+                          </span>
+                        </>
+                      )}
                       <span className="text-[10px] font-medium text-gray-300">|</span>
                       <span className="text-[10px] font-medium text-gray-400">{new Date(noti.createdAt).toLocaleString()}</span>
                     </div>
@@ -162,7 +199,7 @@ export const NotificationManagement: React.FC = () => {
               </div>
             </div>
           ))}
-          {notifications.length === 0 && (
+          {recentNotifications.length === 0 && (
             <div className="px-8 py-20 text-center">
               <p className="text-gray-400 font-bold">발송된 알림이 없습니다.</p>
             </div>

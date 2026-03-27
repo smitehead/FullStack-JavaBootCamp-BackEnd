@@ -49,6 +49,17 @@ const mapMannerHistoryToFrontend = (h: any): MannerHistory => ({
   createdAt: h.createdAt,
 });
 
+const mapActivityLogToFrontend = (log: any): ActivityLog => ({
+  id: `log_${log.logNo}`,
+  adminId: `user_${log.adminNo}`,
+  adminNickname: log.adminNickname || '',
+  action: log.action,
+  targetId: log.targetId ? `user_${log.targetId}` : undefined,
+  targetType: log.targetType as ActivityLog['targetType'],
+  details: log.details,
+  createdAt: log.createdAt,
+});
+
 interface AppContextType {
   user: User | null;
   users: User[];
@@ -77,7 +88,6 @@ interface AppContextType {
   updateCurrentUserPoints: (points: number) => void;
   sendAdminMessage: (userId: string, content: string) => void;
   toggleMaintenanceMode: (enabled: boolean, message?: string) => void;
-  addActivityLog: (action: string, details: string, targetId?: string, targetType?: ActivityLog['targetType']) => void;
   unreadNotificationsCount: number;
   unreadChatsCount: number;
 }
@@ -248,14 +258,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const fetchAdminData = useCallback(async () => {
     try {
-      const [membersRes, reportsRes, historyRes] = await Promise.all([
+      const [membersRes, reportsRes, historyRes, logsRes] = await Promise.all([
         api.get('/admin/members'),
         api.get('/admin/reports'),
         api.get('/admin/members/manner-history'),
+        api.get('/admin/activity-logs'),
       ]);
       setUsers(membersRes.data.map(mapMemberToUser));
       setReports(reportsRes.data.map(mapReportToFrontend));
       setMannerHistory(historyRes.data.map(mapMannerHistoryToFrontend));
+      setActivityLogs(logsRes.data.map(mapActivityLogToFrontend));
     } catch (err) {
       console.error('[Admin] 데이터 로딩 실패:', err);
     }
@@ -268,20 +280,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, [user?.isAdmin, fetchAdminData]);
 
-  const addActivityLog = (action: string, details: string, targetId?: string, targetType?: ActivityLog['targetType']) => {
-    if (!user?.isAdmin) return;
-    const newLog: ActivityLog = {
-      id: `log_${Date.now()}`,
-      adminId: user.id,
-      adminNickname: user.nickname,
-      action,
-      details,
-      targetId,
-      targetType,
-      createdAt: new Date().toISOString()
-    };
-    setActivityLogs(prev => [newLog, ...prev]);
-  };
+  const refreshActivityLogs = useCallback(async () => {
+    try {
+      const res = await api.get('/admin/activity-logs');
+      setActivityLogs(res.data.map(mapActivityLogToFrontend));
+    } catch (err) {
+      console.error('[Admin] 활동 로그 새로고침 실패:', err);
+    }
+  }, []);
 
   const suspendUser = async (userId: string, days: number, reason: string) => {
     const memberNo = extractMemberNo(userId);
@@ -291,6 +297,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         suspendReason: reason,
       });
       await fetchAdminData();
+      await refreshActivityLogs();
     } catch (err) {
       console.error('정지 처리 실패:', err);
       alert('정지 처리에 실패했습니다.');
@@ -302,6 +309,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       await api.put(`/admin/members/${memberNo}/unsuspend`);
       await fetchAdminData();
+      await refreshActivityLogs();
     } catch (err) {
       console.error('정지 해제 실패:', err);
       alert('정지 해제에 실패했습니다.');
@@ -316,8 +324,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setProducts(prev => prev.map(p =>
       p.id === productId ? { ...p, status: 'canceled' as const } : p
     ));
-    const product = products.find(p => p.id === productId);
-    addActivityLog('경매 강제 종료', `경매 종료: ${product?.title} (${reason})`, productId, 'product');
   };
 
   const resolveReport = async (reportId: string, action: string) => {
@@ -328,6 +334,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         penaltyMsg: action,
       });
       await fetchAdminData();
+      await refreshActivityLogs();
     } catch (err) {
       console.error('신고 처리 실패:', err);
       alert('신고 처리에 실패했습니다.');
@@ -363,6 +370,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       await api.put(`/admin/members/${memberNo}/role`, { isAdmin: isAdmin ? 1 : 0 });
       await fetchAdminData();
+      await refreshActivityLogs();
     } catch (err) {
       console.error('권한 변경 실패:', err);
       alert('권한 변경에 실패했습니다.');
@@ -377,6 +385,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         reason,
       });
       await fetchAdminData();
+      await refreshActivityLogs();
     } catch (err) {
       console.error('매너온도 변경 실패:', err);
       alert('매너온도 변경에 실패했습니다.');
@@ -388,10 +397,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     try {
       await api.put(`/admin/members/${memberNo}/points`, { pointAmount: points });
       await fetchAdminData();
+      await refreshActivityLogs();
     } catch (err) {
       console.error('포인트 변경 실패:', err);
       alert('포인트 변경에 실패했습니다.');
     }
+  };
+
+  const sendAdminMessage = (_userId: string, _content: string) => {
+    console.warn('[sendAdminMessage] 백엔드 미구현 기능');
+  };
+
+  const toggleMaintenanceMode = (_enabled: boolean, _message?: string) => {
+    console.warn('[toggleMaintenanceMode] 백엔드 미구현 기능');
   };
 
   const updateCurrentUserPoints = (points: number) => {
@@ -432,7 +450,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updateUserManner,
       updateUserPoints,
       updateCurrentUserPoints,
-      addActivityLog,
+      sendAdminMessage,
+      toggleMaintenanceMode,
       unreadNotificationsCount,
       unreadChatsCount
     }}>
