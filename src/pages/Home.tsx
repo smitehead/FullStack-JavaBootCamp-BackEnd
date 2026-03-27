@@ -19,20 +19,24 @@ export const Home: React.FC = () => {
   const [direction, setDirection] = useState(0);
   const [popularProducts, setPopularProducts] = useState<any[]>([]);
   const [heroBanners, setHeroBanners] = useState<{ id: number; image: string; link: string }[]>([]);
+  const [adBanners, setAdBanners] = useState<{ id: number; image: string; link: string }[]>([]);
+  const [currentAdBanner, setCurrentAdBanner] = useState(0);
 
-  // 히어로 배너 API 로드
+  // 배너 API 로드 (히어로 + 광고)
   useEffect(() => {
     const fetchBanners = async () => {
       try {
         const res = await api.get('/banners');
-        const banners = (res.data || []).map((b: any) => ({
+        const all = res.data || [];
+        const toItem = (b: any) => ({
           id: b.bannerNo,
           image: resolveImageUrl(b.imgUrl) || b.imgUrl,
           link: b.linkUrl || '/search',
-        }));
-        if (banners.length > 0) {
-          setHeroBanners(banners);
-        }
+        });
+        const hero = all.filter((b: any) => b.bannerType === 'hero').map(toItem);
+        const ad = all.filter((b: any) => b.bannerType === 'ad').map(toItem);
+        if (hero.length > 0) setHeroBanners(hero);
+        if (ad.length > 0) setAdBanners(ad);
       } catch (error) {
         console.error('Failed to fetch banners', error);
       }
@@ -98,6 +102,14 @@ export const Home: React.FC = () => {
     }, 6000);
     return () => clearInterval(timer);
   }, [heroBanners.length]);
+
+  useEffect(() => {
+    if (adBanners.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentAdBanner((prev) => (prev + 1) % adBanners.length);
+    }, 7000);
+    return () => clearInterval(timer);
+  }, [adBanners.length]);
 
   const nextBanner = () => {
     if (heroBanners.length === 0) return;
@@ -266,16 +278,18 @@ export const Home: React.FC = () => {
         </section>
 
         {/* Banner Ad */}
-        <section className="pb-8">
-          <Link to="/signup" className="block w-full h-[200px] md:h-[250px] relative overflow-hidden rounded-[32px] group shadow-2xl">
-            <div
-              className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-              style={{ backgroundImage: `url('https://images.unsplash.com/photo-1557683316-973673baf926?auto=format&fit=crop&w=1200&q=80')` }}
-            >
-              <div className="absolute inset-0 bg-black/10 group-hover:bg-black/5 transition-colors"></div>
-            </div>
-          </Link>
-        </section>
+        {adBanners.length > 0 && (
+          <section className="pb-8">
+            <Link to={adBanners[currentAdBanner].link} className="block w-full h-[200px] md:h-[250px] relative overflow-hidden rounded-[32px] group shadow-2xl">
+              <div
+                className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
+                style={{ backgroundImage: `url('${adBanners[currentAdBanner].image}')` }}
+              >
+                <div className="absolute inset-0 bg-black/10 group-hover:bg-black/5 transition-colors"></div>
+              </div>
+            </Link>
+          </section>
+        )}
       </div>
     </div>
   );
