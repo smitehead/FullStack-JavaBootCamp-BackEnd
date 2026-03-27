@@ -49,6 +49,34 @@ const mapMannerHistoryToFrontend = (h: any): MannerHistory => ({
   createdAt: h.createdAt,
 });
 
+const mapAdminProductToFrontend = (p: any): Product => ({
+  id: `prod_${p.productNo}`,
+  title: p.title,
+  description: '',
+  category: { large: '', medium: '', small: '' },
+  seller: {
+    id: `user_${p.sellerNo}`,
+    nickname: p.sellerNickname,
+    profileImage: '',
+    points: 0,
+    mannerTemp: 36.5,
+    joinedAt: '',
+    email: '',
+    isActive: true,
+  },
+  startPrice: p.startPrice,
+  currentPrice: p.currentPrice,
+  minBidIncrement: 0,
+  startTime: '',
+  endTime: p.endTime,
+  images: p.mainImageUrl ? [p.mainImageUrl] : [],
+  participantCount: p.participantCount || 0,
+  bids: [],
+  status: p.status === 0 ? 'active' as const : p.status === 1 ? 'completed' as const : 'canceled' as const,
+  location: '',
+  transactionMethod: 'both' as const,
+});
+
 const mapActivityLogToFrontend = (log: any): ActivityLog => ({
   id: `log_${log.logNo}`,
   adminId: `user_${log.adminNo}`,
@@ -258,16 +286,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const fetchAdminData = useCallback(async () => {
     try {
-      const [membersRes, reportsRes, historyRes, logsRes] = await Promise.all([
+      const [membersRes, reportsRes, historyRes, logsRes, productsRes] = await Promise.all([
         api.get('/admin/members'),
         api.get('/admin/reports'),
         api.get('/admin/members/manner-history'),
         api.get('/admin/activity-logs'),
+        api.get('/admin/products'),
       ]);
       setUsers(membersRes.data.map(mapMemberToUser));
       setReports(reportsRes.data.map(mapReportToFrontend));
       setMannerHistory(historyRes.data.map(mapMannerHistoryToFrontend));
       setActivityLogs(logsRes.data.map(mapActivityLogToFrontend));
+      setProducts(productsRes.data.map(mapAdminProductToFrontend));
     } catch (err) {
       console.error('[Admin] 데이터 로딩 실패:', err);
     }
@@ -320,10 +350,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setProducts(prev => [newProduct, ...prev]);
   };
 
-  const cancelAuction = (productId: string, reason: string) => {
-    setProducts(prev => prev.map(p =>
-      p.id === productId ? { ...p, status: 'canceled' as const } : p
-    ));
+  const cancelAuction = async (productId: string, reason: string) => {
+    const productNo = parseInt(productId.replace(/\D/g, ''), 10);
+    try {
+      await api.put(`/admin/products/${productNo}/cancel`);
+      await fetchAdminData();
+      await refreshActivityLogs();
+    } catch (err) {
+      console.error('경매 강제 종료 실패:', err);
+      alert('경매 강제 종료에 실패했습니다.');
+    }
   };
 
   const resolveReport = async (reportId: string, action: string) => {

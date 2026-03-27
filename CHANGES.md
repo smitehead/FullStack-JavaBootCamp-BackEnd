@@ -46,7 +46,21 @@
 
 ---
 
-### 4. 관리자 페이지 버그 수정
+### 4. 경매 관리 페이지 백엔드 연동
+
+#### `context/AppContext.tsx`
+- `fetchAdminData()`에 `GET /api/admin/products` 호출 추가 — Mock 상품 데이터 대신 실제 DB 상품 로딩
+- `cancelAuction()` → `PUT /api/admin/products/{productNo}/cancel` API 호출로 교체 (기존: 로컬 state만 변경)
+- `mapAdminProductToFrontend()` 매핑 함수 추가 (백엔드 status 정수 0/1/2 → 프론트 문자열 변환)
+
+#### `pages/admin/AuctionManagement.tsx`
+- `resolveImageUrl()` 적용 (백엔드 이미지 경로 → 전체 URL)
+- `handleCancelAuction` async 처리
+- 남은 시간을 실제 `endTime` 기반으로 계산 표시 (일/시간/분)
+
+---
+
+### 5. 관리자 페이지 버그 수정
 
 #### `types.ts`
 - `User` 타입에 `isWithdrawn?: boolean` 필드 추가

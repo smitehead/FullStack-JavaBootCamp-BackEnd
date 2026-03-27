@@ -4,6 +4,7 @@ import { useAppContext } from '@/context/AppContext';
 import { Product } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { resolveImageUrl } from '@/utils/imageUtils';
 
 export const AuctionManagement: React.FC = () => {
   const { products, cancelAuction } = useAppContext();
@@ -20,9 +21,9 @@ export const AuctionManagement: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const handleCancelAuction = () => {
+  const handleCancelAuction = async () => {
     if (selectedProduct) {
-      cancelAuction(selectedProduct.id, '관리자에 의한 강제 종료');
+      await cancelAuction(selectedProduct.id, '관리자에 의한 강제 종료');
       setShowCancelModal(false);
       setSelectedProduct(null);
       alert('경매가 강제 종료되었습니다.');
@@ -86,8 +87,8 @@ export const AuctionManagement: React.FC = () => {
                 <tr key={product.id} className="hover:bg-gray-50/50 transition-colors group">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <img 
-                        src={product.images[0]} 
+                      <img
+                        src={resolveImageUrl(product.images[0]) || ''}
                         alt={product.title}
                         className="w-10 h-10 rounded-none object-cover bg-gray-100"
                         referrerPolicy="no-referrer"
@@ -120,7 +121,15 @@ export const AuctionManagement: React.FC = () => {
                     <div className="flex flex-col items-center">
                       <Clock className="w-3 h-3 text-gray-300 mb-1" />
                       <span className="text-[10px] font-bold text-gray-500">
-                        {product.status === 'active' ? '진행 중' : '종료'}
+                        {product.status === 'active' && product.endTime
+                          ? (() => {
+                              const diff = new Date(product.endTime).getTime() - Date.now();
+                              if (diff <= 0) return '종료 임박';
+                              const hours = Math.floor(diff / 3600000);
+                              const mins = Math.floor((diff % 3600000) / 60000);
+                              return hours > 24 ? `${Math.floor(hours / 24)}일 ${hours % 24}시간` : `${hours}시간 ${mins}분`;
+                            })()
+                          : '종료'}
                       </span>
                     </div>
                   </td>
