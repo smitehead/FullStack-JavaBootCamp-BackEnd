@@ -97,3 +97,52 @@ getMemberNo 유틸 함수 신규 추가 (타인 계정 접근 버그 수정)
 Home.tsx BACKEND_URL 하드코딩 제거
 Signup.tsx 인증코드 alert 노출 제거
 MyPage.tsx 닉네임 기반 필터링 버그 수정
+
+---
+
+## 날짜: 2026-03-27 (낙찰 페이지 구현 및 버그 수정)
+
+---
+
+### 13. WonProductDetail Mock 제거 및 API 연동
+
+#### 수정
+- **`WonProductDetail.tsx`** — 전체 Mock 데이터 제거 후 실제 API 연동
+  - 마운트 시 `GET /api/auction-results/product/{id}` 호출
+  - 결제 → `POST /api/auction-results/{resultNo}/pay`
+  - 구매 확정 → `POST /api/auction-results/{resultNo}/confirm`
+  - 거래 취소 → `POST /api/auction-results/{resultNo}/cancel`
+  - tradeType 비교 조건 `"face-to-face"` → `"직거래"` 수정 (백엔드 실제 값 기준)
+  - 이미지 `resolveImageUrl()` 적용, 다중 이미지 좌우 화살표 네비게이션 추가
+
+---
+
+### 14. MyPage 입찰·구매 탭 분리
+
+#### 수정
+- **`MyPage.tsx`** — 탭 구조 3탭 → 4탭으로 분리
+  - `'buying'` → `'bidding'` / `'purchased'` 두 탭으로 분리
+  - 입찰 내역 탭: `GET /products/my-bidding` 호출, `bidStatus` 값으로 상태 배지 렌더링
+    - `"won"` → 초록 "낙찰" 배지 + "낙찰 상세보기" 버튼 (`/won/:id` 이동)
+    - `"lost"` → 빨간 "낙찰실패" 배지
+    - `"bidding"` → 파란 "경매중" 배지
+  - 구매 내역 탭: `GET /products/my-purchased` 호출 (구매확정 완료 상품만)
+  - ProductCard `isWon={p.bidStatus === 'won'}` prop 전달로 카드 클릭 시 `/won/:id` 이동
+
+---
+
+### 15. ProductRegister 타임존 버그 수정
+
+#### 수정
+- **`ProductRegister.tsx`** — `endTime` 계산 시 `toISOString()` → 로컬 시간 변환 함수로 교체
+  - `toISOString()`은 KST를 UTC로 변환하여 서버 KST 기준과 9시간 차이 발생
+  - `toLocalISO()` 헬퍼 함수로 로컬 시간 그대로 ISO 문자열 생성
+  - 직접입력 모드: `${manualDate}T${manualTime}:00` 형식으로 직접 조합
+
+---
+
+### 16. ProductDetail Recharts 에러 수정
+
+#### 수정
+- **`ProductDetail.tsx`** — `ResponsiveContainer`에 `minWidth={0}` 추가
+  - 초기 렌더링 시 부모 크기 미계산으로 발생하던 `width(-1) height(-1)` 콘솔 에러 제거

@@ -182,9 +182,16 @@ export const ProductRegister: React.FC = () => {
       const categoryNoStr = smallCat || mediumCat || largeCat || 'cat_1';
       const categoryNo = parseInt(categoryNoStr.replace(/[^0-9]/g, '') || '1', 10);
 
+      // toISOString()은 UTC 변환 → 한국 서버(KST)와 9시간 차이 발생
+      // LocalDateTime 형식(타임존 없이 로컬 시간)으로 전송
+      const toLocalISO = (d: Date) => {
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      };
+
       const computedEndTime = isManualTime && manualDate && manualTime
-        ? new Date(`${manualDate}T${manualTime}`).toISOString().slice(0, 19)
-        : new Date(Date.now() + parseInt(duration) * 24 * 60 * 60 * 1000).toISOString().slice(0, 19);
+        ? `${manualDate}T${manualTime}:00`
+        : toLocalISO(new Date(Date.now() + parseInt(duration) * 24 * 60 * 60 * 1000));
 
       const productDto: ProductRequestDto = {
         sellerNo,
