@@ -2,6 +2,172 @@
 
 ---
 
+## 마이페이지 입찰·구매 분리 및 낙찰 결과 API 신규 구현 (2026-03-27)
+
+### Product 엔티티 구조 변경
+
+**`Product.java`**
+- `isActive` (Integer 0/1) 필드 제거 → `status` (Integer) 필드로 교체
+  - `0` = active (경매 진행 중)
+  - `1` = completed (낙찰 완료)
+  - `2` = canceled (취소/유찰)
+- `winnerNo` 필드 추가 (`WINNER_NO`, nullable) — 낙찰자 회원번호 저장
+
+**`AuctionScheduler.java`**
+- `findByEndTimeBeforeAndIsActive(now, 1)` → `findByEndTimeBeforeAndStatus(now, 0)` 으로 교체
+- 낙찰 성공 시 `product.setStatus(1)` + `product.setWinnerNo(memberNo)` 저장
+- 유찰(입찰자 없음) 시 `product.setStatus(2)` 처리
+
+### ProductListResponseDto — `bidStatus` 필드 추가
+
+**`ProductListResponseDto.java`**
+- `bidStatus` 필드 추가 (String, nullable)
+  - `"bidding"` = 경매 진행 중
+  - `"won"` = 낙찰
+  - `"lost"` = 낙찰 실패
+  - `null` = 해당 없음 (판매/찜 목록)
+
+### BidHistoryRepository — 낙찰 조회 쿼리 추가
+
+**`BidHistoryRepository.java`**
+- `findWonProductNosByMemberNo(Long memberNo)` — 내가 낙찰받은 상품 번호 목록
+- `findWonProductNosInList(Long memberNo, List<Long> productNos)` — 특정 상품들에 대한 낙찰 여부 배치 조회
+- `findWinnerByProductNo(Long productNo)` — 특정 상품의 낙찰 입찰 기록 조회 (`Optional`)
+
+### AuctionResultRepository — 배치 조회 쿼리 추가
+
+**`AuctionResultRepository.java`**
+- `findByBidNos(List<Long> bidNos)` — 여러 입찰 번호로 낙찰 결과 배치 조회
+
+### ProductService / ProductServiceImpl — 신규 메서드
+
+**`ProductService.java`** (인터페이스)
+- `getMyBiddingProducts(Long memberNo)` — 입찰 상태(bidStatus) 포함으로 수정
+- `getMyPurchasedProducts(Long memberNo)` — 구매 완료(구매확정) 상품 목록 추가
+
+**`ProductServiceImpl.java`**
+- `getMyBiddingProducts()` — 낙찰 여부 배치 조회 후 `toProductListDtosWithBidStatus()` 호출
+- `getMyPurchasedProducts()` — 낙찰받은 상품 중 AuctionResult.status="구매확정"인 것만 반환
+- `toProductListDtosWithBidStatus()` — bidStatus 계산 포함 변환 메서드 신규 추가
+- `deleteProduct()` — `setIsActive(0)` → `setStatus(2)` 로 교체
+- `toProductListDtos()` 내부 — `isActive == 0` 판단 → `status != 0` 으로 교체
+
+### ProductController — 신규 엔드포인트
+
+**`ProductController.java`**
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/products/my-purchased` | 구매 완료(구매확정) 상품 목록 |
+
+### 낙찰 결과 API 신규 구현 (AuctionResult)
+
+**`AuctionResultResponseDto.java`** (신규)
+- 낙찰 결과 상세 응답 DTO
+- 포함 정보: resultNo, status, confirmedAt, 상품 정보(productNo/title/images/tradeType), 판매자 정보(SellerInfo 내부 클래스), 배송지 정보
+
+**`AuctionResultService.java`** (신규 인터페이스)
+- `getAuctionResultByProductNo(Long productNo, Long memberNo)` — 낙찰자 본인 검증 후 상세 조회
+- `processPayment(Long resultNo, Long memberNo, String address, String addressDetail)` — 배송대기 → 결제완료
+- `confirmPurchase(Long resultNo, Long memberNo)` — 결제완료 → 구매확정
+- `cancelTransaction(Long resultNo, Long memberNo)` — 거래 취소
+
+**`AuctionResultServiceImpl.java`** (신규 구현체)
+- 낙찰자 본인 검증: `BidHistory.memberNo == authentication.memberNo`
+- `processPayment()` — 배송지 저장 + status="결제완료"
+- `confirmPurchase()` — status="구매확정" + `confirmedAt` 기록
+- `cancelTransaction()` — 구매확정 후에는 취소 불가 방어
+
+**`AuctionResultController.java`** (신규)
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/auction-results/product/{productNo}` | 상품 번호로 낙찰 결과 조회 (낙찰자 본인만) |
+| POST | `/api/auction-results/{resultNo}/pay` | 결제 처리 (배송대기 → 결제완료) |
+| POST | `/api/auction-results/{resultNo}/confirm` | 구매 확정 (결제완료 → 구매확정) |
+| POST | `/api/auction-results/{resultNo}/cancel` | 거래 취소 |
+
+---
+
+## 전체 코드리뷰 개선 (2026-03-26)
+
+### CORS 설정 수정 (`SecurityConfig.java`)
+- `allowedOriginPatterns("*")`와 `allowCredentials(true)` 동시 사용 → 브라우저 CORS 차단 문제
+- `allowedOriginPatterns`를 실제 프론트 개발 서버 도메인(`http://localhost:5173`, `http://localhost:3000`)으로 교체
+
+### memberNo 보안 취약점 수정 (`ProductController`, `BidController`, `WishlistController`)
+- `@RequestParam memberNo`로 클라이언트에서 직접 받는 구조 → 타인 memberNo 전달로 조작 가능
+- `Authentication` 파라미터 + 서버 측 추출 방식으로 전환
+- **`ProductController`**: `getMemberNoOrNull()` 헬퍼 추가, 비로그인 시 null 반환으로 찜 여부만 비활성화
+- **`BidController`**: `authentication.getPrincipal()`로 memberNo 강제 세팅, 클라이언트 DTO 값 덮어쓰기
+- **`WishlistController`**: `@RequestParam memberNo` 제거, Authentication에서 추출
+
+### 테스트 엔드포인트 제거 (`NotificationController.java`)
+- `/api/notifications/test-send/{memberNo}` — 인증 없이 임의 사용자에게 알림 전송 가능한 상태
+- `test-send` 메서드 완전 삭제
+- 미사용 `SseService` 필드 및 `LocalDateTime` import 함께 정리
+
+### AuctionScheduler 실행 주기 수정 (`AuctionScheduler.java`)
+- 크론 `"0 * * * * *"` — 주석에는 "매 1분"이라고 적혀있었으나 실제로는 매 1초(하루 86,400번) 실행
+- `"*/30 * * * * *"` (매 30초, 하루 2,880번)으로 변경
+
+### 예외 무시 패턴 개선 (`BidServiceImpl.java`)
+- SSE·알림 전송 실패 시 `catch (Exception ignored)` 로 예외 완전 무시 → 장애 로그 없음
+- `@Slf4j` 추가, 모든 catch 블록에 `log.warn()` 경고 로깅 적용
+
+### 상품 목록 N+1 쿼리 제거 (`ProductServiceImpl.java`, `BidHistoryRepository.java`)
+- `getProductList()` 내부 `map()`에서 상품마다 `countDistinctParticipants()` 개별 호출 → N+1 문제
+- `BidHistoryRepository`에 `countDistinctParticipantsByProductNos()` 배치 쿼리 추가
+- 배치 결과를 `Map<Long, Long>`으로 변환해 O(1) 조회로 교체
+- 상품 16개 기준 쿼리 횟수: 17회 → 4회(목록 + 이미지 + 찜 + 참여자)
+
+### 동시 회원가입 중복 방지 (`GlobalExceptionHandler.java`)
+- `existsByUserId` → insert 사이 동시 요청 시 `DataIntegrityViolationException` 발생 → 500 에러
+- `DataIntegrityViolationException` 핸들러 추가 → 409 Conflict 응답 반환
+
+---
+
+## 마이페이지 실제 API 연동 (2026-03-26)
+
+### WishlistRepository — 마이페이지용 쿼리 추가
+
+**`WishlistRepository.java`**
+- `findProductNosByMemberNo(Long memberNo)` — 내 찜 목록 상품 번호 조회
+
+### BidHistoryRepository — 마이페이지용 쿼리 추가
+
+**`BidHistoryRepository.java`**
+- `findDistinctProductNosByMemberNo(Long memberNo)` — 내가 입찰한 고유 상품 번호 목록
+
+### ProductService / ProductServiceImpl — 마이페이지 메서드 추가
+
+**`ProductService.java`** (인터페이스)
+- `getMySellingProducts(Long memberNo)` — 내가 등록한 상품
+- `getMyBiddingProducts(Long memberNo)` — 내가 입찰한 상품
+- `getMyWishlistProducts(Long memberNo)` — 내 찜 목록
+- `deleteProduct(Long productNo, Long memberNo)` — 본인 상품 소프트 삭제
+
+**`ProductServiceImpl.java`**
+- 위 4개 메서드 구현
+- `toProductListDtos()` 공통 헬퍼 추가 (이미지/찜여부/참여자수 배치 조회로 N+1 방지)
+- `deleteProduct()` — 본인 소유 검증 후 `isDeleted=1` + `isActive=0` 처리
+
+### ProductController — 마이페이지 엔드포인트 추가
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/products/my-selling` | 내가 등록한 상품 목록 |
+| GET | `/api/products/my-bidding` | 내가 입찰한 상품 목록 |
+| DELETE | `/api/products/{id}` | 상품 소프트 삭제 (본인만) |
+
+### WishlistController — 마이페이지 찜 목록 엔드포인트 추가
+
+**`WishlistController.java`**
+- `ProductService` 의존성 추가
+- `GET /api/wishlists/my` — 내 찜 목록 상품 반환
+
+---
+
 ## 배너 이미지 파일 업로드 지원 (2026-03-26)
 
 **백엔드**
