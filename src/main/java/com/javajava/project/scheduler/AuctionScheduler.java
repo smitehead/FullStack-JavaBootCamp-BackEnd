@@ -6,6 +6,7 @@ import com.javajava.project.entity.Product;
 import com.javajava.project.repository.AuctionResultRepository;
 import com.javajava.project.repository.BidHistoryRepository;
 import com.javajava.project.repository.ProductRepository;
+import com.javajava.project.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -24,6 +25,7 @@ public class AuctionScheduler {
     private final ProductRepository productRepository;
     private final BidHistoryRepository bidHistoryRepository;
     private final AuctionResultRepository auctionResultRepository;
+    private final NotificationService notificationService;
 
     /**
      * 매 1분마다 종료된 경매를 체크하여 낙찰 처리
@@ -67,6 +69,43 @@ public class AuctionScheduler {
 
                 log.info("[Scheduler] 상품 번호 {} 낙찰 완료 (입찰번호: {}, 낙찰자: {})",
                         product.getProductNo(), winningBid.getBidNo(), winningBid.getMemberNo());
+
+                String productLink = "/product/" + product.getProductNo();
+                String wonLink = "/won/" + product.getProductNo();
+
+                // 6. 낙찰자 알림 — 낙찰 성공 + 결제 요청
+                try {
+                    notificationService.sendAndSaveNotification(
+                            winningBid.getMemberNo(), "bid",
+                            "축하합니다! [" + product.getTitle() + "] 경매에 최종 낙찰되었습니다.", wonLink);
+                    notificationService.sendAndSaveNotification(
+                            winningBid.getMemberNo(), "bid",
+                            "낙찰받으신 [" + product.getTitle() + "]의 결제를 진행해 주세요. (24시간 내 미결제 시 취소 가능)", wonLink);
+                } catch (Exception e) {
+                    log.warn("[Scheduler] 낙찰자 알림 전송 실패: {}", e.getMessage());
+                }
+
+                // 7. 판매자 알림 — 낙찰 완료
+                try {
+                    notificationService.sendAndSaveNotification(
+                            product.getSellerNo(), "bid",
+                            "판매 중인 [" + product.getTitle() + "]이 최종 낙찰되었습니다.", productLink);
+                } catch (Exception e) {
+                    log.warn("[Scheduler] 판매자 알림 전송 실패: {}", e.getMessage());
+                }
+
+                // 8. 낙찰 실패자 알림
+                try {
+                    List<Long> loserMemberNos = bidHistoryRepository.findDistinctBiddersExcluding(
+                            product.getProductNo(), winningBid.getMemberNo());
+                    for (Long loserNo : loserMemberNos) {
+                        notificationService.sendAndSaveNotification(
+                                loserNo, "bid",
+                                "아쉽게도 [" + product.getTitle() + "] 경매가 종료되었습니다. 다음 기회를 노려보세요!", productLink);
+                    }
+                } catch (Exception e) {
+                    log.warn("[Scheduler] 낙찰 실패자 알림 전송 실패: {}", e.getMessage());
+                }
 
             } else {
                 // 입찰자 없음 → 유찰(canceled=2) 처리

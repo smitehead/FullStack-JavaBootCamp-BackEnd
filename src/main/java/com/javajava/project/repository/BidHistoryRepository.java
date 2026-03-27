@@ -49,4 +49,12 @@ public interface BidHistoryRepository extends JpaRepository<BidHistory, Long> {
     // 특정 상품의 낙찰 입찰 기록 조회 (낙찰자 확인용)
     @Query("SELECT b FROM BidHistory b WHERE b.productNo = :productNo AND b.isWinner = 1")
     Optional<BidHistory> findWinnerByProductNo(@Param("productNo") Long productNo);
+
+    // 특정 상품의 고유 입찰자 memberNo 목록 (취소 입찰 제외)
+    @Query("SELECT DISTINCT b.memberNo FROM BidHistory b WHERE b.productNo = :productNo AND b.isCancelled = 0")
+    List<Long> findDistinctBiddersByProductNo(@Param("productNo") Long productNo);
+
+    // 특정 상품의 고유 입찰자 중 특정 회원 제외 (낙찰 실패자 알림용)
+    @Query("SELECT DISTINCT b.memberNo FROM BidHistory b WHERE b.productNo = :productNo AND b.isCancelled = 0 AND b.memberNo <> :excludeMemberNo")
+    List<Long> findDistinctBiddersExcluding(@Param("productNo") Long productNo, @Param("excludeMemberNo") Long excludeMemberNo);
 }

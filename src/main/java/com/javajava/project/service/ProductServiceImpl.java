@@ -19,6 +19,7 @@ import com.javajava.project.entity.AuctionResult;
 import com.javajava.project.util.FileStore;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -37,6 +38,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -49,6 +51,7 @@ public class ProductServiceImpl implements ProductService {
     private final WishlistRepository wishlistRepository;
     private final AuctionResultRepository auctionResultRepository;
     private final FileStore fileStore;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional
@@ -494,6 +497,19 @@ public class ProductServiceImpl implements ProductService {
             throw new IllegalStateException("진행 중인 경매만 강제 종료할 수 있습니다.");
         }
         product.setStatus(2); // canceled
+
+        // 입찰자 전원에게 경매 취소 알림
+        try {
+            List<Long> bidderNos = bidHistoryRepository.findDistinctBiddersByProductNo(productNo);
+            for (Long bidderNo : bidderNos) {
+                notificationService.sendAndSaveNotification(
+                        bidderNo, "bid",
+                        "[" + product.getTitle() + "] 경매가 판매자 사정으로 취소되었습니다.",
+                        "/");
+            }
+        } catch (Exception e) {
+            log.warn("[ProductService] 경매 취소 알림 전송 실패: {}", e.getMessage());
+        }
     }
 
     /**

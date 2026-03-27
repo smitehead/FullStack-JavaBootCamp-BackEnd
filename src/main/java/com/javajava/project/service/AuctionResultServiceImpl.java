@@ -9,6 +9,7 @@ import com.javajava.project.entity.Product;
 import com.javajava.project.entity.ProductImage;
 import com.javajava.project.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -27,6 +29,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
     private final MemberRepository memberRepository;
     private final ProductImageRepository productImageRepository;
     private final PointHistoryRepository pointHistoryRepository;
+    private final NotificationService notificationService;
 
     @Override
     public AuctionResultResponseDto getAuctionResultByProductNo(Long productNo, Long memberNo) {
@@ -110,6 +113,16 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 ? (addressDetail != null && !addressDetail.isBlank() ? address + " " + addressDetail : address)
                 : addressDetail;
         result.setDeliveryAddrDetail(fullAddr);
+
+        // 판매자 알림 — 결제 완료
+        try {
+            notificationService.sendAndSaveNotification(
+                    seller.getMemberNo(), "activity",
+                    "구매자가 [" + product.getTitle() + "] 결제를 완료했습니다. 상품 준비를 시작해 주세요.",
+                    "/product/" + product.getProductNo());
+        } catch (Exception e) {
+            log.warn("[AuctionResult] 판매자 결제완료 알림 전송 실패: {}", e.getMessage());
+        }
     }
 
     @Override
@@ -123,6 +136,21 @@ public class AuctionResultServiceImpl implements AuctionResultService {
 
         result.setStatus("구매확정");
         result.setConfirmedAt(LocalDateTime.now());
+
+        // 판매자 알림 — 구매 확정 (포인트 정산 안내)
+        try {
+            BidHistory bid = bidHistoryRepository.findById(result.getBidNo())
+                    .orElseThrow(() -> new IllegalArgumentException("입찰 기록을 찾을 수 없습니다."));
+            Product product = productRepository.findById(bid.getProductNo())
+                    .orElseThrow(() -> new IllegalArgumentException("상품 정보를 찾을 수 없습니다."));
+            notificationService.sendAndSaveNotification(
+                    product.getSellerNo(), "activity",
+                    "구매자가 [" + product.getTitle() + "] 구매를 확정하여 "
+                            + String.format("%,d", bid.getBidPrice()) + "포인트가 정산되었습니다.",
+                    "/product/" + product.getProductNo());
+        } catch (Exception e) {
+            log.warn("[AuctionResult] 판매자 구매확정 알림 전송 실패: {}", e.getMessage());
+        }
     }
 
     @Override
