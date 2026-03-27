@@ -3,11 +3,15 @@ package com.javajava.project.controller;
 import com.javajava.project.dto.LoginRequestDto;
 import com.javajava.project.dto.LoginResponseDto;
 import com.javajava.project.service.AuthService;
+import com.javajava.project.service.EmailService;
+import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -15,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final EmailService emailService;
 
     /**
      * 로그인
@@ -44,5 +49,31 @@ public class AuthController {
             authService.logout(memberNo);
         }
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 이메일 인증번호 발송
+     * POST /api/auth/send-email-code
+     * 요청: { "email": "user@example.com" }
+     */
+    @PostMapping("/send-email-code")
+    public ResponseEntity<Void> sendEmailCode(@RequestBody Map<String, String> body) throws MessagingException {
+        String email = body.get("email");
+        emailService.sendVerificationCode(email);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 이메일 인증번호 검증
+     * POST /api/auth/verify-email-code
+     * 요청: { "email": "user@example.com", "code": "123456" }
+     * 응답: { "verified": true/false }
+     */
+    @PostMapping("/verify-email-code")
+    public ResponseEntity<Map<String, Boolean>> verifyEmailCode(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        String code = body.get("code");
+        boolean verified = emailService.verifyCode(email, code);
+        return ResponseEntity.ok(Map.of("verified", verified));
     }
 }

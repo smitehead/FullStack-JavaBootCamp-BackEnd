@@ -1,5 +1,6 @@
 package com.javajava.project.service;
 
+import com.javajava.project.dto.ActivityLogResponseDto;
 import com.javajava.project.dto.AdminMemberResponseDto;
 import com.javajava.project.dto.MannerHistoryResponseDto;
 import com.javajava.project.entity.ActivityLog;
@@ -25,6 +26,35 @@ public class AdminServiceImpl implements AdminService {
     private final MannerHistoryRepository mannerHistoryRepository;
     private final ActivityLogRepository activityLogRepository;
     private final NotificationService notificationService;
+
+    @Override
+    public List<ActivityLogResponseDto> getAllActivityLogs() {
+        List<ActivityLogResponseDto> list = activityLogRepository.findAll(
+                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"))
+                .stream()
+                .map(ActivityLogResponseDto::from)
+                .collect(Collectors.toList());
+
+        for (ActivityLogResponseDto dto : list) {
+            memberRepository.findById(dto.getAdminNo())
+                    .ifPresent(m -> dto.setAdminNickname(m.getNickname()));
+        }
+        return list;
+    }
+
+    @Override
+    public List<ActivityLogResponseDto> getActivityLogsByTargetType(String targetType) {
+        List<ActivityLogResponseDto> list = activityLogRepository.findByTargetTypeOrderByCreatedAtDesc(targetType)
+                .stream()
+                .map(ActivityLogResponseDto::from)
+                .collect(Collectors.toList());
+
+        for (ActivityLogResponseDto dto : list) {
+            memberRepository.findById(dto.getAdminNo())
+                    .ifPresent(m -> dto.setAdminNickname(m.getNickname()));
+        }
+        return list;
+    }
 
     @Override
     public List<AdminMemberResponseDto> getAllMembers() {

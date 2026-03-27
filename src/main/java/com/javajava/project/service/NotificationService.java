@@ -7,6 +7,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -54,6 +57,17 @@ public class NotificationService {
     public List<NotificationResponseDto> getNotifications(Long memberNo) {
         return notificationRepository.findByMemberNoOrderByCreatedAtDesc(memberNo)
                 .stream()
+                .map(NotificationResponseDto::from)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 최근 알림 조회 (관리자 대시보드용, 전체 회원 대상)
+     */
+    public List<NotificationResponseDto> getAllRecentNotifications(int limit) {
+        return notificationRepository.findAll(
+                PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "createdAt"))
+        ).stream()
                 .map(NotificationResponseDto::from)
                 .collect(Collectors.toList());
     }
