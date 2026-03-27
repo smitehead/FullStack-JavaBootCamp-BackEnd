@@ -20,7 +20,7 @@ export const NoticeList: React.FC = () => {
     return matchesCategory && matchesSearch;
   });
 
-  // Sort: Important first, then by date desc
+  // 정렬: 중요 공지 우선, 날짜 내림차순
   const sortedNotices = [...filteredNotices].sort((a, b) => {
     if (a.isImportant && !b.isImportant) return -1;
     if (!a.isImportant && b.isImportant) return 1;

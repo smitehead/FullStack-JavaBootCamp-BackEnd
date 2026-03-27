@@ -109,7 +109,7 @@ export const ProductList: React.FC = () => {
       setTotalElements(data.totalElements || 0);
       setHasMore(!data.last);
     } catch (error) {
-      console.error('Failed to fetch products:', error);
+      console.error('상품 목록 조회 실패:', error);
     } finally {
       setLoading(false);
     }

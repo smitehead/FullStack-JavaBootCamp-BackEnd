@@ -146,3 +146,19 @@ MyPage.tsx 닉네임 기반 필터링 버그 수정
 #### 수정
 - **`ProductDetail.tsx`** — `ResponsiveContainer`에 `minWidth={0}` 추가
   - 초기 렌더링 시 부모 크기 미계산으로 발생하던 `width(-1) height(-1)` 콘솔 에러 제거
+
+---
+
+### 17. 관리자 페이지 새로고침 권한 오류 수정
+
+#### 문제
+관리자 계정으로 로그인 후 관리자 페이지에서 새로고침 시 "관리자 권한이 필요합니다" alert이 발생하고 홈으로 리다이렉트되는 문제.
+
+#### 원인
+`AdminLayout.tsx`의 권한 체크가 sessionStorage 복원 완료 전에 실행되어 `user`가 아직 `null`인 상태에서 비관리자로 판단.
+
+#### 수정 내용
+- **`context/AppContext.tsx`** — `isInitialized` 상태 추가. sessionStorage 복원 완료 후 `setIsInitialized(true)` 호출. `AppContext.Provider` value에 포함.
+- **`pages/admin/AdminLayout.tsx`** — `isInitialized` 사용하여 초기화 완료 전 권한 체크 차단.
+  - `useEffect`: `if (!isInitialized) return;` 조건 추가
+  - 렌더링: `!isInitialized || !user || !user.isAdmin` 조건으로 초기화 전 null 반환

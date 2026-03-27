@@ -40,14 +40,14 @@ export interface User {
   isWithdrawn?: boolean;
   settings?: UserSettings;
   blockedUserIds?: string[];
-  auctionCount?: number; // Added for admin management
-  postCount?: number; // Added for admin management
+  auctionCount?: number; // 관리자 기능용 추가
+  postCount?: number; // 관리자 기능용 추가
 }
 
 export interface Report {
   id: string;
   reporterId: string;
-  targetId: string; // User ID or Product ID
+  targetId: string; // 사용자 ID 또는 상품 ID
   targetType: "user" | "product";
   reason: string;
   details: string;

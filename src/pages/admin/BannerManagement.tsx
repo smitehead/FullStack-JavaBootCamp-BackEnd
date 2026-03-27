@@ -13,7 +13,7 @@ export const BannerManagement: React.FC = () => {
   const [editingBanner, setEditingBanner] = useState<HeroBanner | null>(null);
   const [bannerToDelete, setBannerToDelete] = useState<number | null>(null);
 
-  // Form States
+  // 폼 상태
   const [imgUrl, setImgUrl] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -22,7 +22,7 @@ export const BannerManagement: React.FC = () => {
   const [sortOrder, setSortOrder] = useState(0);
   const [endAt, setEndAt] = useState('');
 
-  // Preview States
+  // 미리보기 상태
   const [previewIndex, setPreviewIndex] = useState(0);
   const [direction, setDirection] = useState(0);
 

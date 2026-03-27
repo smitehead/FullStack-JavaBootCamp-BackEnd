@@ -28,9 +28,9 @@ export const PointWithdraw: React.FC = () => {
   const [newBank, setNewBank] = useState('');
   const [newAccount, setNewAccount] = useState('');
 
-  // Account Management State
+  // 계좌 관리 상태
   const [paymentMethods] = useState(MOCK_PAYMENT_METHODS);
-  const [selectedMethodId, setSelectedMethodId] = useState('pm_3'); // Default to account
+  const [selectedMethodId, setSelectedMethodId] = useState('pm_3'); // 기본값: 계좌
   const [isMethodModalOpen, setIsMethodModalOpen] = useState(false);
 
   const selectedMethod = paymentMethods.find(m => m.id === selectedMethodId) || paymentMethods[0];
@@ -39,7 +39,7 @@ export const PointWithdraw: React.FC = () => {
     const numAmount = Number(amount);
     if (!numAmount || isNaN(numAmount) || numAmount <= 0) return;
     setIsSuccess(true);
-    // Removed automatic navigation bug
+    // 자동 이동 버그 제거
   };
 
   if (isSuccess) {

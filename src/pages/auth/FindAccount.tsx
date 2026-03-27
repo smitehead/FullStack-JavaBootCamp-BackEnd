@@ -9,11 +9,11 @@ export const FindAccount: React.FC = () => {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState<Tab>('id');
 
-  // Find ID state
+  // 아이디 찾기 상태
   const [idEmail, setIdEmail] = useState('');
   const [foundId, setFoundId] = useState<string | null>(null);
 
-  // Find PW state
+  // 비밀번호 찾기 상태
   const [pwUserId, setPwUserId] = useState('');
   const [pwEmailCode, setPwEmailCode] = useState('');
   const [pwSentCode, setPwSentCode] = useState<string | null>(null);

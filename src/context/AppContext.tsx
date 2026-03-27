@@ -89,6 +89,7 @@ const mapActivityLogToFrontend = (log: any): ActivityLog => ({
 });
 
 interface AppContextType {
+  isInitialized: boolean;
   user: User | null;
   users: User[];
   products: Product[];
@@ -123,6 +124,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [isInitialized, setIsInitialized] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
@@ -217,9 +219,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               return updated;
             });
           }
-        }).catch(err => console.error("Failed to sync user data in AppContext", err));
+        }).catch(err => console.error("사용자 데이터 동기화 실패", err))
+          .finally(() => setIsInitialized(true));
+        return;
       }
     }
+    setIsInitialized(true);
   }, []);
 
   const login = async (userId: string, password: string): Promise<boolean> => {
@@ -239,7 +244,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         dbMannerTemp = memberRes.data.mannerTemp || 36.5;
         dbIsAdmin = memberRes.data.isAdmin === 1;
       } catch (err) {
-        console.error("Failed to fetch user points during login", err);
+        console.error("로그인 중 포인트 조회 실패", err);
       }
 
       const loggedInUser: User = {
@@ -256,7 +261,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       sessionStorage.setItem('java_user', JSON.stringify(loggedInUser));
       return true;
     } catch (error) {
-      console.error('Login failed', error);
+      console.error('로그인 실패', error);
       return false;
     }
   };
@@ -461,6 +466,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   return (
     <AppContext.Provider value={{
+      isInitialized,
       user,
       users,
       products,
@@ -499,7 +505,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 export const useAppContext = () => {
   const context = useContext(AppContext);
   if (context === undefined) {
-    throw new Error('useAppContext must be used within an AppProvider');
+    throw new Error('useAppContext는 AppProvider 내에서 사용해야 합니다.');
   }
   return context;
 };

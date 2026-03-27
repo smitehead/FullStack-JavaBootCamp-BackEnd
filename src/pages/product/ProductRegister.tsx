@@ -18,18 +18,18 @@ export const ProductRegister: React.FC = () => {
   const [title, setTitle] = useState<string>('');
   const [description, setDescription] = useState<string>('');
 
-  // Category State
+  // 카테고리 상태
   const [largeCat, setLargeCat] = useState<string>('');
   const [mediumCat, setMediumCat] = useState<string>('');
   const [smallCat, setSmallCat] = useState<string>('');
 
-  // Price State
+  // 가격 상태
   const [startPrice, setStartPrice] = useState<number>(0);
   const [instantPrice, setInstantPrice] = useState<number>(0);
   const [isInstantPriceEnabled, setIsInstantPriceEnabled] = useState<boolean>(true);
   const [minBidIncrement, setMinBidIncrement] = useState<number>(1000);
 
-  // Time State
+  // 시간 상태
   const [duration, setDuration] = useState<string>('3');
   const [endTime, setEndTime] = useState<string>('');
   const [isManualTime, setIsManualTime] = useState(false);
@@ -40,7 +40,7 @@ export const ProductRegister: React.FC = () => {
   maxDate.setMonth(maxDate.getMonth() + 3);
   const maxDateString = maxDate.toISOString().split('T')[0];
 
-  // Transaction State
+  // 거래 상태
   const [methods, setMethods] = useState<{ face: boolean; delivery: boolean }>({ face: true, delivery: false });
   const [address, setAddress] = useState('');
   const [detailedAddress, setDetailedAddress] = useState('');
@@ -67,7 +67,7 @@ export const ProductRegister: React.FC = () => {
   const toggleMethod = (type: 'face' | 'delivery') => {
     setMethods(prev => {
       const next = { ...prev, [type]: !prev[type] };
-      // Prevent unselecting both
+      // 둘 다 해제 방지
       if (!next.face && !next.delivery) return prev;
       return next;
     });
@@ -140,13 +140,13 @@ export const ProductRegister: React.FC = () => {
       alert('계정이 정지된 상태에서는 상품을 등록할 수 없습니다.');
       return;
     }
-    // Basic Price Validation
+    // 시작가 검증
     if (startPrice < 0 || minBidIncrement < 0 || (isInstantPriceEnabled && instantPrice < 0)) {
       alert('금액은 0원 이상이어야 합니다.');
       return;
     }
 
-    // Instant Price Validation
+    // 즉시낙찰가 검증
     if (isInstantPriceEnabled) {
       if (instantPrice <= startPrice) {
         alert('즉시 구매가는 경매 시작가보다 커야 합니다.');
@@ -158,7 +158,7 @@ export const ProductRegister: React.FC = () => {
       }
     }
 
-    // Bid Increment Validation
+    // 입찰 단위 검증
     if (startPrice < 10000) {
       if (minBidIncrement % 100 !== 0) {
         alert('1만원 미만 상품은 100원 단위로 입찰 단위를 설정해주세요.');
@@ -226,7 +226,7 @@ export const ProductRegister: React.FC = () => {
       alert('상품이 성공적으로 등록되었습니다.');
       navigate('/');
     } catch (error) {
-      console.error('Failed to register product', error);
+      console.error('상품 등록 실패', error);
       alert('상품 등록 중 오류가 발생했습니다.');
     }
   };

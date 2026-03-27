@@ -38,7 +38,7 @@ export const Home: React.FC = () => {
         if (hero.length > 0) setHeroBanners(hero);
         if (ad.length > 0) setAdBanners(ad);
       } catch (error) {
-        console.error('Failed to fetch banners', error);
+        console.error('배너 조회 실패', error);
       }
     };
     fetchBanners();
@@ -65,7 +65,7 @@ export const Home: React.FC = () => {
         const activeProducts = mapped.filter((p: any) => p.status === 'active' && new Date(p.endTime).getTime() > now);
         setPopularProducts(activeProducts.slice(0, 8));
       } catch (error) {
-        console.error('Failed to fetch products', error);
+        console.error('상품 조회 실패', error);
       }
     };
     fetchPopularProducts();

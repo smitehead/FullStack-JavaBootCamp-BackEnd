@@ -85,7 +85,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       const response = await api.post(`/wishlists/toggle?productNo=${product.id}`);
       setIsWishlisted(response.data);
     } catch (error) {
-      console.error('Failed to toggle wishlist', error);
+      console.error('위시리스트 변경 실패', error);
       alert('찜 처리 중 오류가 발생했습니다.');
     }
   };
