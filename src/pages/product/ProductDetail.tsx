@@ -254,12 +254,12 @@ export const ProductDetail: React.FC = () => {
 
   const openBidModal = async (type: 'bid' | 'auto') => {
     if (!user) {
-      alert('로그인이 필요한 서비스입니다. 로그인 페이지로 이동합니다.');
+      showToast("'로그인이 필요한 서비스입니다.' 로그인 페이지로 이동합니다.", 'error');
       navigate('/login');
       return;
     }
     if (user.isSuspended) {
-      alert('계정이 정지된 상태에서는 입찰에 참여할 수 없습니다.');
+      showToast("'계정이 정지된 상태'에서는 입찰에 참여할 수 없습니다.", 'error');
       return;
     }
 
@@ -280,19 +280,19 @@ export const ProductDetail: React.FC = () => {
 
   const handleBidSubmit = async () => {
     if (user?.isSuspended) {
-      alert('계정이 정지된 상태에서는 입찰에 참여할 수 없습니다.');
+      showToast("'계정이 정지된 상태'에서는 입찰에 참여할 수 없습니다.", 'error');
       setIsBidModalOpen(false);
       return;
     }
     const amountToValidate = modalType === 'bid' ? bidAmount : autoBidMaxAmount;
 
     if (modalType === 'bid' && bidAmount < product.currentPrice + product.minBidIncrement) {
-      alert('최소 입찰 금액을 확인해주세요.');
+      showToast("'최소 입찰 금액'을 확인해주세요.", 'error');
       return;
     }
 
     if (modalType === 'auto' && autoBidMaxAmount <= product.currentPrice) {
-      alert('자동 입찰 한도는 현재가보다 높아야 합니다.');
+      showToast("'자동 입찰 한도'는 현재가보다 높아야 합니다.", 'error');
       return;
     }
 
@@ -311,7 +311,7 @@ export const ProductDetail: React.FC = () => {
       });
 
       setIsBidModalOpen(false);
-      alert(modalType === 'bid' ? '입찰이 완료되었습니다!' : '자동 입찰이 설정되었습니다!');
+      showToast(modalType === 'bid' ? '입찰이 완료되었습니다!' : '자동 입찰이 설정되었습니다!', 'success');
 
       // [수정] window.location.reload() 제거 - SSE가 실시간 가격 갱신을 처리함
       // 입찰 기록 등 추가 데이터를 위해 상품 정보만 재조회
@@ -319,7 +319,7 @@ export const ProductDetail: React.FC = () => {
 
     } catch (error: any) {
       const errorMsg = error.response?.data?.message || (typeof error.response?.data === 'string' ? error.response.data : '입찰에 실패했습니다.');
-      alert(errorMsg);
+      showToast(errorMsg, 'error');
     }
   };
 
@@ -340,7 +340,7 @@ export const ProductDetail: React.FC = () => {
 
   const toggleWishlist = async () => {
     if (!user) {
-      alert('로그인이 필요한 서비스입니다.');
+      showToast("'로그인이 필요한 서비스입니다.' 로그인 페이지로 이동합니다.", 'error');
       navigate('/login');
       return;
     }
@@ -358,7 +358,7 @@ export const ProductDetail: React.FC = () => {
       }) : null);
     } catch (error) {
       console.error('Failed to toggle wishlist', error);
-      alert('찜하기 처리 중 오류가 발생했습니다.');
+      showToast('찜하기 처리 중 오류가 발생했습니다.', 'error');
     }
   };
 

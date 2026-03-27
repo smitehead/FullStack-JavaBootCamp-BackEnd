@@ -20,6 +20,7 @@ import {
   useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { showToast } from '@/components/toastService';
 
 // Sortable Card Component
 interface SortableCardProps {
@@ -50,8 +51,8 @@ const SortableCard: React.FC<SortableCardProps> = ({ card, onDelete }) => {
   };
 
   return (
-    <div 
-      ref={setNodeRef} 
+    <div
+      ref={setNodeRef}
       style={style}
       className="group relative flex items-center justify-between p-6 bg-gray-50 rounded-2xl border border-gray-100 hover:border-gray-200 transition-all"
     >
@@ -72,8 +73,8 @@ const SortableCard: React.FC<SortableCardProps> = ({ card, onDelete }) => {
           <p className="text-sm text-gray-400 font-medium">{card.account}</p>
         </div>
       </div>
-      
-      <button 
+
+      <button
         onClick={() => onDelete(card.id)}
         className="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-400 transition-all"
         title="삭제"
@@ -165,7 +166,7 @@ export const Settings: React.FC = () => {
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over.id);
         const newItems = arrayMove(items, oldIndex, newIndex);
-        
+
         // If the item moved to the top, it becomes the default
         return newItems.map((item: any, index: number) => ({
           ...item,
@@ -200,17 +201,17 @@ export const Settings: React.FC = () => {
       if (passwordData.current === '1234') {
         setPasswordStep('input');
       } else {
-        alert('현재 비밀번호가 일치하지 않습니다.');
+        showToast('현재 비밀번호가 일치하지 않습니다.');
       }
       return;
     }
 
     if (passwordData.new !== passwordData.confirm) {
-      alert('새 비밀번호가 일치하지 않습니다.');
+      showToast('새 비밀번호가 일치하지 않습니다.');
       return;
     }
     if (!passwordData.new) {
-      alert('새 비밀번호를 입력해주세요.');
+      showToast('새 비밀번호를 입력해주세요.');
       return;
     }
     // Mock password change
@@ -227,7 +228,7 @@ export const Settings: React.FC = () => {
   const sendVerificationCode = (type: 'email' | 'password') => {
     setIsCodeSent(true);
     setTimer(180); // 3 minutes
-    alert('인증번호가 발송되었습니다. (테스트용: 123456)');
+    showToast('인증번호가 발송되었습니다. (테스트용: 123456)');
   };
 
   const verifyCode = (type: 'email' | 'password') => {
@@ -248,7 +249,7 @@ export const Settings: React.FC = () => {
         setIsCodeSent(false);
       }
     } else {
-      alert('인증번호가 올바르지 않습니다.');
+      showToast('인증번호가 올바르지 않습니다.');
     }
   };
 
@@ -357,31 +358,31 @@ export const Settings: React.FC = () => {
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">계정 관리</p>
             </div>
             <div className="">
-              <button 
+              <button
                 onClick={() => setActiveTab('notification')}
                 className={`w-full flex items-center px-6 py-4 font-bold text-sm transition-colors ${activeTab === 'notification' ? 'bg-red-50 text-red-900' : 'text-gray-600 hover:bg-gray-50'}`}
               >
                 <Bell className="w-5 h-5 mr-3" /> 알림 설정
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('profile')}
                 className={`w-full flex items-center px-6 py-4 font-bold text-sm transition-colors ${activeTab === 'profile' ? 'bg-red-50 text-red-900' : 'text-gray-600 hover:bg-gray-50'}`}
               >
                 <User className="w-5 h-5 mr-3" /> 프로필 수정
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('block')}
                 className={`w-full flex items-center px-6 py-4 font-bold text-sm transition-colors ${activeTab === 'block' ? 'bg-red-50 text-red-900' : 'text-gray-600 hover:bg-gray-50'}`}
               >
                 <Shield className="w-5 h-5 mr-3" /> 차단 사용자 관리
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('card')}
                 className={`w-full flex items-center px-6 py-4 font-bold text-sm transition-colors ${activeTab === 'card' ? 'bg-red-50 text-red-900' : 'text-gray-600 hover:bg-gray-50'}`}
               >
                 <CreditCard className="w-5 h-5 mr-3" /> 카드/계좌 관리
               </button>
-              <button 
+              <button
                 onClick={openWithdrawModal}
                 className="w-full flex items-center px-6 py-4 font-bold text-sm text-red-500 hover:bg-red-50 transition-colors"
               >
@@ -408,10 +409,10 @@ export const Settings: React.FC = () => {
                       type="text"
                       className="block w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#FF5A5A]/20 focus:bg-white transition-all outline-none h-[56px]"
                       value={profileData.nickname}
-                      onChange={(e) => setProfileData({...profileData, nickname: e.target.value})}
+                      onChange={(e) => setProfileData({ ...profileData, nickname: e.target.value })}
                     />
                   </div>
-                  <button 
+                  <button
                     onClick={() => setIsPasswordModalOpen(true)}
                     className="h-[56px] px-6 bg-gray-50 text-gray-500 text-xs font-bold rounded-2xl hover:bg-gray-100 transition-all flex items-center justify-center gap-2 border border-gray-100"
                   >
@@ -428,7 +429,7 @@ export const Settings: React.FC = () => {
                       type="tel"
                       className="block w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#FF5A5A]/20 focus:bg-white transition-all outline-none h-[56px]"
                       value={profileData.phoneNum}
-                      onChange={(e) => setProfileData({...profileData, phoneNum: e.target.value})}
+                      onChange={(e) => setProfileData({ ...profileData, phoneNum: e.target.value })}
                     />
                   </div>
                 </div>
@@ -444,7 +445,7 @@ export const Settings: React.FC = () => {
                       readOnly
                     />
                   </div>
-                  <button 
+                  <button
                     onClick={() => setIsEmailModalOpen(true)}
                     className="h-[56px] px-6 bg-gray-900 text-white text-xs font-bold rounded-2xl hover:bg-black transition-all flex items-center justify-center"
                   >
@@ -465,10 +466,10 @@ export const Settings: React.FC = () => {
                         value={profileData.address}
                       />
                     </div>
-                    <button 
+                    <button
                       type="button"
                       className="h-[56px] px-6 bg-gray-900 text-white text-xs font-bold rounded-2xl hover:bg-black transition-all flex items-center justify-center"
-                      onClick={() => setProfileData({...profileData, address: '서울 강남구 테헤란로 123'})}
+                      onClick={() => setProfileData({ ...profileData, address: '서울 강남구 테헤란로 123' })}
                     >
                       주소 검색
                     </button>
@@ -478,12 +479,12 @@ export const Settings: React.FC = () => {
                     className="block w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-[#FF5A5A]/20 focus:bg-white transition-all outline-none h-[56px]"
                     placeholder="상세주소"
                     value={profileData.addrDetail}
-                    onChange={(e) => setProfileData({...profileData, addrDetail: e.target.value})}
+                    onChange={(e) => setProfileData({ ...profileData, addrDetail: e.target.value })}
                   />
                 </div>
 
                 <div className="pt-8">
-                  <button 
+                  <button
                     onClick={handleProfileSave}
                     disabled={isProfileSaving}
                     className="w-full py-5 bg-[#FF5A5A] text-white font-black rounded-2xl hover:bg-[#FF4545] transition-all shadow-xl shadow-red-100 active:scale-95 disabled:opacity-50"
@@ -500,7 +501,7 @@ export const Settings: React.FC = () => {
             <section className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8 animate-in fade-in duration-300">
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-xl font-bold text-gray-900">카드/계좌 관리</h3>
-                <button 
+                <button
                   onClick={() => alert('카드/계좌 추가 기능은 준비 중입니다.')}
                   className="px-4 py-2 bg-gray-900 text-white text-xs font-bold rounded-xl hover:bg-black transition-all"
                 >
@@ -509,12 +510,12 @@ export const Settings: React.FC = () => {
               </div>
 
               <div className="space-y-4">
-                <DndContext 
+                <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
                   onDragEnd={handleDragEnd}
                 >
-                  <SortableContext 
+                  <SortableContext
                     items={cards.map(c => c.id)}
                     strategy={verticalListSortingStrategy}
                   >
@@ -530,98 +531,98 @@ export const Settings: React.FC = () => {
           {/* Notification Settings */}
           {activeTab === 'notification' && (
             <section className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8 animate-in fade-in duration-300">
-            <div className="mb-8">
-              <h3 className="text-xl font-bold text-gray-900">알림 설정</h3>
-            </div>
-
-            <div className="space-y-6">
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <p className="font-bold text-gray-900">경매 종료 알림</p>
-                  <p className="text-sm text-gray-500">관심 등록하거나 입찰한 경매가 종료될 때 알림을 받습니다.</p>
-                </div>
-                <button 
-                  onClick={() => toggleSetting('auctionEnd')}
-                  className={`w-12 h-6 rounded-full transition-all relative ${settings.auctionEnd ? 'bg-emerald-500' : 'bg-gray-200'}`}
-                >
-                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.auctionEnd ? 'left-7' : 'left-1'}`}></div>
-                </button>
+              <div className="mb-8">
+                <h3 className="text-xl font-bold text-gray-900">알림 설정</h3>
               </div>
 
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <p className="font-bold text-gray-900">새로운 입찰 알림</p>
-                  <p className="text-sm text-gray-500">내가 올린 상품에 새로운 입찰이 발생하면 알림을 받습니다.</p>
+              <div className="space-y-6">
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <p className="font-bold text-gray-900">경매 종료 알림</p>
+                    <p className="text-sm text-gray-500">관심 등록하거나 입찰한 경매가 종료될 때 알림을 받습니다.</p>
+                  </div>
+                  <button
+                    onClick={() => toggleSetting('auctionEnd')}
+                    className={`w-12 h-6 rounded-full transition-all relative ${settings.auctionEnd ? 'bg-emerald-500' : 'bg-gray-200'}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.auctionEnd ? 'left-7' : 'left-1'}`}></div>
+                  </button>
                 </div>
-                <button 
-                  onClick={() => toggleSetting('newBid')}
-                  className={`w-12 h-6 rounded-full transition-all relative ${settings.newBid ? 'bg-emerald-500' : 'bg-gray-200'}`}
-                >
-                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.newBid ? 'left-7' : 'left-1'}`}></div>
-                </button>
-              </div>
 
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <p className="font-bold text-gray-900">채팅 알림</p>
-                  <p className="text-sm text-gray-500">새로운 채팅 메시지가 도착하면 알림을 받습니다.</p>
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <p className="font-bold text-gray-900">새로운 입찰 알림</p>
+                    <p className="text-sm text-gray-500">내가 올린 상품에 새로운 입찰이 발생하면 알림을 받습니다.</p>
+                  </div>
+                  <button
+                    onClick={() => toggleSetting('newBid')}
+                    className={`w-12 h-6 rounded-full transition-all relative ${settings.newBid ? 'bg-emerald-500' : 'bg-gray-200'}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.newBid ? 'left-7' : 'left-1'}`}></div>
+                  </button>
                 </div>
-                <button 
-                  onClick={() => toggleSetting('chat')}
-                  className={`w-12 h-6 rounded-full transition-all relative ${settings.chat ? 'bg-emerald-500' : 'bg-gray-200'}`}
-                >
-                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.chat ? 'left-7' : 'left-1'}`}></div>
-                </button>
-              </div>
 
-              <div className="flex items-center justify-between py-2 border-t border-gray-50 pt-6">
-                <div>
-                  <p className="font-bold text-gray-900">마케팅 정보 수신</p>
-                  <p className="text-sm text-gray-500">이벤트, 혜택 등 다양한 마케팅 소식을 받습니다.</p>
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <p className="font-bold text-gray-900">채팅 알림</p>
+                    <p className="text-sm text-gray-500">새로운 채팅 메시지가 도착하면 알림을 받습니다.</p>
+                  </div>
+                  <button
+                    onClick={() => toggleSetting('chat')}
+                    className={`w-12 h-6 rounded-full transition-all relative ${settings.chat ? 'bg-emerald-500' : 'bg-gray-200'}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.chat ? 'left-7' : 'left-1'}`}></div>
+                  </button>
                 </div>
-                <button 
-                  onClick={() => toggleSetting('marketing')}
-                  className={`w-12 h-6 rounded-full transition-all relative ${settings.marketing ? 'bg-emerald-500' : 'bg-gray-200'}`}
-                >
-                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.marketing ? 'left-7' : 'left-1'}`}></div>
-                </button>
-              </div>
-            </div>
-          </section>
-        )}
 
-        {/* Blocked Users Management */}
+                <div className="flex items-center justify-between py-2 border-t border-gray-50 pt-6">
+                  <div>
+                    <p className="font-bold text-gray-900">마케팅 정보 수신</p>
+                    <p className="text-sm text-gray-500">이벤트, 혜택 등 다양한 마케팅 소식을 받습니다.</p>
+                  </div>
+                  <button
+                    onClick={() => toggleSetting('marketing')}
+                    className={`w-12 h-6 rounded-full transition-all relative ${settings.marketing ? 'bg-emerald-500' : 'bg-gray-200'}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${settings.marketing ? 'left-7' : 'left-1'}`}></div>
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Blocked Users Management */}
           {activeTab === 'block' && (
             <section className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8 animate-in fade-in duration-300">
               <div className="mb-8">
-              <h3 className="text-xl font-bold text-gray-900">차단 사용자 관리</h3>
-            </div>
+                <h3 className="text-xl font-bold text-gray-900">차단 사용자 관리</h3>
+              </div>
 
-            {blockedUsers.length > 0 ? (
-              <div className="space-y-4">
-                {blockedUsers.map(user => (
-                  <div key={user.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                    <div className="flex items-center gap-3">
-                      <img src={user.profileImage || undefined} alt={user.nickname} className="w-10 h-10 rounded-full object-cover" />
-                      <div>
-                        <p className="font-bold text-gray-900">{user.nickname}</p>
-                        <p className="text-xs text-gray-400">매너온도 {user.mannerTemp}℃</p>
+              {blockedUsers.length > 0 ? (
+                <div className="space-y-4">
+                  {blockedUsers.map(user => (
+                    <div key={user.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                      <div className="flex items-center gap-3">
+                        <img src={user.profileImage || undefined} alt={user.nickname} className="w-10 h-10 rounded-full object-cover" />
+                        <div>
+                          <p className="font-bold text-gray-900">{user.nickname}</p>
+                          <p className="text-xs text-gray-400">매너온도 {user.mannerTemp}℃</p>
+                        </div>
                       </div>
+                      <button
+                        onClick={() => unblockUser(user.id)}
+                        className="px-4 py-2 text-xs font-bold text-gray-500 bg-white border border-gray-200 rounded-xl hover:bg-gray-100 transition-all"
+                      >
+                        차단 해제
+                      </button>
                     </div>
-                    <button 
-                      onClick={() => unblockUser(user.id)}
-                      className="px-4 py-2 text-xs font-bold text-gray-500 bg-white border border-gray-200 rounded-xl hover:bg-gray-100 transition-all"
-                    >
-                      차단 해제
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="py-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                <p className="text-gray-400 font-medium">차단한 사용자가 없습니다.</p>
-              </div>
-            )}
+                  ))}
+                </div>
+              ) : (
+                <div className="py-12 text-center bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                  <p className="text-gray-400 font-medium">차단한 사용자가 없습니다.</p>
+                </div>
+              )}
             </section>
           )}
         </div>
@@ -638,15 +639,15 @@ export const Settings: React.FC = () => {
               </div>
               <h3 className="text-xl font-black text-gray-900 mb-2">카드/계좌 삭제</h3>
               <p className="text-sm text-gray-500 mb-8 font-medium">정말 삭제하시겠습니까?</p>
-              
+
               <div className="flex gap-3">
-                <button 
+                <button
                   onClick={() => setIsCardDeleteModalOpen(false)}
                   className="flex-1 py-3.5 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all"
                 >
                   취소
                 </button>
-                <button 
+                <button
                   onClick={confirmDeleteCard}
                   className="flex-1 py-3.5 bg-red-500 text-white font-bold rounded-2xl hover:bg-red-600 transition-all shadow-lg shadow-red-100"
                 >
@@ -669,15 +670,15 @@ export const Settings: React.FC = () => {
               </div>
               <h3 className="text-xl font-black text-gray-900 mb-2">로그아웃 하시겠습니까?</h3>
               <p className="text-sm text-gray-500 mb-8 font-medium">다음에 또 만나요!</p>
-              
+
               <div className="flex gap-3">
-                <button 
+                <button
                   onClick={() => setIsLogoutModalOpen(false)}
                   className="flex-1 py-3.5 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all"
                 >
                   취소
                 </button>
-                <button 
+                <button
                   onClick={confirmLogout}
                   className="flex-1 py-3.5 bg-red-500 text-white font-bold rounded-2xl hover:bg-red-600 transition-all shadow-lg shadow-red-100"
                 >
@@ -700,8 +701,8 @@ export const Settings: React.FC = () => {
               </div>
               <h3 className="text-xl font-black text-gray-900 mb-2">수정 완료</h3>
               <p className="text-sm text-gray-500 mb-8 font-medium">프로필 정보가 성공적으로 수정되었습니다.</p>
-              
-              <button 
+
+              <button
                 onClick={() => setIsProfileSaveModalOpen(false)}
                 className="w-full py-3.5 bg-gray-900 text-white font-bold rounded-2xl hover:bg-black transition-all shadow-lg"
               >
@@ -730,15 +731,15 @@ export const Settings: React.FC = () => {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">기존 비밀번호</label>
-                      <input 
+                      <input
                         type="password"
                         placeholder="기존 비밀번호 입력"
                         className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-gray-200 outline-none"
                         value={passwordData.current}
-                        onChange={(e) => setPasswordData({...passwordData, current: e.target.value})}
+                        onChange={(e) => setPasswordData({ ...passwordData, current: e.target.value })}
                       />
                     </div>
-                    <button 
+                    <button
                       onClick={handlePasswordChange}
                       className="w-full py-4 bg-gray-900 text-white font-black rounded-2xl hover:bg-black transition-all shadow-xl"
                     >
@@ -752,35 +753,35 @@ export const Settings: React.FC = () => {
                 <div className="space-y-6">
                   <div>
                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">비밀번호</label>
-                    <input 
+                    <input
                       type="password"
                       placeholder="비밀번호 입력"
                       className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-gray-200 outline-none"
                       value={passwordData.new}
-                      onChange={(e) => setPasswordData({...passwordData, new: e.target.value})}
+                      onChange={(e) => setPasswordData({ ...passwordData, new: e.target.value })}
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">비밀번호 확인</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <ShieldCheck 
-                          className={`h-5 w-5 ${passwordData.confirm === '' ? 'text-gray-400' : (passwordData.new === passwordData.confirm ? 'text-emerald-500' : 'text-red-500')}`} 
+                        <ShieldCheck
+                          className={`h-5 w-5 ${passwordData.confirm === '' ? 'text-gray-400' : (passwordData.new === passwordData.confirm ? 'text-emerald-500' : 'text-red-500')}`}
                           title={passwordData.confirm !== '' && passwordData.new !== passwordData.confirm ? "비밀번호가 맞지 않습니다." : ""}
                         />
                       </div>
-                      <input 
+                      <input
                         type="password"
                         placeholder="비밀번호 다시 입력"
                         className="w-full pl-11 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-gray-200 outline-none"
                         value={passwordData.confirm}
-                        onChange={(e) => setPasswordData({...passwordData, confirm: e.target.value})}
+                        onChange={(e) => setPasswordData({ ...passwordData, confirm: e.target.value })}
                       />
                     </div>
                   </div>
 
                   <div className="pt-4">
-                    <button 
+                    <button
                       onClick={handlePasswordChange}
                       className="w-full py-4 bg-gray-900 text-white font-black rounded-2xl hover:bg-black transition-all shadow-xl"
                     >
@@ -820,7 +821,7 @@ export const Settings: React.FC = () => {
               {emailStep === 'input' && (
                 <div className="space-y-6">
                   <div className="space-y-4">
-                    <input 
+                    <input
                       type="email"
                       placeholder="새 이메일 주소 입력"
                       className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-gray-200 outline-none"
@@ -828,7 +829,7 @@ export const Settings: React.FC = () => {
                       onChange={(e) => setNewEmail(e.target.value)}
                     />
                     {!isCodeSent && (
-                      <button 
+                      <button
                         onClick={() => sendVerificationCode('email')}
                         disabled={!newEmail}
                         className="w-full py-4 bg-gray-900 text-white text-sm font-bold rounded-2xl hover:bg-black transition-all disabled:opacity-50"
@@ -840,7 +841,7 @@ export const Settings: React.FC = () => {
                     {isCodeSent && (
                       <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
                         <div className="relative">
-                          <input 
+                          <input
                             type="text"
                             placeholder="인증번호 6자리 입력"
                             className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-gray-200 outline-none"
@@ -854,7 +855,7 @@ export const Settings: React.FC = () => {
                           )}
                         </div>
                         <div className="flex justify-center px-1">
-                          <button 
+                          <button
                             type="button"
                             onClick={() => sendVerificationCode('email')}
                             className="text-[10px] font-bold text-gray-400 hover:text-gray-600 transition-colors underline underline-offset-2"
@@ -862,7 +863,7 @@ export const Settings: React.FC = () => {
                             인증번호 재전송
                           </button>
                         </div>
-                        <button 
+                        <button
                           onClick={() => verifyCode('email')}
                           className="w-full py-4 bg-gray-900 text-white font-black rounded-2xl hover:bg-black transition-all shadow-xl"
                         >
@@ -893,7 +894,7 @@ export const Settings: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsWithdrawModalOpen(false)}></div>
           <div className="relative bg-white w-full max-w-md rounded-[32px] shadow-2xl overflow-hidden">
-            <button 
+            <button
               onClick={() => setIsWithdrawModalOpen(false)}
               className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-600 transition-colors"
             >
@@ -907,7 +908,7 @@ export const Settings: React.FC = () => {
                     <AlertCircle className="w-10 h-10 text-red-500" />
                   </div>
                   <h3 className="text-2xl font-black text-gray-900 mb-4">정말 탈퇴하시겠습니까?</h3>
-                  
+
                   <div className="bg-red-50 p-6 rounded-2xl text-left mb-8">
                     <p className="text-sm font-bold text-red-800 mb-4">탈퇴 조건 확인</p>
                     <div className="space-y-3">
@@ -962,7 +963,7 @@ export const Settings: React.FC = () => {
                     </ul>
                   </div>
 
-                  <button 
+                  <button
                     onClick={() => {
                       const error = validateWithdrawal();
                       if (error) {
@@ -982,7 +983,7 @@ export const Settings: React.FC = () => {
                 <div>
                   <h3 className="text-2xl font-black text-gray-900 mb-2">탈퇴 사유</h3>
                   <p className="text-sm text-gray-500 mb-8">탈퇴하시는 이유를 알려주시면 서비스 개선에 큰 도움이 됩니다.</p>
-                  
+
                   <div className="space-y-3 mb-8">
                     {[
                       '더 이상 서비스를 이용하지 않음',
@@ -994,11 +995,10 @@ export const Settings: React.FC = () => {
                       <button
                         key={reason}
                         onClick={() => setWithdrawReason(reason)}
-                        className={`w-full p-4 rounded-2xl border text-left text-sm font-bold transition-all ${
-                          withdrawReason === reason 
-                            ? 'border-indigo-600 bg-indigo-50 text-indigo-600' 
-                            : 'border-gray-100 bg-gray-50 text-gray-600 hover:bg-gray-100'
-                        }`}
+                        className={`w-full p-4 rounded-2xl border text-left text-sm font-bold transition-all ${withdrawReason === reason
+                          ? 'border-indigo-600 bg-indigo-50 text-indigo-600'
+                          : 'border-gray-100 bg-gray-50 text-gray-600 hover:bg-gray-100'
+                          }`}
                       >
                         {reason}
                       </button>
@@ -1015,13 +1015,13 @@ export const Settings: React.FC = () => {
                   )}
 
                   <div className="flex gap-3">
-                    <button 
+                    <button
                       onClick={() => setWithdrawStep('confirm')}
                       className="flex-1 py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all"
                     >
                       이전
                     </button>
-                    <button 
+                    <button
                       onClick={() => setWithdrawStep('input')}
                       disabled={!withdrawReason || (withdrawReason === '기타' && !withdrawReasonDetail)}
                       className="flex-1 py-4 bg-gray-900 text-white font-bold rounded-2xl hover:bg-black transition-all shadow-xl disabled:opacity-50"
@@ -1036,12 +1036,12 @@ export const Settings: React.FC = () => {
                 <div>
                   <h3 className="text-2xl font-black text-gray-900 mb-2">확인 문구 입력</h3>
                   <p className="text-sm text-gray-500 mb-8">안전한 탈퇴를 위해 아래 문구를 정확히 입력해주세요.</p>
-                  
+
                   <div className="bg-gray-50 p-4 rounded-2xl text-center mb-6 border border-gray-100">
                     <p className="text-lg font-black text-emerald-600 tracking-wider">탈퇴하겠습니다</p>
                   </div>
 
-                  <input 
+                  <input
                     type="text"
                     value={withdrawInput}
                     onChange={(e) => {
@@ -1053,7 +1053,7 @@ export const Settings: React.FC = () => {
                   />
                   {withdrawError && <p className="text-xs text-red-500 mb-6 ml-2">{withdrawError}</p>}
 
-                  <button 
+                  <button
                     onClick={handleWithdraw}
                     className="w-full py-4 bg-gray-900 text-white font-bold rounded-2xl hover:bg-black transition-all shadow-lg"
                   >
@@ -1068,7 +1068,7 @@ export const Settings: React.FC = () => {
                     <CheckCircle2 className="w-10 h-10 text-emerald-500" />
                   </div>
                   <h3 className="text-2xl font-black text-gray-900 mb-2">탈퇴 처리가 완료되었습니다</h3>
-                  <p className="text-sm text-gray-500">그동안 이용해주셔서 감사합니다.<br/>잠시 후 메인 화면으로 이동합니다.</p>
+                  <p className="text-sm text-gray-500">그동안 이용해주셔서 감사합니다.<br />잠시 후 메인 화면으로 이동합니다.</p>
                 </div>
               )}
             </div>

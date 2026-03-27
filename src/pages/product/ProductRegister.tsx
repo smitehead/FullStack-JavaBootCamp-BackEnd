@@ -7,6 +7,7 @@ import { Camera, Calendar, DollarSign, MapPin, Truck, Info, AlignLeft, Package, 
 import api from '@/services/api';
 import { ProductRequestDto } from '@/types';
 import { getMemberNo } from '@/utils/memberUtils';
+import { showToast } from '@/components/toastService';
 
 export const ProductRegister: React.FC = () => {
   const navigate = useNavigate();
@@ -113,12 +114,12 @@ export const ProductRegister: React.FC = () => {
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (user?.isSuspended) {
-      alert('계정이 정지된 상태에서는 상품을 등록할 수 없습니다.');
+      showToast('계정이 정지된 상태에서는 상품을 등록할 수 없습니다.', 'error');
       return;
     }
     if (e.target.files && e.target.files[0]) {
       if (images.length >= 5) {
-        alert('이미지는 최대 5장까지 등록 가능합니다.');
+        showToast('이미지는 최대 5장까지 등록 가능합니다.', 'error');
         return;
       }
       const file = e.target.files[0];
@@ -137,23 +138,23 @@ export const ProductRegister: React.FC = () => {
     e.preventDefault();
 
     if (user?.isSuspended) {
-      alert('계정이 정지된 상태에서는 상품을 등록할 수 없습니다.');
+      showToast('계정이 정지된 상태에서는 상품을 등록할 수 없습니다.', 'error');
       return;
     }
     // Basic Price Validation
     if (startPrice < 0 || minBidIncrement < 0 || (isInstantPriceEnabled && instantPrice < 0)) {
-      alert('금액은 0원 이상이어야 합니다.');
+      showToast('금액은 0원 이상이어야 합니다.', 'error');
       return;
     }
 
     // Instant Price Validation
     if (isInstantPriceEnabled) {
       if (instantPrice <= startPrice) {
-        alert('즉시 구매가는 경매 시작가보다 커야 합니다.');
+        showToast('즉시 구매가는 경매 시작가보다 커야 합니다.', 'error');
         return;
       }
       if (instantPrice < startPrice + minBidIncrement) {
-        alert(`즉시 구매가는 최소한 시작가(${startPrice.toLocaleString()}원) + 최소 입찰 단위(${minBidIncrement.toLocaleString()}원)인 ${(startPrice + minBidIncrement).toLocaleString()}원 이상이어야 합니다.`);
+        showToast(`즉시 구매가는 최소한 시작가(${startPrice.toLocaleString()}원) + 최소 입찰 단위(${minBidIncrement.toLocaleString()}원)인 ${(startPrice + minBidIncrement).toLocaleString()}원 이상이어야 합니다.`, 'error');
         return;
       }
     }
@@ -161,24 +162,24 @@ export const ProductRegister: React.FC = () => {
     // Bid Increment Validation
     if (startPrice < 10000) {
       if (minBidIncrement % 100 !== 0) {
-        alert('1만원 미만 상품은 100원 단위로 입찰 단위를 설정해주세요.');
+        showToast('1만원 미만 상품은 100원 단위로 입찰 단위를 설정해주세요.', 'error');
         return;
       }
     } else {
       if (minBidIncrement < 1000 || minBidIncrement % 100 !== 0) {
-        alert('1만원 이상 상품은 최소 1,000원 이상이며 100원 단위로 입찰 단위를 설정해주세요.');
+        showToast('1만원 이상 상품은 최소 1,000원 이상이며 100원 단위로 입찰 단위를 설정해주세요.', 'error');
         return;
       }
     }
 
     if (!user) {
-      alert('로그인이 필요합니다.');
+      showToast('로그인이 필요합니다.', 'error');
       return;
     }
 
     try {
       const sellerNo = getMemberNo(user);
-      if (!sellerNo) { alert('로그인 정보를 확인할 수 없습니다.'); return; }
+      if (!sellerNo) { showToast('로그인 정보를 확인할 수 없습니다.', 'error'); return; }
       const categoryNoStr = smallCat || mediumCat || largeCat || 'cat_1';
       const categoryNo = parseInt(categoryNoStr.replace(/[^0-9]/g, '') || '1', 10);
 
@@ -216,11 +217,11 @@ export const ProductRegister: React.FC = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      alert('상품이 성공적으로 등록되었습니다.');
+      showToast('상품이 성공적으로 등록되었습니다.', 'success');
       navigate('/');
     } catch (error) {
       console.error('Failed to register product', error);
-      alert('상품 등록 중 오류가 발생했습니다.');
+      showToast('상품 등록 중 오류가 발생했습니다.', 'error');
     }
   };
 
