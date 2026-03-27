@@ -13,11 +13,10 @@
 ##### 신규 생성
 - **`.env`** — 민감 정보 저장 (git 제외): DB 접속 정보, JWT secret, Gmail SMTP 계정
 - **`ENV_SETUP.md`** — 팀원용 환경변수 설정 가이드
-- **`pom.xml`** — `dotenv-java 3.0.0` 의존성 추가
 
 ##### 수정
 - **`application.properties`** — DB/JWT/SMTP 하드코딩 값 → `${변수명}` 환경변수 참조로 교체
-- **`ProjectApplication.java`** — 서버 시작 시 `.env` 파일 자동 로드
+- **`ProjectApplication.java`** — 서버 시작 시 `.env` 파일을 Java 기본 기능으로 직접 파싱하여 로드 (외부 라이브러리 미사용)
 - **`.gitignore`** — `.env` 추가 (깃 업로드 차단)
 
 ---
@@ -89,7 +88,34 @@
 
 ---
 
-#### 5. 히어로배너 활동 로그 기록
+#### 5. 관리자 JWT 권한 체크 구현
+
+##### 수정
+- **`JwtUtil.java`** — `generateToken(Long memberNo, String userId, Integer isAdmin)` isAdmin 클레임 추가, `getIsAdmin(String token)` 메서드 추가
+- **`AuthServiceImpl.java`** — `generateToken()` 호출 시 `member.getIsAdmin()` 전달
+- **`LoginResponseDto.java`** — `isAdmin` 필드 추가
+- **`JwtAuthenticationFilter.java`** — isAdmin 클레임 추출 후 `ROLE_ADMIN` 또는 `ROLE_USER` 권한 등록
+- **`SecurityConfig.java`** — `/api/admin/**` 경로에 `.hasRole("ADMIN")` 권한 체크 추가
+
+---
+
+#### 5-1. 배너 타입 쿼리 파라미터 필터링
+
+##### 수정
+- **`HeroBannerRepository.java`** — `findActiveBannersByType(String type)` 쿼리 추가 (활성 배너를 타입별로 조회)
+- **`HeroBannerServiceImpl.java`** — `type` 파라미터로 히어로배너/광고배너 분기 처리
+- **`HeroBannerController.java`** — `@RequestParam(required = false) String type` 추가 (`?type=hero`, `?type=ad`)
+
+---
+
+#### 5-2. 만료 배너 자동 비활성화 스케줄러
+
+##### 신규 생성
+- **`BannerScheduler.java`** — 매 1분마다 실행, `endAt`이 지난 활성 배너를 자동으로 `isActive=0` 처리
+
+---
+
+#### 6. 히어로배너 활동 로그 기록
 
 ##### 수정
 - **`HeroBannerController.java`**

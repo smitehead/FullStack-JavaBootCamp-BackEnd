@@ -21,14 +21,14 @@ public class WishlistServiceImpl implements WishlistService {
         Optional<Wishlist> existing = wishlistRepository.findByMemberNoAndProductNo(memberNo, productNo);
         if (existing.isPresent()) {
             wishlistRepository.delete(existing.get());
-            return false; // Removed from wishlist
+            return false; // 위시리스트에서 제거됨
         } else {
             Wishlist wishlist = Wishlist.builder()
                     .memberNo(memberNo)
                     .productNo(productNo)
                     .build();
             wishlistRepository.save(wishlist);
-            return true; // Added to wishlist
+            return true; // 위시리스트에 추가됨
         }
     }
 }

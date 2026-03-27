@@ -34,14 +34,19 @@ public class JwtUtil {
      * @param memberNo 회원번호 (subject로 저장)
      * @param userId   아이디 (추가 claim으로 저장)
      */
-    public String generateToken(Long memberNo, String userId) {
+    public String generateToken(Long memberNo, String userId, Integer isAdmin) {
         return Jwts.builder()
-                .subject(String.valueOf(memberNo)) // 토큰 주체 = 회원번호
-                .claim("userId", userId)           // 추가 정보 = 아이디
-                .issuedAt(new Date())              // 발급 시간
-                .expiration(new Date(System.currentTimeMillis() + expiration)) // 만료 시간
-                .signWith(secretKey)               // 서명
+                .subject(String.valueOf(memberNo))
+                .claim("userId", userId)
+                .claim("isAdmin", isAdmin)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(secretKey)
                 .compact();
+    }
+
+    public int getIsAdmin(String token) {
+        return getClaims(token).get("isAdmin", Integer.class);
     }
 
     /**

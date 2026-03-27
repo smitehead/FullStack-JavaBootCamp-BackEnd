@@ -89,6 +89,7 @@ public class SecurityConfig {
             //    .requestMatchers("/api/admin/**").hasRole("ADMIN")
             //    → Member 엔티티에 role 필드 추가 + JWT 토큰에 role 포함 필요
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().permitAll()
             )
 

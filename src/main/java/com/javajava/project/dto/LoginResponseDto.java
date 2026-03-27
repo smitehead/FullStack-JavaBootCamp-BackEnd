@@ -10,4 +10,5 @@ public class LoginResponseDto {
     private Long memberNo;     // 회원번호
     private String userId;     // 아이디
     private String nickname;   // 닉네임 (화면 표시용)
+    private Integer isAdmin;   // 관리자 여부 (1: 관리자, 0: 일반 유저)
 }

@@ -44,7 +44,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // 5. JWT 토큰 발급
-        String token = jwtUtil.generateToken(member.getMemberNo(), member.getUserId());
+        String token = jwtUtil.generateToken(member.getMemberNo(), member.getUserId(), member.getIsAdmin());
 
         // 6. 동시 로그인 방지: 기존 기기에 SSE로 즉시 강제 로그아웃 이벤트 전송 (연결 중인 경우)
         //    SSE 연결이 없으면 건너뜀 → 이후 API 요청 시 401 인터셉터로 처리됨
@@ -59,6 +59,7 @@ public class AuthServiceImpl implements AuthService {
                 .memberNo(member.getMemberNo())
                 .userId(member.getUserId())
                 .nickname(member.getNickname())
+                .isAdmin(member.getIsAdmin())
                 .build();
     }
 
