@@ -228,7 +228,7 @@ export const ProductRegister: React.FC = () => {
       navigate('/');
     } catch (error) {
       console.error('상품 등록 실패', error);
-      alert('상품 등록 중 오류가 발생했습니다.');
+      showToast('상품 등록 중 오류가 발생했습니다.', 'error');
     }
   };
 

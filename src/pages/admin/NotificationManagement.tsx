@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Bell, Send, Link as LinkIcon, Info, Plus, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/services/api';
+import { showToast } from '@/components/toastService';
 
 interface AdminNotification {
   notiNo: number;
@@ -36,7 +37,7 @@ export const NotificationManagement: React.FC = () => {
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || !link.trim()) {
-      alert('메시지와 링크를 모두 입력해주세요.');
+      showToast('메시지와 링크를 모두 입력해주세요.', 'error');
       return;
     }
 
@@ -51,11 +52,11 @@ export const NotificationManagement: React.FC = () => {
       setLink('');
       setType('시스템');
       setShowForm(false);
-      alert('알림이 성공적으로 전송되었습니다.');
+      showToast('알림이 성공적으로 전송되었습니다.', 'success');
       await fetchRecentNotifications();
     } catch (err) {
       console.error('알림 발송 실패:', err);
-      alert('알림 발송에 실패했습니다.');
+      showToast('알림 발송에 실패했습니다.', 'error');
     } finally {
       setIsSending(false);
     }
@@ -105,8 +106,8 @@ export const NotificationManagement: React.FC = () => {
                       type="button"
                       onClick={() => setType(t.value)}
                       className={`py-2 text-[10px] font-black rounded-none transition-all ${type === t.value
-                          ? 'bg-[#FF5A5A] text-white shadow-lg shadow-red-100'
-                          : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                        ? 'bg-[#FF5A5A] text-white shadow-lg shadow-red-100'
+                        : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
                         }`}
                     >
                       {t.label}
@@ -170,8 +171,8 @@ export const NotificationManagement: React.FC = () => {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-4">
                   <div className={`mt-1 w-8 h-8 rounded-none flex items-center justify-center shrink-0 ${noti.type === '시스템' ? 'bg-blue-50 text-blue-500' :
-                      noti.type === '활동' ? 'bg-purple-50 text-purple-500' :
-                        'bg-orange-50 text-orange-500'
+                    noti.type === '활동' ? 'bg-purple-50 text-purple-500' :
+                      'bg-orange-50 text-orange-500'
                     }`}>
                     <Bell className="w-4 h-4" />
                   </div>

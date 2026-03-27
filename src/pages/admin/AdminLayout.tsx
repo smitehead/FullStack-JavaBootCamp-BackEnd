@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Users, Bell, MessageSquare, Image, Home, LayoutDashboard, LogOut, UserX, Megaphone, Gavel, Thermometer, AlertTriangle, Settings, History } from 'lucide-react';
 import { useAppContext } from '@/context/AppContext';
+import { showToast } from '@/components/toastService';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -15,7 +16,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   useEffect(() => {
     if (!isInitialized) return;
     if (!user || !user.isAdmin) {
-      alert('관리자 권한이 필요합니다.');
+      showToast('관리자 권한이 필요합니다.', 'error');
       navigate('/');
     }
   }, [isInitialized, user, navigate]);
@@ -72,7 +73,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             <span className="text-[10px] font-bold bg-white/10 px-1.5 py-0.5 rounded-none text-gray-300">ADMIN</span>
           </Link>
         </div>
-        
+
         <nav className="flex-1 py-4 px-3 space-y-6 overflow-y-auto scrollbar-hide">
           {menuGroups.map((group) => (
             <div key={group.title} className="space-y-1">
@@ -87,11 +88,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                     <Link
                       key={item.path}
                       to={item.path}
-                      className={`flex items-center space-x-3 px-4 py-2 rounded-none transition-all ${
-                        isActive 
-                          ? 'bg-[#FF5A5A] text-white shadow-md shadow-red-900/20' 
+                      className={`flex items-center space-x-3 px-4 py-2 rounded-none transition-all ${isActive
+                          ? 'bg-[#FF5A5A] text-white shadow-md shadow-red-900/20'
                           : 'text-gray-400 hover:bg-white/5 hover:text-white'
-                      }`}
+                        }`}
                     >
                       <Icon className="w-4 h-4" />
                       <span className="text-[13px] font-bold">{item.label}</span>
@@ -104,14 +104,14 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         </nav>
 
         <div className="p-3 border-t border-white/5 bg-[#141619]">
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="flex items-center space-x-3 px-4 py-2 text-gray-400 hover:text-white transition-colors text-xs"
           >
             <Home className="w-4 h-4" />
             <span className="font-bold">사용자 페이지</span>
           </Link>
-          <button 
+          <button
             onClick={handleLogout}
             className="w-full flex items-center space-x-3 px-4 py-2 text-gray-400 hover:text-white transition-colors mt-0.5 text-xs"
           >

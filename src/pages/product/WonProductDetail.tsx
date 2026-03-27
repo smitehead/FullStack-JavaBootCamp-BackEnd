@@ -6,6 +6,7 @@ import {
   ChevronLeft, ChevronRight, MapPin, CreditCard, MessageSquare,
   CheckCircle2, XCircle, Package, Info, AlertCircle,
 } from 'lucide-react';
+import { showToast } from '@/components/toastService';
 
 interface AuctionResultDetail {
   resultNo: number;
@@ -70,7 +71,7 @@ export const WonProductDetail: React.FC = () => {
         }
       })
       .catch(() => {
-        alert('낙찰 정보를 불러올 수 없습니다.');
+        showToast('낙찰 정보를 불러올 수 없습니다.', 'error');
         navigate(-1);
       })
       .finally(() => setLoading(false));
@@ -93,20 +94,20 @@ export const WonProductDetail: React.FC = () => {
 
   const statusLabel = isPending ? '결제 대기'
     : isPaid ? '결제 완료 (배송 대기)'
-    : isCompleted ? '거래 완료'
-    : '거래 취소';
+      : isCompleted ? '거래 완료'
+        : '거래 취소';
 
   const statusClass = isPending ? 'bg-amber-100 text-amber-600'
     : isPaid ? 'bg-emerald-100 text-emerald-600'
-    : isCompleted ? 'bg-indigo-100 text-indigo-600'
-    : 'bg-gray-100 text-gray-500';
+      : isCompleted ? 'bg-indigo-100 text-indigo-600'
+        : 'bg-gray-100 text-gray-500';
 
   const images = result.images.map(img => resolveImageUrl(img) || img);
 
   // ── 결제 처리 ──────────────────────────────────────────
   const handlePayment = () => {
     if (!isFaceToFace && !address.trim()) {
-      alert('배송지를 입력해주세요.');
+      showToast('배송지를 입력해주세요.', 'error');
       return;
     }
     setShowPaymentConfirm(true);
@@ -122,9 +123,9 @@ export const WonProductDetail: React.FC = () => {
       });
       setResult(prev => prev ? { ...prev, status: '결제완료' } : null);
       setIsEditingAddress(false);
-      alert('결제가 완료되었습니다.');
+      showToast('결제가 완료되었습니다.', 'success');
     } catch {
-      alert('결제 처리 중 오류가 발생했습니다.');
+      showToast('결제 처리 중 오류가 발생했습니다.', 'error');
     } finally {
       setIsProcessing(false);
     }
@@ -138,7 +139,7 @@ export const WonProductDetail: React.FC = () => {
       setResult(prev => prev ? { ...prev, status: '구매확정' } : null);
       setShowReviewModal(true);
     } catch {
-      alert('구매 확정 중 오류가 발생했습니다.');
+      showToast('구매 확정 중 오류가 발생했습니다.', 'error');
     }
   };
 
@@ -149,14 +150,14 @@ export const WonProductDetail: React.FC = () => {
       await api.post(`/auction-results/${result.resultNo}/cancel`);
       setResult(prev => prev ? { ...prev, status: '거래취소' } : null);
     } catch {
-      alert('취소 처리 중 오류가 발생했습니다.');
+      showToast('취소 처리 중 오류가 발생했습니다.', 'error');
     }
   };
 
   // ── 후기 제출 (백엔드 리뷰 API 미구현 → TODO) ──────────
   const handleSubmitReview = () => {
     if (selectedTags.length === 0 && !reviewContent.trim()) {
-      alert('후기 태그를 선택하거나 내용을 입력해주세요.');
+      showToast('후기 태그를 선택하거나 내용을 입력해주세요.', 'error');
       return;
     }
     setIsSubmittingReview(true);
@@ -341,7 +342,7 @@ export const WonProductDetail: React.FC = () => {
                       구매 확정하기
                     </button>
                     <button
-                      onClick={() => alert('판매자에게 환불 요청을 보냈습니다.')}
+                      onClick={() => showToast('판매자에게 환불 요청을 보냈습니다.', 'info')}
                       className="w-full py-5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-2xl transition-all border border-gray-200"
                     >
                       환불 요청
@@ -389,7 +390,7 @@ export const WonProductDetail: React.FC = () => {
 
                 <div className="pt-8 border-t border-white/10">
                   <button
-                    onClick={() => alert('판매자와의 채팅방으로 이동합니다.')}
+                    onClick={() => showToast('판매자와의 채팅방으로 이동합니다.', 'info')}
                     className="w-full py-5 bg-white text-gray-900 font-black rounded-2xl hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
                   >
                     <MessageSquare className="w-5 h-5" />
@@ -498,11 +499,10 @@ export const WonProductDetail: React.FC = () => {
                       onClick={() => setSelectedTags(prev =>
                         prev.includes(tag.content) ? prev.filter(t => t !== tag.content) : [...prev, tag.content]
                       )}
-                      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border ${
-                        selectedTags.includes(tag.content)
+                      className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border ${selectedTags.includes(tag.content)
                           ? 'bg-indigo-600 border-indigo-600 text-white'
                           : 'bg-gray-50 border-gray-100 text-gray-600 hover:bg-gray-100'
-                      }`}
+                        }`}
                     >
                       {tag.content}
                     </button>

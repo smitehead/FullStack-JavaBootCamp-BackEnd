@@ -358,7 +358,7 @@ export const ProductDetail: React.FC = () => {
       }) : null);
     } catch (error) {
       console.error('위시리스트 변경 실패', error);
-      alert('찜하기 처리 중 오류가 발생했습니다.');
+      showToast('찜하기 처리 중 오류가 발생했습니다.', 'error');
     }
   };
 

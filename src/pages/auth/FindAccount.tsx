@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Search, Lock, ChevronLeft, User, Send, CheckCircle2 } from 'lucide-react';
+import { showToast } from '@/components/toastService';
 
 type Tab = 'id' | 'pw';
 
@@ -44,38 +45,38 @@ export const FindAccount: React.FC = () => {
     if (idEmail === 'test@example.com') {
       setFoundId('testuser');
     } else {
-      alert('일치하는 이메일 정보가 없습니다.');
+      showToast('일치하는 이메일 정보가 없습니다.', 'error');
     }
   };
 
   const handleSendCode = () => {
     if (!pwUserId.trim()) {
-      alert('아이디를 먼저 입력해주세요.');
+      showToast('아이디를 먼저 입력해주세요.', 'error');
       return;
     }
     if (pwUserId === 'testuser') {
       const code = Math.floor(1000 + Math.random() * 9000).toString();
       setPwSentCode(code);
       setTimer(180); // 3 minutes
-      alert(`인증번호가 발송되었습니다: ${code} (실제 서비스에서는 등록된 이메일로 발송됩니다)`);
+      showToast(`인증번호가 발송되었습니다: ${code} (실제 서비스에서는 등록된 이메일로 발송됩니다)`, 'info');
     } else {
-      alert('일치하는 아이디 정보가 없습니다.');
+      showToast('일치하는 아이디 정보가 없습니다.', 'error');
     }
   };
 
   const handleVerifyCode = () => {
     if (pwEmailCode === pwSentCode) {
       setIsPwVerified(true);
-      alert('이메일 인증이 완료되었습니다.');
+      showToast('이메일 인증이 완료되었습니다.', 'success');
     } else {
-      alert('인증번호가 틀렸습니다.');
+      showToast('인증번호가 틀렸습니다.', 'error');
     }
   };
 
   const handleFindPw = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isPwVerified) {
-      alert('이메일 인증을 완료해주세요.');
+      showToast('이메일 인증을 완료해주세요.', 'error');
       return;
     }
     setIsPwSuccess(true);
@@ -86,13 +87,13 @@ export const FindAccount: React.FC = () => {
       <div className="max-w-md w-full bg-white rounded-[32px] shadow-xl border border-gray-100 overflow-hidden">
         {/* Tabs */}
         <div className="flex border-b border-gray-100">
-          <button 
+          <button
             onClick={() => setActiveTab('id')}
             className={`flex-1 py-5 text-sm font-black transition-all ${activeTab === 'id' ? 'text-gray-900 bg-white border-b-2 border-[#FF5A5A]' : 'text-gray-400 bg-gray-50/50 hover:bg-gray-50'}`}
           >
             아이디 찾기
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('pw')}
             className={`flex-1 py-5 text-sm font-black transition-all ${activeTab === 'pw' ? 'text-gray-900 bg-white border-b-2 border-[#FF5A5A]' : 'text-gray-400 bg-gray-50/50 hover:bg-gray-50'}`}
           >
@@ -138,13 +139,13 @@ export const FindAccount: React.FC = () => {
                     <p className="text-2xl font-black text-[#FF5A5A] tracking-wider">{foundId}</p>
                   </div>
                   <div className="space-y-3">
-                    <Link 
-                      to="/login" 
+                    <Link
+                      to="/login"
                       className="block w-full py-4 bg-[#FF5A5A] text-white font-black rounded-2xl hover:bg-[#FF4545] transition-all shadow-lg shadow-red-100 text-center"
                     >
                       로그인 하러가기
                     </Link>
-                    <button 
+                    <button
                       onClick={() => setActiveTab('pw')}
                       className="block w-full py-4 bg-gray-50 text-gray-600 font-black rounded-2xl hover:bg-gray-100 transition-all text-center"
                     >
@@ -190,8 +191,8 @@ export const FindAccount: React.FC = () => {
                             placeholder="등록된 이메일로 인증"
                           />
                         </div>
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={handleSendCode}
                           disabled={isPwVerified}
                           className="px-5 py-3.5 bg-gray-900 text-white text-xs font-bold rounded-2xl hover:bg-black transition-all disabled:bg-gray-200"
@@ -216,8 +217,8 @@ export const FindAccount: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                            <button 
-                              type="button" 
+                            <button
+                              type="button"
                               onClick={handleVerifyCode}
                               className="px-5 py-3.5 bg-[#FF5A5A] text-white text-xs font-bold rounded-2xl hover:bg-[#FF4545] transition-all"
                             >
@@ -225,7 +226,7 @@ export const FindAccount: React.FC = () => {
                             </button>
                           </div>
                           <div className="flex justify-center px-1">
-                            <button 
+                            <button
                               type="button"
                               onClick={handleSendCode}
                               className="text-[10px] font-bold text-gray-400 hover:text-gray-600 transition-colors underline underline-offset-2"
@@ -255,12 +256,12 @@ export const FindAccount: React.FC = () => {
                     </div>
                     <p className="text-sm font-bold text-emerald-800 mb-2">임시 비밀번호 전송 완료</p>
                     <p className="text-xs text-emerald-600 leading-relaxed font-medium">
-                      등록된 이메일로 임시 비밀번호가 발송되었습니다.<br/>
+                      등록된 이메일로 임시 비밀번호가 발송되었습니다.<br />
                       로그인 후 반드시 비밀번호를 변경해주세요.
                     </p>
                   </div>
-                  <Link 
-                    to="/login" 
+                  <Link
+                    to="/login"
                     className="block w-full py-4 bg-gray-900 text-white font-black rounded-2xl hover:bg-black transition-all shadow-lg text-center"
                   >
                     로그인 하러가기
@@ -271,7 +272,7 @@ export const FindAccount: React.FC = () => {
           )}
 
           <div className="mt-10 pt-6 border-t border-gray-50 text-center">
-            <button 
+            <button
               onClick={() => navigate('/login')}
               className="inline-flex items-center text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors"
             >

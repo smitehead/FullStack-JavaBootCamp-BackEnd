@@ -201,17 +201,17 @@ export const Settings: React.FC = () => {
       if (passwordData.current === '1234') {
         setPasswordStep('input');
       } else {
-        showToast('현재 비밀번호가 일치하지 않습니다.');
+        showToast('현재 비밀번호가 일치하지 않습니다.', 'error');
       }
       return;
     }
 
     if (passwordData.new !== passwordData.confirm) {
-      showToast('새 비밀번호가 일치하지 않습니다.');
+      showToast('새 비밀번호가 일치하지 않습니다.', 'error');
       return;
     }
     if (!passwordData.new) {
-      showToast('새 비밀번호를 입력해주세요.');
+      showToast('새 비밀번호를 입력해주세요.', 'error');
       return;
     }
     // Mock password change
@@ -228,7 +228,7 @@ export const Settings: React.FC = () => {
   const sendVerificationCode = (type: 'email' | 'password') => {
     setIsCodeSent(true);
     setTimer(180); // 3 minutes
-    showToast('인증번호가 발송되었습니다. (테스트용: 123456)');
+    showToast('인증번호가 발송되었습니다. (테스트용: 123456)', 'success');
   };
 
   const verifyCode = (type: 'email' | 'password') => {
@@ -249,7 +249,7 @@ export const Settings: React.FC = () => {
         setIsCodeSent(false);
       }
     } else {
-      showToast('인증번호가 올바르지 않습니다.');
+      showToast('인증번호가 올바르지 않습니다.', 'error');
     }
   };
 
@@ -967,7 +967,7 @@ export const Settings: React.FC = () => {
                     onClick={() => {
                       const error = validateWithdrawal();
                       if (error) {
-                        alert(error);
+                        showToast(error, 'error');
                       } else {
                         setWithdrawStep('reason');
                       }

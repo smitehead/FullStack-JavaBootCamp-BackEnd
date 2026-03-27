@@ -3,6 +3,7 @@ import { Search, ShieldAlert, Thermometer, Coins, UserX, UserCheck, Shield, User
 import { useSearchParams } from 'react-router-dom';
 import { useAppContext } from '@/context/AppContext';
 import { User, WithdrawnUser } from '@/types';
+import { showToast } from '@/components/toastService';
 
 type UserStatus = '정상' | '정지' | '영구정지' | '탈퇴';
 type SortField = 'mannerTemp' | 'points' | 'joinedAt' | 'role' | 'status' | 'postCount';
@@ -89,19 +90,19 @@ export const UserManagement: React.FC = () => {
 
     if (modalType === 'suspend') {
       if (!suspendReason.trim()) {
-        alert('정지 사유를 입력해주세요.');
+        showToast('정지 사유를 입력해주세요.', 'error');
         return;
       }
       suspendUser(selectedUser.id, suspendDays, suspendReason);
     } else if (modalType === 'manner') {
       if (!mannerReason.trim()) {
-        alert('변경 사유를 입력해주세요.');
+        showToast('변경 사유를 입력해주세요.', 'error');
         return;
       }
       updateUserManner(selectedUser.id, mannerValue, mannerReason);
     } else if (modalType === 'points') {
       if (isNaN(pointAmount) || !Number.isFinite(pointAmount)) {
-        alert('올바른 포인트 금액을 입력해주세요.');
+        showToast('올바른 포인트 금액을 입력해주세요.', 'error');
         return;
       }
       updateUserPoints(selectedUser.id, pointAmount);
@@ -127,13 +128,13 @@ export const UserManagement: React.FC = () => {
 
   const handleRoleChange = (user: User, newIsAdmin: boolean) => {
     if (user.isAdmin === newIsAdmin) {
-      alert(`이미 ${newIsAdmin ? '관리자' : '일반'} 권한입니다.`);
+      showToast(`이미 ${newIsAdmin ? '관리자' : '일반'} 권한입니다.`, 'error');
       return;
     }
 
     if (window.confirm(`정말로 ${newIsAdmin ? '관리자' : '일반'} 권한으로 변경하시겠습니까?`)) {
       updateUserRole(user.id, newIsAdmin);
-      alert('권한이 변경되었습니다.');
+      showToast('권한이 변경되었습니다.', 'success');
     }
   };
 
@@ -332,8 +333,8 @@ export const UserManagement: React.FC = () => {
                 </td>
                 <td className="px-4 py-3">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-black ${user.status === '영구정지' ? 'bg-black text-white' :
-                      user.status === '정지' ? 'bg-red-100 text-red-700' :
-                        'bg-green-100 text-green-700'
+                    user.status === '정지' ? 'bg-red-100 text-red-700' :
+                      'bg-green-100 text-green-700'
                     }`}>
                     {user.status}
                   </span>

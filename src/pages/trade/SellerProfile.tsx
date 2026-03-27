@@ -4,6 +4,7 @@ import { MOCK_PRODUCTS, MOCK_REVIEWS, MOCK_REVIEW_TAGS } from '@/services/mockDa
 import { ProductCard } from '@/components/ProductCard';
 import { Package, MessageSquare, Thermometer, Calendar, User, ChevronRight, AlertCircle, Shield } from 'lucide-react';
 import { Review, User as UserType, Product } from '@/types';
+import { showToast } from '@/components/toastService';
 
 export const SellerProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -95,7 +96,7 @@ export const SellerProfile: React.FC = () => {
                     <button
                       onClick={() => {
                         setIsBlocked(!isBlocked);
-                        alert(`${seller.nickname}님이 ${!isBlocked ? '차단' : '차단 해제'}되었습니다.`);
+                        showToast(`${seller.nickname}님이 ${!isBlocked ? '차단' : '차단 해제'}되었습니다.`, 'success');
                       }}
                       className={`text-xs font-bold transition-colors flex items-center gap-1 ${isBlocked ? 'text-blue-500 hover:text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
                     >

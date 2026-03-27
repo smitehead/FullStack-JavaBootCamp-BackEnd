@@ -4,6 +4,7 @@ import { useAppContext } from '@/context/AppContext';
 import { Report } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { showToast } from '@/components/toastService';
 
 export const ReportManagement: React.FC = () => {
   const { reports, resolveReport, users, products } = useAppContext();
@@ -23,14 +24,14 @@ export const ReportManagement: React.FC = () => {
   const handleResolve = () => {
     if (!selectedReport) return;
     if (!resolveAction.trim()) {
-      alert('처리 내용 및 제재 사유를 입력해주세요.');
+      showToast('처리 내용 및 제재 사유를 입력해주세요.', 'error');
       return;
     }
     resolveReport(selectedReport.id, resolveAction.trim());
     setShowResolveModal(false);
     setSelectedReport(null);
     setResolveAction('');
-    alert('신고 처리가 완료되었습니다.');
+    showToast('신고 처리가 완료되었습니다.', 'success');
   };
 
   const getTargetInfo = (report: Report) => {

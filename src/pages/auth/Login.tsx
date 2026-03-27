@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Package, Mail, Lock, AlertCircle, ChevronRight } from 'lucide-react';
 import { useAppContext } from '@/context/AppContext';
+import { showToast } from '@/components/toastService';
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -37,7 +38,7 @@ export const Login: React.FC = () => {
       navigate('/');
     } else {
       // 로그인 실패
-      alert('아이디 혹은 비밀번호가 잘못되었습니다.');
+      showToast('아이디 혹은 비밀번호가 잘못되었습니다.', 'error');
       setError('아이디 혹은 비밀번호가 일치하지 않습니다.');
     }
   };
@@ -47,7 +48,7 @@ export const Login: React.FC = () => {
       <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-[32px] shadow-xl border border-gray-100">
         <div className="text-center">
           <div className="mx-auto h-16 w-16 bg-[#FF5A5A] rounded-2xl flex items-center justify-center shadow-lg shadow-red-100">
-             <Package className="h-10 w-10 text-white" />
+            <Package className="h-10 w-10 text-white" />
           </div>
           <h2 className="mt-6 text-3xl font-black text-gray-900 tracking-tight">
             로그인
@@ -122,8 +123,8 @@ export const Login: React.FC = () => {
           <p className="text-sm text-gray-500 font-medium">
             아직 회원이 아니신가요?
           </p>
-          <Link 
-            to="/signup" 
+          <Link
+            to="/signup"
             className="mt-4 inline-flex items-center justify-center w-full py-3.5 px-4 border-2 border-gray-100 text-sm font-bold rounded-2xl text-gray-700 hover:bg-gray-50 hover:border-gray-200 transition-all group"
           >
             회원가입 하러가기

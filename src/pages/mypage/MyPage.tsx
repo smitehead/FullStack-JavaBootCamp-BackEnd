@@ -7,6 +7,7 @@ import { Product } from '@/types';
 import api from '@/services/api';
 import { resolveImageUrls } from '@/utils/imageUtils';
 import { getMemberNo } from '@/utils/memberUtils';
+import { showToast } from '@/components/toastService';
 
 /** 백엔드 ProductListResponseDto → 프론트 Product 타입 변환 */
 function mapToProduct(item: any): Product & { bidStatus?: string } {
@@ -138,7 +139,7 @@ export const MyPage: React.FC = () => {
       setDeleteProduct(null);
     } catch (err) {
       console.error('삭제 실패', err);
-      alert('상품 삭제에 실패했습니다.');
+      showToast('상품 삭제에 실패했습니다.', 'error');
     }
   };
 

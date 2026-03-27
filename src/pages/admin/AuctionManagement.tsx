@@ -5,6 +5,7 @@ import { Product } from '@/types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { resolveImageUrl } from '@/utils/imageUtils';
+import { showToast } from '@/components/toastService';
 
 export const AuctionManagement: React.FC = () => {
   const { products, cancelAuction } = useAppContext();
@@ -26,7 +27,7 @@ export const AuctionManagement: React.FC = () => {
       await cancelAuction(selectedProduct.id, '관리자에 의한 강제 종료');
       setShowCancelModal(false);
       setSelectedProduct(null);
-      alert('경매가 강제 종료되었습니다.');
+      showToast('경매가 강제 종료되었습니다.', 'info');
     }
   };
 

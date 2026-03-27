@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ChevronLeft, Camera, X, AlertCircle, CheckCircle2, Send, Info } from 'lucide-react';
 import { InquiryCategory, BugType } from '@/types';
+import { showToast } from '@/components/toastService';
 
 export const InquiryCreate: React.FC = () => {
   const navigate = useNavigate();
@@ -32,13 +33,13 @@ export const InquiryCreate: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!category || !title || !content) return;
-    
+
     setIsSubmitting(true);
-    
+
     // Simulate API call
     setTimeout(() => {
       setIsSubmitting(false);
-      alert('문의가 접수되었습니다. 최대한 빨리 답변해 드리겠습니다.');
+      showToast('문의가 접수되었습니다. 최대한 빨리 답변해 드리겠습니다.', 'info');
       navigate('/inquiry');
     }, 1500);
   };
@@ -66,11 +67,10 @@ export const InquiryCreate: React.FC = () => {
                 key={cat}
                 type="button"
                 onClick={() => setCategory(cat)}
-                className={`px-4 py-3 rounded-2xl text-sm font-bold transition-all border ${
-                  category === cat
+                className={`px-4 py-3 rounded-2xl text-sm font-bold transition-all border ${category === cat
                     ? 'bg-red-50 border-red-200 text-red-500 shadow-sm'
                     : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200 hover:text-gray-600'
-                }`}
+                  }`}
               >
                 {cat}
               </button>
@@ -88,11 +88,10 @@ export const InquiryCreate: React.FC = () => {
                   key={type}
                   type="button"
                   onClick={() => setBugType(type)}
-                  className={`px-4 py-3 rounded-2xl text-sm font-bold transition-all border ${
-                    bugType === type
+                  className={`px-4 py-3 rounded-2xl text-sm font-bold transition-all border ${bugType === type
                       ? 'bg-blue-50 border-blue-200 text-blue-500 shadow-sm'
                       : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200 hover:text-gray-600'
-                  }`}
+                    }`}
                 >
                   {type}
                 </button>
@@ -143,7 +142,7 @@ export const InquiryCreate: React.FC = () => {
                 </button>
               </div>
             ))}
-            
+
             {images.length < 5 && (
               <button
                 type="button"
@@ -174,11 +173,10 @@ export const InquiryCreate: React.FC = () => {
           <button
             type="submit"
             disabled={isSubmitting || !category || !title || !content}
-            className={`w-full py-5 rounded-2xl font-black text-lg shadow-xl transition-all flex items-center justify-center gap-3 ${
-              isSubmitting || !category || !title || !content
+            className={`w-full py-5 rounded-2xl font-black text-lg shadow-xl transition-all flex items-center justify-center gap-3 ${isSubmitting || !category || !title || !content
                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 : 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/20 active:scale-[0.98]'
-            }`}
+              }`}
           >
             {isSubmitting ? (
               <>

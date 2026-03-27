@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ChevronLeft, Send, Info, CheckCircle2, Camera, X, Plus } from 'lucide-react';
+import { showToast } from '@/components/toastService';
 
 export const Report: React.FC = () => {
   const navigate = useNavigate();
@@ -8,7 +9,7 @@ export const Report: React.FC = () => {
   const productId = searchParams.get('productId');
   const sellerId = searchParams.get('sellerId');
   const sellerNickname = searchParams.get('sellerNickname');
-  
+
   const [reason, setReason] = useState('');
   const [details, setDetails] = useState('');
   const [images, setImages] = useState<File[]>([]);
@@ -18,7 +19,7 @@ export const Report: React.FC = () => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
       if (images.length + newFiles.length > 5) {
-        alert('최대 5장까지 업로드 가능합니다.');
+        showToast('최대 5장까지 업로드 가능합니다.', 'error');
         return;
       }
       setImages(prev => [...prev, ...newFiles]);
@@ -32,7 +33,7 @@ export const Report: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!reason) {
-      alert('신고 사유를 선택해주세요.');
+      showToast('신고 사유를 선택해주세요.', 'error');
       return;
     }
     // Simulate API call
@@ -67,8 +68,8 @@ export const Report: React.FC = () => {
           </div>
           <h2 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">신고 접수 완료</h2>
           <p className="text-gray-500 font-medium leading-relaxed">
-            신고가 정상적으로 접수되었습니다.<br/>
-            운영팀에서 검토 후 조치하겠습니다.<br/>
+            신고가 정상적으로 접수되었습니다.<br />
+            운영팀에서 검토 후 조치하겠습니다.<br />
             <span className="text-xs text-gray-400 mt-4 block">잠시 후 이전 페이지로 이동합니다.</span>
           </p>
         </div>
@@ -79,7 +80,7 @@ export const Report: React.FC = () => {
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gray-50 py-12 px-4">
       <div className="max-w-xl mx-auto">
-        <button 
+        <button
           onClick={() => navigate(-1)}
           className="flex items-center text-sm font-bold text-gray-400 hover:text-gray-900 transition-colors mb-6 group"
         >
@@ -138,9 +139,9 @@ export const Report: React.FC = () => {
                 <div className="flex flex-wrap gap-3">
                   {images.map((file, idx) => (
                     <div key={idx} className="relative w-20 h-20 rounded-xl overflow-hidden border border-gray-100 group">
-                      <img 
-                        src={URL.createObjectURL(file) || undefined} 
-                        alt={`upload-${idx}`} 
+                      <img
+                        src={URL.createObjectURL(file) || undefined}
+                        alt={`upload-${idx}`}
                         className="w-full h-full object-cover"
                       />
                       <button
@@ -156,11 +157,11 @@ export const Report: React.FC = () => {
                     <label className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-red-300 hover:bg-red-50 transition-all group">
                       <Camera className="w-6 h-6 text-gray-400 group-hover:text-red-500 transition-colors" />
                       <span className="text-[10px] font-bold text-gray-400 group-hover:text-red-500 transition-colors">사진 추가</span>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        multiple 
-                        className="hidden" 
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
                         onChange={handleImageChange}
                       />
                     </label>
@@ -172,7 +173,7 @@ export const Report: React.FC = () => {
                 <div className="flex gap-3">
                   <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-800 leading-relaxed font-medium">
-                    허위 신고로 판명될 경우 서비스 이용에 제한이 있을 수 있습니다. 
+                    허위 신고로 판명될 경우 서비스 이용에 제한이 있을 수 있습니다.
                     신고 내용은 운영팀에서 신중하게 검토하겠습니다.
                   </p>
                 </div>

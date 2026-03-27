@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { CURRENT_USER, MOCK_PRODUCTS, MOCK_REVIEW_TAGS } from '@/services/mockData';
 import { Product } from '@/types';
 import { ChevronLeft, Star, Camera, CheckCircle2, Package, User } from 'lucide-react';
+import { showToast } from '@/components/toastService';
 
 export const ReviewCreate: React.FC = () => {
   const { orderId } = useParams<{ orderId: string }>();
@@ -38,7 +39,7 @@ export const ReviewCreate: React.FC = () => {
 
   const handleSubmit = () => {
     if (selectedTags.length === 0 && !content.trim()) {
-      alert('후기 태그를 선택하거나 내용을 입력해주세요.');
+      showToast('후기 태그를 선택하거나 내용을 입력해주세요.', 'error');
       return;
     }
 
@@ -90,8 +91,8 @@ export const ReviewCreate: React.FC = () => {
                   key={tag.id}
                   onClick={() => toggleTag(tag.content)}
                   className={`px-5 py-2.5 rounded-2xl text-sm font-bold transition-all border ${selectedTags.includes(tag.content)
-                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100'
-                      : 'bg-gray-50 border-gray-100 text-gray-600 hover:bg-gray-100'
+                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100'
+                    : 'bg-gray-50 border-gray-100 text-gray-600 hover:bg-gray-100'
                     }`}
                 >
                   {tag.content}

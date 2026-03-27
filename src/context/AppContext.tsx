@@ -4,6 +4,7 @@ import { NOTIFICATIONS as INITIAL_NOTIFICATIONS, MOCK_CHATS as INITIAL_CHATS, CU
 import api from '@/services/api';
 import { BACKEND_URL } from '@/utils/imageUtils';
 import { getMemberNo } from '@/utils/memberUtils';
+import { showToast } from '@/components/toastService';
 
 // ── API 응답 → 프론트 타입 변환 헬퍼 ──
 
@@ -355,7 +356,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await refreshActivityLogs();
     } catch (err) {
       console.error('정지 처리 실패:', err);
-      alert('정지 처리에 실패했습니다.');
+      showToast('정지 처리에 실패했습니다.', 'error');
     }
   };
 
@@ -367,7 +368,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await refreshActivityLogs();
     } catch (err) {
       console.error('정지 해제 실패:', err);
-      alert('정지 해제에 실패했습니다.');
+      showToast('정지 해제에 실패했습니다.', 'error');
     }
   };
 
@@ -383,7 +384,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await refreshActivityLogs();
     } catch (err) {
       console.error('경매 강제 종료 실패:', err);
-      alert('경매 강제 종료에 실패했습니다.');
+      showToast('경매 강제 종료에 실패했습니다.', 'error');
     }
   };
 
@@ -398,7 +399,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await refreshActivityLogs();
     } catch (err) {
       console.error('신고 처리 실패:', err);
-      alert('신고 처리에 실패했습니다.');
+      showToast('신고 처리에 실패했습니다.', 'error');
     }
   };
 
@@ -434,7 +435,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await refreshActivityLogs();
     } catch (err) {
       console.error('권한 변경 실패:', err);
-      alert('권한 변경에 실패했습니다.');
+      showToast('권한 변경에 실패했습니다.', 'error');
     }
   };
 
@@ -449,7 +450,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await refreshActivityLogs();
     } catch (err) {
       console.error('매너온도 변경 실패:', err);
-      alert('매너온도 변경에 실패했습니다.');
+      showToast('매너온도 변경에 실패했습니다.', 'error');
     }
   };
 
@@ -461,7 +462,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       await refreshActivityLogs();
     } catch (err) {
       console.error('포인트 변경 실패:', err);
-      alert('포인트 변경에 실패했습니다.');
+      showToast('포인트 변경에 실패했습니다.', 'error');
     }
   };
 
