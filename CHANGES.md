@@ -174,10 +174,6 @@
 
 ---
 
-## 날짜: 2026-03-25
-
----
-
 ### 8. 김태우 커밋 반영 (ba24831)
 
 > SSE 최적화, 데드락 방지, 이미지 처리 개선, 무한스크롤/정렬 추가
@@ -272,3 +268,13 @@
 
 ### 5. JWT 인증 필요 API
 - 로그인 후 받은 token을 Header에 추가: `Authorization: Bearer {token}`
+
+## 날짜: 2026-03-25
+
+CORS 설정 수정 (와일드카드 → 실제 도메인)
+memberNo 보안 취약점 수정 (클라이언트 전달 → Authentication 서버 추출)
+테스트 엔드포인트 제거 (NotificationController)
+AuctionScheduler 실행 주기 수정 (1초 → 30초)
+예외 무시 패턴 개선 (BidServiceImpl)
+상품 목록 N+1 쿼리 제거
+동시 회원가입 중복 방지 핸들러 추가
