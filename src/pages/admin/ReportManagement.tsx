@@ -21,12 +21,16 @@ export const ReportManagement: React.FC = () => {
   });
 
   const handleResolve = () => {
-    if (selectedReport) {
-      resolveReport(selectedReport.id, '신고 검토 및 처리 완료');
-      setShowResolveModal(false);
-      setSelectedReport(null);
-      alert('신고 처리가 완료되었습니다.');
+    if (!selectedReport) return;
+    if (!resolveAction.trim()) {
+      alert('처리 내용 및 제재 사유를 입력해주세요.');
+      return;
     }
+    resolveReport(selectedReport.id, resolveAction.trim());
+    setShowResolveModal(false);
+    setSelectedReport(null);
+    setResolveAction('');
+    alert('신고 처리가 완료되었습니다.');
   };
 
   const getTargetInfo = (report: Report) => {
@@ -187,7 +191,7 @@ export const ReportManagement: React.FC = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowResolveModal(false)}
+              onClick={() => { setShowResolveModal(false); setResolveAction(''); }}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
             <motion.div
@@ -217,11 +221,20 @@ export const ReportManagement: React.FC = () => {
                   <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">상세 내용</p>
                   <p className="text-sm font-medium text-gray-600">{selectedReport.details}</p>
                 </div>
+                <div>
+                  <label className="block text-xs font-black text-gray-700 mb-2">처리 내용 / 제재 사유 <span className="text-[#FF5A5A]">*</span></label>
+                  <textarea
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-none focus:outline-none focus:ring-2 focus:ring-[#FF5A5A] font-medium text-sm resize-none h-24"
+                    placeholder="처리 내용 및 피신고자에게 전달할 제재 사유를 입력하세요"
+                    value={resolveAction}
+                    onChange={(e) => setResolveAction(e.target.value)}
+                  />
+                </div>
               </div>
 
               <div className="flex gap-3 pt-2">
                 <button
-                  onClick={() => setShowResolveModal(false)}
+                  onClick={() => { setShowResolveModal(false); setResolveAction(''); }}
                   className="flex-1 py-4 bg-gray-100 text-gray-500 font-black rounded-none hover:bg-gray-200 transition-all active:scale-95"
                 >
                   취소
