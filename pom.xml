@@ -78,9 +78,9 @@
 
                 <!-- .env 파일 로드 -->
                 <dependency>
-                        <groupId>me.paulschwarz</groupId>
-                        <artifactId>spring-dotenv</artifactId>
-                        <version>4.0.0</version>
+                        <groupId>io.github.cdimascio</groupId>
+                        <artifactId>dotenv-java</artifactId>
+                        <version>3.0.0</version>
                 </dependency>
 
                 <!-- JWT 토큰 생성/검증 라이브러리 -->
