@@ -612,8 +612,8 @@ export const ProductDetail: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <LineChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                       <XAxis dataKey="time" tick={{ fontSize: 10 }} stroke="#9ca3af" />
