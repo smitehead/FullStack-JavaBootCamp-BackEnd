@@ -1,5 +1,6 @@
 package com.javajava.project.service;
 
+import com.javajava.project.dto.AdminProductResponseDto;
 import com.javajava.project.dto.ProductRequestDto;
 import com.javajava.project.dto.ProductResponseDto;
 import com.javajava.project.dto.ProductDetailResponseDto; // 추가
@@ -43,4 +44,10 @@ public interface ProductService {
 
     // 상품 삭제 (soft delete)
     void deleteProduct(Long productNo, Long memberNo);
+
+    // 관리자: 전체 상품 목록 (삭제 제외)
+    List<AdminProductResponseDto> getAllProductsForAdmin();
+
+    // 관리자: 경매 강제 종료
+    void cancelAuctionByAdmin(Long productNo);
 }

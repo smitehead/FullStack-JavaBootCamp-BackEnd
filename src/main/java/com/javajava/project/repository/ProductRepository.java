@@ -29,4 +29,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
     // 종료 시간이 지났지만 아직 진행 중(status=0)인 상품 조회 → 스케줄러용
     List<Product> findByEndTimeBeforeAndStatus(LocalDateTime now, Integer status);
+
+    // 관리자용: 삭제되지 않은 전체 상품 조회 (최신순)
+    List<Product> findByIsDeletedOrderByCreatedAtDesc(Integer isDeleted);
 }

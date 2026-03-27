@@ -55,7 +55,25 @@
 
 ---
 
-### 4. 히어로배너 활동 로그 기록
+### 4. 경매 관리 API
+
+#### 신규 생성
+- **`AdminProductResponseDto.java`** — 관리자용 상품 응답 DTO (productNo, title, sellerNickname, 가격, 참여자수, status)
+- **`AdminProductController.java`** — 경매 관리 컨트롤러
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/admin/products` | 전체 상품 목록 (삭제 제외, 최신순) |
+| PUT | `/api/admin/products/{productNo}/cancel` | 경매 강제 종료 + 활동 로그 기록 |
+
+#### 수정
+- **`ProductService.java`** — `getAllProductsForAdmin()`, `cancelAuctionByAdmin()` 인터페이스 추가
+- **`ProductServiceImpl.java`** — 구현 추가 (판매자 닉네임/이미지/참여자수 배치 쿼리, 진행중 경매만 취소 가능)
+- **`ProductRepository.java`** — `findByIsDeletedOrderByCreatedAtDesc()` 추가
+
+---
+
+### 5. 히어로배너 활동 로그 기록
 
 #### 수정
 - **`HeroBannerController.java`**
