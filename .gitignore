@@ -36,6 +36,9 @@ build/
 hs_err_pid*.log
 replay_pid*.log
 
+### 환경변수 ###
+.env
+
 ### 로컬 전용 문서 ###
 PENDING.md
 FLOW.md
