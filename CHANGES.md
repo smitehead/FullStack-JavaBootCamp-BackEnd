@@ -278,3 +278,72 @@ AuctionScheduler 실행 주기 수정 (1초 → 30초)
 예외 무시 패턴 개선 (BidServiceImpl)
 상품 목록 N+1 쿼리 제거
 동시 회원가입 중복 방지 핸들러 추가
+
+---
+
+## 날짜: 2026-03-27 (낙찰 페이지 구현 및 버그 수정)
+
+---
+
+### 12. @EnableScheduling 누락 수정
+
+#### 수정
+- **`ProjectApplication.java`** — `@EnableScheduling` 추가
+  - 누락으로 인해 `AuctionScheduler`의 `@Scheduled` 메서드가 아예 실행되지 않던 문제 수정
+  - 추가 후 30초마다 경매 종료 자동 낙찰 처리 정상 동작
+
+---
+
+### 13. AuctionResult 전체 스택 신규 구현
+
+#### 신규 생성
+- **`AuctionResultResponseDto.java`** — 낙찰 결과 응답 DTO (resultNo, status, finalPrice, tradeType, images, seller, deliveryAddrDetail 등)
+- **`AuctionResultService.java`** — 서비스 인터페이스
+- **`AuctionResultServiceImpl.java`** — 서비스 구현체 (낙찰자 본인 확인, 상태 전이 검증)
+- **`AuctionResultController.java`** — 컨트롤러
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| GET | `/api/auction-results/product/{productNo}` | 낙찰 결과 상세 조회 (낙찰자 본인만) |
+| POST | `/api/auction-results/{resultNo}/pay` | 결제 처리 (배송대기 → 결제완료) |
+| POST | `/api/auction-results/{resultNo}/confirm` | 구매 확정 (결제완료 → 구매확정) |
+| POST | `/api/auction-results/{resultNo}/cancel` | 거래 취소 |
+
+#### 수정
+- **`AuctionResultServiceImpl.java`** — `processPayment()` address 미저장 버그 수정 (`address + " " + addressDetail` 합쳐서 저장)
+
+---
+
+### 14. 판매자 포인트 지급 구현
+
+#### 수정
+- **`AuctionResultServiceImpl.java`** — `processPayment()`에 판매자 포인트 지급 로직 추가
+  - 결제 시 낙찰 금액을 판매자 포인트에 지급
+  - `PointHistory` 타입 `"낙찰대금수령"` 으로 이력 기록
+- **`PointHistoryRepository`** 의존성 추가
+
+---
+
+### 15. 마이페이지 입찰·구매 탭 분리 백엔드 지원
+
+#### 신규 생성
+- **`BidHistoryRepository.java`** — 낙찰 여부 배치 조회 쿼리 3개 추가
+  - `findWonProductNosByMemberNo()` — 내가 낙찰받은 상품 번호 전체
+  - `findWonProductNosInList()` — 특정 상품 목록에서 낙찰받은 것만 (N+1 방지 배치)
+  - `findWinnerByProductNo()` — 특정 상품의 낙찰 입찰 기록
+
+#### 수정
+- **`ProductListResponseDto.java`** — `bidStatus` 필드 추가 (`"bidding"` / `"won"` / `"lost"`)
+- **`ProductServiceImpl.java`**
+  - `getMyBiddingProducts()` — 입찰 내역 + bidStatus 계산 (`toProductListDtosWithBidStatus()`)
+  - `getMyPurchasedProducts()` — 구매확정 완료 상품만 반환 신규 추가
+- **`ProductService.java`** — `getMyPurchasedProducts()` 인터페이스 추가
+- **`ProductController.java`** — `GET /api/products/my-purchased` 엔드포인트 추가
+
+---
+
+### 16. GlobalExceptionHandler SSE 충돌 수정
+
+#### 수정
+- **`GlobalExceptionHandler.java`** — `AsyncRequestTimeoutException` 전용 핸들러 추가
+  - SSE 연결 타임아웃 시 JSON 응답 시도로 발생하던 `HttpMessageNotWritableException` 방지

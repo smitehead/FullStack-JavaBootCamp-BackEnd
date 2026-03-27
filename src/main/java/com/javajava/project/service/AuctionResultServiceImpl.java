@@ -4,6 +4,7 @@ import com.javajava.project.dto.AuctionResultResponseDto;
 import com.javajava.project.entity.AuctionResult;
 import com.javajava.project.entity.BidHistory;
 import com.javajava.project.entity.Member;
+import com.javajava.project.entity.PointHistory;
 import com.javajava.project.entity.Product;
 import com.javajava.project.entity.ProductImage;
 import com.javajava.project.repository.*;
@@ -25,6 +26,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
     private final ProductRepository productRepository;
     private final MemberRepository memberRepository;
     private final ProductImageRepository productImageRepository;
+    private final PointHistoryRepository pointHistoryRepository;
 
     @Override
     public AuctionResultResponseDto getAuctionResultByProductNo(Long productNo, Long memberNo) {
@@ -85,8 +87,29 @@ public class AuctionResultServiceImpl implements AuctionResultService {
             throw new IllegalStateException("현재 상태에서는 결제할 수 없습니다. 현재 상태: " + result.getStatus());
         }
 
+        // 입찰 기록 → 상품 → 판매자 조회
+        BidHistory bid = bidHistoryRepository.findById(result.getBidNo())
+                .orElseThrow(() -> new IllegalArgumentException("입찰 기록을 찾을 수 없습니다."));
+        Product product = productRepository.findById(bid.getProductNo())
+                .orElseThrow(() -> new IllegalArgumentException("상품 정보를 찾을 수 없습니다."));
+        Member seller = memberRepository.findById(product.getSellerNo())
+                .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
+
+        // 낙찰 금액을 판매자 포인트에 지급
+        seller.setPoints(seller.getPoints() + bid.getBidPrice());
+        pointHistoryRepository.save(PointHistory.builder()
+                .memberNo(seller.getMemberNo())
+                .type("낙찰대금수령")
+                .amount(bid.getBidPrice())
+                .balance(seller.getPoints())
+                .reason("[" + product.getTitle() + "] 낙찰 대금 수령")
+                .build());
+
         result.setStatus("결제완료");
-        result.setDeliveryAddrDetail(addressDetail);
+        String fullAddr = (address != null && !address.isBlank())
+                ? (addressDetail != null && !addressDetail.isBlank() ? address + " " + addressDetail : address)
+                : addressDetail;
+        result.setDeliveryAddrDetail(fullAddr);
     }
 
     @Override

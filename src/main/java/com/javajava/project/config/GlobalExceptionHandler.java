@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -82,6 +83,14 @@ public class GlobalExceptionHandler {
      * 발생 시점: 예상치 못한 서버 오류
      * 응답 형태: { "error": "서버 오류가 발생했습니다." }
      */
+    /**
+     * SSE 연결 타임아웃 처리 — JSON 응답 시도 시 text/event-stream 컨버터 충돌 방지
+     */
+    @ExceptionHandler(AsyncRequestTimeoutException.class)
+    public void handleAsyncTimeout(AsyncRequestTimeoutException ex) {
+        // SSE 연결 타임아웃은 정상적인 종료이므로 별도 응답 없이 무시
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleException(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
