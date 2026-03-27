@@ -109,7 +109,7 @@ export interface Product {
   winnerId?: string;
 }
 
-export type NotificationType = "bid" | "activity";
+export type NotificationType = "bid" | "activity" | "제재" | "제재해제";
 
 export interface Notification {
   id: string;

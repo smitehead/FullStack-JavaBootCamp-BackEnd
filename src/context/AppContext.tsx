@@ -182,6 +182,26 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     });
 
+    // 실시간 알림 수신
+    eventSource.addEventListener('notification', (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data && data.notiNo) {
+          const newNoti: Notification = {
+            id: String(data.notiNo),
+            message: data.content,
+            read: false,
+            link: data.linkUrl || '/',
+            createdAt: data.createdAt,
+            type: data.type as NotificationType,
+          };
+          setNotifications(prev => [newNoti, ...prev]);
+        }
+      } catch (e) {
+        console.error('[SSE] notification 파싱 오류', e);
+      }
+    });
+
     // 다른 기기에서 로그인 시 즉시 강제 로그아웃 처리
     eventSource.addEventListener('forceLogout', () => {
       eventSource.close();
