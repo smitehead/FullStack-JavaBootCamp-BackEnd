@@ -4,30 +4,30 @@
 
 ## 날짜: 2026-03-27
 
+### [백엔드]
+
 ---
 
-### 0. 환경변수 분리 (.env)
+#### 0. 환경변수 분리 (.env)
 
-#### 신규 생성
+##### 신규 생성
 - **`.env`** — 민감 정보 저장 (git 제외): DB 접속 정보, JWT secret, Gmail SMTP 계정
-- **`pom.xml`** — `spring-dotenv 4.0.0` 의존성 추가
+- **`ENV_SETUP.md`** — 팀원용 환경변수 설정 가이드
+- **`pom.xml`** — `dotenv-java 3.0.0` 의존성 추가
 
-#### 수정
+##### 수정
 - **`application.properties`** — DB/JWT/SMTP 하드코딩 값 → `${변수명}` 환경변수 참조로 교체
+- **`ProjectApplication.java`** — 서버 시작 시 `.env` 파일 자동 로드
 - **`.gitignore`** — `.env` 추가 (깃 업로드 차단)
 
 ---
 
-## 날짜: 2026-03-27
+#### 1. 이메일 인증 SMTP 구현
 
----
-
-### 1. 이메일 인증 SMTP 구현
-
-#### 신규 생성
+##### 신규 생성
 - **`EmailService.java`** — 인증번호 생성(6자리)/발송/검증, ConcurrentHashMap 메모리 저장, 3분 만료
 
-#### 수정
+##### 수정
 - **`pom.xml`** — `spring-boot-starter-mail` 의존성 추가
 - **`application.properties`** — Gmail SMTP 설정 추가
 - **`AuthController.java`** — 엔드포인트 2개 추가
@@ -39,9 +39,9 @@
 
 ---
 
-### 2. 관리자 활동 로그 조회 API
+#### 2. 관리자 활동 로그 조회 API
 
-#### 신규 생성
+##### 신규 생성
 - **`ActivityLogResponseDto.java`** — 활동 로그 응답 DTO (`from(ActivityLog)` + `setAdminNickname`)
 - **`AdminActivityLogController.java`** — 활동 로그 조회 컨트롤러
 
@@ -50,15 +50,15 @@
 | GET | `/api/admin/activity-logs` | 전체 활동 로그 (최신순) |
 | GET | `/api/admin/activity-logs?targetType={type}` | 대상 유형별 필터 |
 
-#### 수정
+##### 수정
 - **`AdminService.java`** — `getAllActivityLogs()`, `getActivityLogsByTargetType()` 인터페이스 추가
 - **`AdminServiceImpl.java`** — 구현 추가 (관리자 닉네임 조회 포함)
 
 ---
 
-### 3. 관리자 알림 관리 API
+#### 3. 관리자 알림 관리 API
 
-#### 신규 생성
+##### 신규 생성
 - **`AdminNotificationController.java`** — 관리자 알림 관리 컨트롤러
 
 | 메서드 | 경로 | 설명 |
@@ -66,14 +66,14 @@
 | POST | `/api/admin/notifications/broadcast` | 전체 활성 회원에게 알림 발송 + 활동 로그 기록 |
 | GET | `/api/admin/notifications/recent` | 최근 발송 알림 50건 조회 |
 
-#### 수정
+##### 수정
 - **`NotificationService.java`** — `getAllRecentNotifications(int limit)` 메서드 추가
 
 ---
 
-### 4. 경매 관리 API
+#### 4. 경매 관리 API
 
-#### 신규 생성
+##### 신규 생성
 - **`AdminProductResponseDto.java`** — 관리자용 상품 응답 DTO (productNo, title, sellerNickname, 가격, 참여자수, status)
 - **`AdminProductController.java`** — 경매 관리 컨트롤러
 
@@ -82,16 +82,16 @@
 | GET | `/api/admin/products` | 전체 상품 목록 (삭제 제외, 최신순) |
 | PUT | `/api/admin/products/{productNo}/cancel` | 경매 강제 종료 + 활동 로그 기록 |
 
-#### 수정
+##### 수정
 - **`ProductService.java`** — `getAllProductsForAdmin()`, `cancelAuctionByAdmin()` 인터페이스 추가
 - **`ProductServiceImpl.java`** — 구현 추가 (판매자 닉네임/이미지/참여자수 배치 쿼리, 진행중 경매만 취소 가능)
 - **`ProductRepository.java`** — `findByIsDeletedOrderByCreatedAtDesc()` 추가
 
 ---
 
-### 5. 히어로배너 활동 로그 기록
+#### 5. 히어로배너 활동 로그 기록
 
-#### 수정
+##### 수정
 - **`HeroBannerController.java`**
   - `ActivityLogRepository` 의존성 추가
   - 모든 CRUD 엔드포인트에 `Authentication` 파라미터 추가
@@ -100,21 +100,29 @@
 
 ---
 
-## 날짜: 2026-03-26
+### [프론트엔드]
+
+- 없음
 
 ---
 
-### 5. 배너 이미지 파일 업로드 지원
+## 날짜: 2026-03-26
 
-#### 수정
+### [백엔드]
+
+---
+
+#### 5. 배너 이미지 파일 업로드 지원
+
+##### 수정
 - **`FileStore.java`** — `storeGenericFile()` 메서드 추가 (배너/프로필 등 범용 이미지 저장, UUID 파일명 반환)
 - **`ImageController.java`** — `POST /api/images/upload` 엔드포인트 추가 (`MultipartFile → { "url": "/api/images/uuid.jpg" }`)
 
 ---
 
-### 6. 관리자 페이지 4대 기능 일괄 구현
+#### 6. 관리자 페이지 4대 기능 일괄 구현
 
-#### 신규 생성
+##### 신규 생성
 
 **DTO (7개)**
 
@@ -141,7 +149,7 @@
 - `AdminMemberController.java` (`/api/admin/members`) — 회원 관리 API
 - `AdminReportController.java` (`/api/admin/reports`) — 신고 관리 API
 
-#### API 엔드포인트
+##### API 엔드포인트
 
 **회원 관리 (`/api/admin/members`)**
 
@@ -162,21 +170,20 @@
 | GET | `/api/admin/reports?status=접수` | 신고 목록 (상태 필터) |
 | PUT | `/api/admin/reports/{reportNo}/resolve` | 신고 처리 (상태변경 + 제재 + 알림) |
 
-#### 기존 파일 수정
-
+##### 기존 파일 수정
 - **`MemberRepository.java`** — `findAllByOrderByJoinedAtDesc()`, `searchByKeyword()`, `findByNickname()` 추가
 - **`MannerHistoryRepository.java`** — `findAllByOrderByCreatedAtDesc()` 추가
 
-#### 부가 기능
+##### 부가 기능
 - **활동 로그 자동 기록**: 모든 관리자 액션 시 `ActivityLog` 테이블에 자동 기록
 - **알림 자동 발송**: 정지/해제/신고처리 시 대상 회원에게 SSE 실시간 알림
 - **매너온도 이력**: 변경 시 `MannerHistory` 테이블에 변동 전/후 온도 + 사유 기록
 
 ---
 
-### 7. 배너 관리 API 보완
+#### 7. 배너 관리 API 보완
 
-#### 수정
+##### 수정
 - **`HeroBanner.java`** — `BANNER_TYPE` 컬럼 추가 (`VARCHAR2(10)`, 기본값 `"hero"`)
 - **`HeroBannerRequestDto.java`** — `bannerType` 필드 추가
 - **`HeroBannerResponseDto.java`** — `bannerType` 필드 추가
@@ -190,7 +197,7 @@
 
 ---
 
-### 8. 김태우 커밋 반영 (ba24831)
+#### 8. 김태우 커밋 반영 (ba24831)
 
 > SSE 최적화, 데드락 방지, 이미지 처리 개선, 무한스크롤/정렬 추가
 
@@ -205,13 +212,39 @@
 
 ---
 
-## 날짜: 2026-03-24
+### [프론트엔드]
+
+- 없음
 
 ---
 
-### 9. 다기기 동시 로그인 방지 구현
+## 날짜: 2026-03-25
 
-#### 수정
+### [백엔드]
+
+- CORS 설정 수정 (와일드카드 → 실제 도메인)
+- memberNo 보안 취약점 수정 (클라이언트 전달 → Authentication 서버 추출)
+- 테스트 엔드포인트 제거 (NotificationController)
+- AuctionScheduler 실행 주기 수정 (1초 → 30초)
+- 예외 무시 패턴 개선 (BidServiceImpl)
+- 상품 목록 N+1 쿼리 제거
+- 동시 회원가입 중복 방지 핸들러 추가
+
+### [프론트엔드]
+
+- 없음
+
+---
+
+## 날짜: 2026-03-24
+
+### [백엔드]
+
+---
+
+#### 9. 다기기 동시 로그인 방지 구현
+
+##### 수정
 - **`Member.java`** — `currentToken` 필드 추가 (`CURRENT_TOKEN VARCHAR2(500)`, nullable)
 - **`AuthService.java`** — `logout(Long memberNo)` 메서드 추가
 - **`AuthServiceImpl.java`** — 로그인 시 `currentToken` 저장, 로그아웃 시 null 초기화, `SseService.sendForceLogout()` 호출
@@ -221,9 +254,9 @@
 
 ---
 
-### 10. 알림함 API 구현
+#### 10. 알림함 API 구현
 
-#### 신규 생성
+##### 신규 생성
 - **`NotificationResponseDto.java`** — 알림 응답 DTO
 - **`NotificationController.java`** — 알림 CRUD 컨트롤러
 
@@ -234,15 +267,15 @@
 | PATCH | `/api/notifications/{notiNo}/read` | 단일 알림 읽음 처리 |
 | PATCH | `/api/notifications/read-all` | 전체 알림 읽음 처리 |
 
-#### 수정
+##### 수정
 - **`NotificationRepository.java`** — `markAllAsRead()` JPQL UPDATE 추가
 - **`NotificationService.java`** — `getNotifications()`, `getUnreadCount()`, `markAllAsRead()` 추가
 
 ---
 
-### 11. JWT 인증 + 보안 구현
+#### 11. JWT 인증 + 보안 구현
 
-#### 신규 생성
+##### 신규 생성
 - **`JwtUtil.java`** — JWT 토큰 생성/검증/파싱
 - **`JwtAuthenticationFilter.java`** — Bearer 토큰 추출 + SecurityContext 등록
 - **`GlobalExceptionHandler.java`** — 전역 예외 처리 (400/401/409/500)
@@ -250,7 +283,7 @@
 - **`AuthController.java`** — `POST /api/auth/login`, `POST /api/auth/logout`
 - **`LoginRequestDto.java`** / **`LoginResponseDto.java`** — 로그인 DTO
 
-#### 수정
+##### 수정
 - **`SecurityConfig.java`** — BCrypt 빈, JWT 필터, CORS 설정, STATELESS 세션
 - **`MemberRequestDto.java`** — Bean Validation 어노테이션 추가
 - **`MemberServiceImpl.java`** — BCrypt 암호화, 14세 미만 제한, 중복 검증
@@ -259,6 +292,12 @@
 - **`HeroBanner.java`** — `@Builder.Default` 추가
 - **`application.properties`** — JWT 설정, Oracle Dialect → `OracleLegacyDialect`
 - **`pom.xml`** — jjwt 의존성 추가 (0.12.6)
+
+---
+
+### [프론트엔드]
+
+- 없음
 
 ---
 

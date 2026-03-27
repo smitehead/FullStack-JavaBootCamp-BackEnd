@@ -23,9 +23,11 @@ public class HeroBannerServiceImpl implements HeroBannerService {
      * sortOrder 오름차순 정렬
      */
     @Override
-    public List<HeroBannerResponseDto> getActiveBanners() {
-        return heroBannerRepository.findActiveBanners()
-                .stream()
+    public List<HeroBannerResponseDto> getActiveBanners(String type) {
+        List<HeroBanner> banners = (type != null && !type.isBlank())
+                ? heroBannerRepository.findActiveBannersByType(type)
+                : heroBannerRepository.findActiveBanners();
+        return banners.stream()
                 .map(HeroBannerResponseDto::from)
                 .collect(Collectors.toList());
     }

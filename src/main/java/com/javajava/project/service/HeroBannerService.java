@@ -6,8 +6,8 @@ import java.util.List;
 
 public interface HeroBannerService {
 
-    // 활성 배너 목록 조회 (프론트용)
-    List<HeroBannerResponseDto> getActiveBanners();
+    // 활성 배너 목록 조회 (프론트용, 타입 미지정 시 전체)
+    List<HeroBannerResponseDto> getActiveBanners(String type);
 
     // 전체 배너 목록 조회 (관리자용)
     List<HeroBannerResponseDto> getAllBanners();

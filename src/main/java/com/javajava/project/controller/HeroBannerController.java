@@ -21,8 +21,9 @@ public class HeroBannerController {
     private final ActivityLogRepository activityLogRepository;
 
     @GetMapping
-    public ResponseEntity<List<HeroBannerResponseDto>> getActiveBanners() {
-        return ResponseEntity.ok(heroBannerService.getActiveBanners());
+    public ResponseEntity<List<HeroBannerResponseDto>> getActiveBanners(
+            @RequestParam(required = false) String type) {
+        return ResponseEntity.ok(heroBannerService.getActiveBanners(type));
     }
 
     @GetMapping("/all")
