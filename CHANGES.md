@@ -546,3 +546,5 @@ ALTER TABLE AUCTION_RESULT ADD CONSTRAINT UQ_AUCTION_RESULT_BID_NO UNIQUE (BID_N
 DB 레벨 unique 제약으로 두 트랜잭션이 동시에 같은 BID_NO 저장 시 하나 자동 롤백.
 
 ---
+
+processPayment()에 sse호출을 통해 결재완료가 되면 판매자의 포인트가 즉시 반영되도록 수정

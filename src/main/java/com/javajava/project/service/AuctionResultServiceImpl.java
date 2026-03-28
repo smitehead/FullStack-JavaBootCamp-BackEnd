@@ -30,6 +30,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
     private final ProductImageRepository productImageRepository;
     private final PointHistoryRepository pointHistoryRepository;
     private final NotificationService notificationService;
+    private final SseService sseService;
 
     @Override
     public AuctionResultResponseDto getAuctionResultByProductNo(Long productNo, Long memberNo) {
@@ -113,6 +114,9 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 ? (addressDetail != null && !addressDetail.isBlank() ? address + " " + addressDetail : address)
                 : addressDetail;
         result.setDeliveryAddrDetail(fullAddr);
+
+        // 판매자 포인트 실시간 반영 (SSE)
+        sseService.sendPointUpdate(seller.getMemberNo(), seller.getPoints());
 
         // 판매자 알림 — 결제 완료
         try {
