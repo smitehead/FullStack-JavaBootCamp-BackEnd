@@ -1,60 +1,63 @@
 package com.javajava.project.service;
 
 import com.javajava.project.dto.MemberRequestDto;
+import com.javajava.project.dto.ProductListResponseDto;
+import com.javajava.project.dto.SellerProfileResponseDto;
 import com.javajava.project.entity.Member;
+import com.javajava.project.entity.Product;
+import com.javajava.project.entity.ProductImage;
+import com.javajava.project.repository.BidHistoryRepository;
 import com.javajava.project.repository.MemberRepository;
+import com.javajava.project.repository.ProductImageRepository;
+import com.javajava.project.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-// 기본적으로 조회 트랜잭션 (readOnly = true) → 불필요한 변경 감지 스냅샷 생략으로 성능 향상
-// 데이터를 변경하는 메서드에는 별도로 @Transactional 을 붙여 readOnly를 덮어씀
 @Transactional(readOnly = true)
 public class MemberServiceImpl implements MemberService {
 
     private final MemberRepository memberRepository;
-    private final PasswordEncoder passwordEncoder; // SecurityConfig에서 빈으로 등록된 BCryptPasswordEncoder
+    private final PasswordEncoder passwordEncoder;
+    private final ProductRepository productRepository;
+    private final ProductImageRepository productImageRepository;
+    private final BidHistoryRepository bidHistoryRepository;
 
     @Override
-    @Transactional // 쓰기 작업이므로 readOnly 덮어씀
+    @Transactional
     public Long join(MemberRequestDto dto) {
-        // 1단계: 아이디·닉네임·이메일 중복 여부 검증 (중복 시 IllegalStateException → 409 응답)
         validateDuplicate(dto);
 
-        // 2단계: 만 14세 미만 가입 제한 (ERD 정책)
-        //        birthDate + 14년 이 오늘보다 미래이면 아직 14세가 안 된 것
         if (dto.getBirthDate().plusYears(14).isAfter(LocalDate.now())) {
             throw new IllegalArgumentException("만 14세 미만은 가입할 수 없습니다.");
         }
 
-        // 3단계: DTO → Entity 변환
-        //        비밀번호는 반드시 BCrypt로 암호화하여 저장 (평문 저장 금지)
         Member member = Member.builder()
                 .userId(dto.getUserId())
-                .password(passwordEncoder.encode(dto.getPassword())) // BCrypt 단방향 암호화
+                .password(passwordEncoder.encode(dto.getPassword()))
                 .nickname(dto.getNickname())
                 .email(dto.getEmail())
                 .phoneNum(dto.getPhoneNum())
                 .emdNo(dto.getEmdNo())
                 .addrDetail(dto.getAddrDetail())
                 .birthDate(dto.getBirthDate())
-                // marketingAgree는 선택값이므로 null이면 기본값 0(미동의) 처리
                 .marketingAgree(dto.getMarketingAgree() != null ? dto.getMarketingAgree() : 0)
                 .build();
 
         memberRepository.save(member);
-        return member.getMemberNo(); // 저장 후 생성된 PK 반환
+        return member.getMemberNo();
     }
 
-    /**
-     * 아이디, 닉네임, 이메일 중복 검증.
-     * 하나라도 중복이면 IllegalStateException 발생 → GlobalExceptionHandler가 409로 처리.
-     */
     private void validateDuplicate(MemberRequestDto dto) {
         if (memberRepository.existsByUserId(dto.getUserId())) {
             throw new IllegalStateException("이미 존재하는 아이디입니다.");
@@ -72,8 +75,6 @@ public class MemberServiceImpl implements MemberService {
         return memberRepository.findById(memberNo)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
     }
-
-    // ---- 실시간 중복 확인 (프론트에서 입력 중 Ajax 호출용) ----
 
     @Override
     public boolean isUserIdDuplicate(String userId) {
@@ -96,5 +97,62 @@ public class MemberServiceImpl implements MemberService {
         Member member = memberRepository.findById(memberNo)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
         member.setProfileImgUrl(url);
+    }
+
+    @Override
+    public SellerProfileResponseDto getSellerProfile(Long memberNo) {
+        Member member = memberRepository.findById(memberNo)
+                .orElseThrow(() -> new IllegalArgumentException("판매자를 찾을 수 없습니다."));
+
+        // 삭제되지 않은 판매 상품만 조회
+        List<Product> products = productRepository.findBySellerNo(memberNo).stream()
+                .filter(p -> p.getIsDeleted() == 0)
+                .collect(Collectors.toList());
+
+        List<ProductListResponseDto> productDtos = List.of();
+        if (!products.isEmpty()) {
+            List<Long> productNos = products.stream()
+                    .map(Product::getProductNo)
+                    .collect(Collectors.toList());
+
+            // 메인 이미지 배치 조회
+            Map<Long, ProductImage> mainImageMap =
+                    productImageRepository.findMainImagesByProductNos(productNos).stream()
+                            .collect(Collectors.toMap(ProductImage::getProductNo, Function.identity(), (a, b) -> a));
+
+            // 참여자 수 배치 조회
+            Map<Long, Long> participantCountMap =
+                    bidHistoryRepository.countDistinctParticipantsByProductNos(productNos).stream()
+                            .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+
+            productDtos = products.stream().map(product -> {
+                ProductImage mainImg = mainImageMap.get(product.getProductNo());
+                List<String> imageUrls = mainImg != null
+                        ? List.of("/api/images/" + mainImg.getUuidName())
+                        : List.of();
+                boolean isFinished = product.getEndTime().isBefore(LocalDateTime.now()) || product.getStatus() != 0;
+
+                return ProductListResponseDto.builder()
+                        .id(product.getProductNo())
+                        .title(product.getTitle())
+                        .location(product.getTradeAddrDetail())
+                        .currentPrice(product.getCurrentPrice())
+                        .endTime(product.getEndTime())
+                        .participantCount(participantCountMap.getOrDefault(product.getProductNo(), 0L))
+                        .status(isFinished ? "completed" : "active")
+                        .images(imageUrls)
+                        .isWishlisted(false)
+                        .build();
+            }).collect(Collectors.toList());
+        }
+
+        return SellerProfileResponseDto.builder()
+                .sellerNo(member.getMemberNo())
+                .nickname(member.getNickname())
+                .profileImgUrl(member.getProfileImgUrl())
+                .mannerTemp(member.getMannerTemp())
+                .joinedAt(member.getJoinedAt())
+                .products(productDtos)
+                .build();
     }
 }

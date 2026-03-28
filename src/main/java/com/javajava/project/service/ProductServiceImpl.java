@@ -263,6 +263,7 @@ public class ProductServiceImpl implements ProductService {
                         .sellerNo(seller.getMemberNo())
                         .nickname(seller.getNickname())
                         .mannerTemp(seller.getMannerTemp())
+                        .profileImgUrl(seller.getProfileImgUrl())
                         .build())
                 .bidHistory(bidHistory)
                 .build();
