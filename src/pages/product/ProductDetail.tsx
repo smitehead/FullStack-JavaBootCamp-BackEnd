@@ -171,9 +171,12 @@ export const ProductDetail: React.FC = () => {
         const data = JSON.parse(event.data);
         if (String(data.productNo) === String(product.id)) {
           setProduct(prev => prev ? ({ ...prev, currentPrice: data.currentPrice }) : prev);
-          const title = product?.title || '이 상품';
-          const truncatedTitle = title.length > 10 ? title.substring(0, 10) + '..' : title;
-          showToast(`'${truncatedTitle}' 상품에 새로운 입찰이 생겼습니다!`, 'bid');
+          // 내가 방금 입찰한 직후엔 SSE 토스트 생략 (입찰 완료 토스트와 중복 방지)
+          if (!justBidRef.current) {
+            const title = product?.title || '이 상품';
+            const truncatedTitle = title.length > 10 ? title.substring(0, 10) + '..' : title;
+            showToast(`'${truncatedTitle}' 상품에 새로운 입찰이 생겼습니다!`, 'bid');
+          }
         }
       } catch (e) {
         console.error('[SSE] priceUpdate 파싱 오류', e);
@@ -204,6 +207,8 @@ export const ProductDetail: React.FC = () => {
   }, [product?.id, user?.id]); // 상품 또는 로그인 사용자가 바뀔 때만 재연결
 
   const prevPriceRef = React.useRef<number>(0);
+  // 내가 직접 입찰한 직후 SSE priceUpdate 토스트 중복 방지용 플래그
+  const justBidRef = React.useRef(false);
 
   useEffect(() => {
     if (product && prevPriceRef.current > 0 && product.currentPrice > prevPriceRef.current) {
@@ -304,6 +309,9 @@ export const ProductDetail: React.FC = () => {
     try {
       const memberNo = getMemberNo(user);
       if (!memberNo) return;
+      // API 호출 전에 플래그 설정 — SSE가 응답보다 먼저 도착해도 토스트 중복 방지
+      justBidRef.current = true;
+      setTimeout(() => { justBidRef.current = false; }, 3000);
       await api.post('/bids', {
         productNo: product.id,
         memberNo: memberNo,
