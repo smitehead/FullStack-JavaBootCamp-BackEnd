@@ -1,62 +1,86 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { MOCK_PRODUCTS, MOCK_REVIEWS, MOCK_REVIEW_TAGS } from '@/services/mockData';
 import { ProductCard } from '@/components/ProductCard';
-import { Package, MessageSquare, Thermometer, Calendar, User, ChevronRight, AlertCircle, Shield } from 'lucide-react';
-import { Review, User as UserType, Product } from '@/types';
+import { Package, MessageSquare, ChevronRight, AlertCircle, Shield } from 'lucide-react';
+import { Product } from '@/types';
 import { showToast } from '@/components/toastService';
+import api from '@/services/api';
+import { resolveImageUrl, resolveImageUrls } from '@/utils/imageUtils';
+
+interface SellerInfo {
+  sellerNo: number;
+  nickname: string;
+  profileImgUrl: string | null;
+  mannerTemp: number;
+  joinedAt: string;
+}
+
+function mapToProduct(item: any): Product {
+  return {
+    ...item,
+    id: String(item.id),
+    title: item.title || '',
+    description: '',
+    category: item.category || '기타',
+    seller: { id: 'unknown', nickname: '', profileImage: '', points: 0, mannerTemp: 36.5, joinedAt: '' },
+    startPrice: item.currentPrice || 0,
+    currentPrice: item.currentPrice || 0,
+    minBidIncrement: item.minBidUnit || 1000,
+    startTime: new Date().toISOString(),
+    endTime: item.endTime || new Date().toISOString(),
+    images: resolveImageUrls(item.images || []),
+    participantCount: item.participantCount || 0,
+    bids: [],
+    status: item.status || 'active',
+    location: item.location || '',
+    transactionMethod: 'both',
+    isWishlisted: false,
+  };
+}
 
 export const SellerProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'selling' | 'reviews'>('selling');
   const [sellingFilter, setSellingFilter] = useState<'all' | 'active' | 'completed'>('all');
-  const [seller, setSeller] = useState<UserType | null>(null);
+  const [seller, setSeller] = useState<SellerInfo | null>(null);
   const [sellerProducts, setSellerProducts] = useState<Product[]>([]);
-  const [sellerReviews, setSellerReviews] = useState<Review[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isBlocked, setIsBlocked] = useState(false);
 
   useEffect(() => {
-    // In a real app, we would fetch the user by ID
-    // For now, we find the seller from MOCK_PRODUCTS or use a default if not found
-    const foundProduct = MOCK_PRODUCTS.find(p => p.seller.id === id);
-    if (foundProduct) {
-      setSeller(foundProduct.seller);
-    } else {
-      // Fallback for demo if ID doesn't match any seller in MOCK_PRODUCTS
-      setSeller({
-        id: id || 'unknown',
-        nickname: '판매자',
-        profileImage: `https://picsum.photos/seed/${id}/200/200`,
-        mannerTemp: 36.5,
-        joinedAt: '2023-05-20',
-        points: 0
-      });
-    }
-
-    // Filter products by this seller
-    const products = MOCK_PRODUCTS.filter(p => p.seller.id === id);
-    setSellerProducts(products);
-
-    // Filter reviews for this seller
-    const reviews = MOCK_REVIEWS.filter(r => r.targetUserId === id);
-    setSellerReviews(reviews);
+    if (!id) return;
+    setLoading(true);
+    api.get(`/members/${id}/seller-profile`)
+      .then(res => {
+        const data = res.data;
+        setSeller({
+          sellerNo: data.sellerNo,
+          nickname: data.nickname,
+          profileImgUrl: resolveImageUrl(data.profileImgUrl),
+          mannerTemp: data.mannerTemp ?? 36.5,
+          joinedAt: data.joinedAt ? new Date(data.joinedAt).toLocaleDateString() : '-',
+        });
+        setSellerProducts((data.products || []).map(mapToProduct));
+      })
+      .catch(() => showToast('판매자 정보를 불러오지 못했습니다.', 'error'))
+      .finally(() => setLoading(false));
   }, [id]);
 
-  if (!seller) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
-  }
-
   const filteredProducts = sellerProducts.filter(p => {
-    const now = new Date().getTime();
-    const isFinished = p.status === 'completed' || new Date(p.endTime).getTime() <= now;
-
-    // In other's profile, only show active products
-    if (isFinished) return false;
-
     if (sellingFilter === 'all') return true;
     return p.status === sellingFilter;
   });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!seller) return null;
 
   return (
     <div className="max-w-[1200px] mx-auto px-10 py-8">
@@ -69,18 +93,16 @@ export const SellerProfile: React.FC = () => {
 
       {/* Profile Header */}
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 md:p-10 mb-8 relative overflow-hidden">
-        {/* Background Accent */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50 rounded-full -mr-32 -mt-32 opacity-50 z-0"></div>
 
         <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-8">
           {/* Profile Image */}
-          <div className="w-32 h-32 rounded-3xl overflow-hidden border-4 border-white shadow-xl flex-shrink-0">
-            <img
-              src={seller.profileImage || undefined}
-              alt="Profile"
-              className="w-full h-full object-cover"
-              referrerPolicy="no-referrer"
-            />
+          <div className="w-32 h-32 rounded-3xl overflow-hidden border-4 border-white shadow-xl flex-shrink-0 bg-gray-100 flex items-center justify-center">
+            {seller.profileImgUrl ? (
+              <img src={seller.profileImgUrl} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              <span className="text-4xl text-gray-400">{seller.nickname?.charAt(0) || '?'}</span>
+            )}
           </div>
 
           {/* User Info */}
@@ -103,7 +125,7 @@ export const SellerProfile: React.FC = () => {
                       <Shield className={`w-3 h-3 ${isBlocked ? 'fill-blue-500' : ''}`} /> {isBlocked ? '차단풀기' : '차단하기'}
                     </button>
                     <button
-                      onClick={() => navigate(`/report?sellerId=${seller.id}&sellerNickname=${encodeURIComponent(seller.nickname)}`)}
+                      onClick={() => navigate(`/report?sellerId=${seller.sellerNo}&sellerNickname=${encodeURIComponent(seller.nickname)}`)}
                       className="text-xs font-bold text-red-400 hover:text-red-600 transition-colors flex items-center gap-1"
                     >
                       <AlertCircle className="w-3 h-3" /> 신고하기
@@ -121,15 +143,12 @@ export const SellerProfile: React.FC = () => {
                   <span className="text-xs font-medium text-gray-300">100</span>
                 </div>
                 <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-500 rounded-full"
-                    style={{ width: `${(seller.mannerTemp / 100) * 100}%` }}
-                  ></div>
+                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(seller.mannerTemp / 100) * 100}%` }}></div>
                 </div>
               </div>
             </div>
 
-            {/* Quick Stats Grid */}
+            {/* Quick Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex items-center gap-4">
                 <div className="bg-emerald-100 p-3 rounded-xl">
@@ -146,7 +165,7 @@ export const SellerProfile: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-0.5">받은 후기</p>
-                  <p className="text-xl font-black text-gray-900">{sellerReviews.length}<span className="text-sm font-medium ml-1">건</span></p>
+                  <p className="text-xl font-black text-gray-900">0<span className="text-sm font-medium ml-1">건</span></p>
                 </div>
               </div>
             </div>
@@ -156,7 +175,7 @@ export const SellerProfile: React.FC = () => {
 
       {/* Content Area */}
       <div className="flex flex-col md:flex-row gap-8">
-        {/* Sidebar Navigation */}
+        {/* Sidebar */}
         <div className="w-full md:w-64 flex-shrink-0">
           <nav className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden sticky top-24">
             <button
@@ -174,34 +193,21 @@ export const SellerProfile: React.FC = () => {
           </nav>
         </div>
 
-        {/* Main List */}
+        {/* Main */}
         <div className="flex-1">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <h3 className="text-xl font-bold text-gray-900">
-              {activeTab === 'selling' && '판매 상품'}
-              {activeTab === 'reviews' && '거래 후기'}
+              {activeTab === 'selling' ? '판매 상품' : '거래 후기'}
             </h3>
 
             {activeTab === 'selling' && (
               <div className="flex bg-gray-100 p-1 rounded-xl">
-                <button
-                  onClick={() => setSellingFilter('all')}
-                  className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${sellingFilter === 'all' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                  전체
-                </button>
-                <button
-                  onClick={() => setSellingFilter('active')}
-                  className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${sellingFilter === 'active' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                  판매중
-                </button>
-                <button
-                  onClick={() => setSellingFilter('completed')}
-                  className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${sellingFilter === 'completed' ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                  판매완료
-                </button>
+                {(['all', 'active', 'completed'] as const).map(f => (
+                  <button key={f} onClick={() => setSellingFilter(f)}
+                    className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${sellingFilter === f ? 'bg-white text-emerald-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                    {f === 'all' ? '전체' : f === 'active' ? '판매중' : '판매완료'}
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -209,7 +215,7 @@ export const SellerProfile: React.FC = () => {
           {activeTab === 'selling' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProducts.length > 0 ? (
-                filteredProducts.map(p => <ProductCard key={p.id} product={p} />)
+                filteredProducts.map(p => <ProductCard key={p.id} product={p} isSold={p.status === 'completed'} />)
               ) : (
                 <div className="col-span-full py-20 text-center bg-white rounded-3xl border border-dashed border-gray-200">
                   <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
@@ -220,53 +226,9 @@ export const SellerProfile: React.FC = () => {
           )}
 
           {activeTab === 'reviews' && (
-            <div className="flex flex-col gap-8">
-              {/* Review Tags Section */}
-              <div className="bg-white rounded-2xl border border-gray-100 p-6">
-                <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">이 판매자에 대한 태그 후기</h4>
-                <div className="flex flex-wrap gap-3">
-                  {MOCK_REVIEW_TAGS.map(tag => (
-                    <div key={tag.id} className="bg-gray-50 px-4 py-2 rounded-xl flex items-center gap-2 border border-gray-100">
-                      <span className="text-sm font-medium text-gray-700">{tag.content}</span>
-                      <span className="bg-emerald-100 text-emerald-600 text-xs font-black px-2 py-0.5 rounded-full">{tag.count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Direct Reviews List */}
-              <div className="flex flex-col gap-4">
-                <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider">받은 거래 후기</h4>
-                {sellerReviews.length > 0 ? (
-                  sellerReviews.map(review => (
-                    <div key={review.id} className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="flex items-center gap-3">
-                          <img src={review.authorProfileImage || undefined} alt={review.authorNickname} className="w-10 h-10 rounded-full object-cover" referrerPolicy="no-referrer" />
-                          <div>
-                            <p className="font-bold text-gray-900">{review.authorNickname}</p>
-                            <p className="text-xs text-gray-400">{new Date(review.createdAt).toLocaleDateString()}</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-gray-50 rounded-xl p-4 mb-3">
-                        <p className="text-sm text-gray-700 leading-relaxed">
-                          {review.content}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
-                        <Package className="w-3.5 h-3.5" />
-                        <span>{review.productTitle}</span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="py-20 text-center bg-white rounded-3xl border border-dashed border-gray-200">
-                    <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                    <p className="text-gray-500 font-medium">받은 후기가 없습니다.</p>
-                  </div>
-                )}
-              </div>
+            <div className="py-20 text-center bg-white rounded-3xl border border-dashed border-gray-200">
+              <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-gray-500 font-medium">받은 후기가 없습니다.</p>
             </div>
           )}
         </div>

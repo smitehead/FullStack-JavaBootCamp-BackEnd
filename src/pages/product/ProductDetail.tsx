@@ -7,7 +7,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import api from '@/services/api';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { resolveImageUrls, BACKEND_URL } from '../../utils/imageUtils';
+import { resolveImageUrls, resolveImageUrl, BACKEND_URL } from '../../utils/imageUtils';
 import { getMemberNo } from '@/utils/memberUtils';
 import { showToast } from '@/components/toastService';
 import { toast } from 'sonner';
@@ -80,7 +80,7 @@ export const ProductDetail: React.FC = () => {
         seller: {
           id: String(data.seller?.sellerNo || 'seller_1'),
           nickname: data.seller?.nickname || '판매자',
-          profileImage: '',
+          profileImage: resolveImageUrl(data.seller?.profileImgUrl) || '',
           points: 0,
           mannerTemp: data.seller?.mannerTemp || 36.5,
           joinedAt: ''
