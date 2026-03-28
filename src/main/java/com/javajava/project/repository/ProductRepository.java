@@ -32,4 +32,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
     // 관리자용: 삭제되지 않은 전체 상품 조회 (최신순)
     List<Product> findByIsDeletedOrderByCreatedAtDesc(Integer isDeleted);
+
+    // Watchdog 서버 재시작 복구용: 아직 종료 안 된 경매 중 상품 조회
+    List<Product> findByStatusAndEndTimeAfter(Integer status, LocalDateTime now);
 }

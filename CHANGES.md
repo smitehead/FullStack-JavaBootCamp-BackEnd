@@ -428,3 +428,59 @@ AuctionScheduler 실행 주기 수정 (1초 → 30초)
 #### 수정
 - **`GlobalExceptionHandler.java`** — `AsyncRequestTimeoutException` 전용 핸들러 추가
   - SSE 연결 타임아웃 시 JSON 응답 시도로 발생하던 `HttpMessageNotWritableException` 방지
+
+---
+
+## 김태우 날짜: 2026-03-28 (스케줄러 최적화 및 실시간 낙찰 처리 구현)
+
+---
+
+### 17. PRODUCT 테이블 복합 인덱스 추가
+
+#### SQL
+- **`PRODUCT (STATUS, END_TIME)` 복합 인덱스 추가 예정**
+  - 스케줄러가 30초마다 실행하는 `WHERE STATUS = 0 AND END_TIME < :now` 쿼리 최적화
+  - Full Table Scan → Index Range Scan 개선 (하루 2,880회 반복 쿼리)
+  - 컬럼 순서: 등치 조건(STATUS) 먼저, 범위 조건(END_TIME) 나중
+
+---
+
+### 18. AuctionExpiryWatchdog 신규 구현 (경매 종료 정각 처리)
+
+#### 신규 생성
+- **`scheduler/AuctionExpiryWatchdog.java`** — 상품 등록 시 endTime 정각에 낙찰 처리 1회 예약
+  - `TaskScheduler.schedule(task, Instant)`로 endTime 정각에 `processOne()` 실행
+  - `@PostConstruct`로 서버 재시작 시 DB에서 미종료 경매 자동 재예약
+  - `ConcurrentHashMap<Long, ScheduledFuture<?>>` 으로 스레드 안전 예약 관리
+  - 경매 삭제/강제종료 시 `cancel()` 호출로 예약 취소
+- **`config/SchedulerConfig.java`** — `TaskScheduler` 빈 등록 (poolSize=5, prefix="scheduler-")
+
+#### 수정
+- **`ProductRepository.java`** — `findByStatusAndEndTimeAfter()` 쿼리 추가 (재시작 복구용)
+- **`ProductServiceImpl.java`**
+  - `save()` — 상품 등록 시 `auctionExpiryWatchdog.scheduleClose()` 호출
+  - `deleteProduct()` — 삭제 시 `auctionExpiryWatchdog.cancel()` 호출
+  - `cancelAuctionByAdmin()` — 강제종료 시 `auctionExpiryWatchdog.cancel()` 호출
+
+#### 역할 분담
+| | 역할 |
+|---|---|
+| `AuctionExpiryWatchdog` | endTime 정각에 즉시 처리 (주) |
+| `AuctionScheduler` | 30초 폴링, Watchdog 누락 상품 보완 (백업) |
+| `AuctionClosingService.processOne()` | `status != 0` 체크로 중복 처리 방지 |
+
+---
+
+### 19. 낙찰 알림 @TransactionalEventListener 적용 (커밋 후 발송)
+
+#### 신규 생성
+- **`scheduler/AuctionClosedEvent.java`** — 낙찰 완료 이벤트 record (엔티티 대신 primitive 값만 보유)
+- **`scheduler/AuctionNotificationListener.java`** — `@TransactionalEventListener(AFTER_COMMIT)`으로 커밋 완료 후 알림 발송
+  - `@Transactional(REQUIRES_NEW)` — 낙찰 실패자 DB 조회를 위한 새 트랜잭션
+
+#### 수정
+- **`AuctionClosingService.java`** — `sendNotifications()` 제거 → `eventPublisher.publishEvent()` 로 교체
+  - 기존: 트랜잭션 내에서 알림 발송 → 커밋 실패 시 알림 오발송 가능
+  - 변경: 트랜잭션 커밋 완료 후에만 알림 발송 → DB 확정 후 발송 보장
+
+---

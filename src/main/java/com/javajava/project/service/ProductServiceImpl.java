@@ -16,6 +16,7 @@ import com.javajava.project.repository.ProductImageRepository;
 import com.javajava.project.repository.WishlistRepository;
 import com.javajava.project.repository.AuctionResultRepository;
 import com.javajava.project.entity.AuctionResult;
+import com.javajava.project.scheduler.AuctionExpiryWatchdog;
 import com.javajava.project.util.FileStore;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +53,7 @@ public class ProductServiceImpl implements ProductService {
     private final AuctionResultRepository auctionResultRepository;
     private final FileStore fileStore;
     private final NotificationService notificationService;
+    private final AuctionExpiryWatchdog auctionExpiryWatchdog;
 
     @Override
     @Transactional
@@ -76,7 +78,12 @@ public class ProductServiceImpl implements ProductService {
                 .isDeleted(0)
                 .build();
 
-        return productRepository.save(product).getProductNo();
+        Long productNo = productRepository.save(product).getProductNo();
+
+        // endTime에 낙찰 처리 예약
+        auctionExpiryWatchdog.scheduleClose(productNo, dto.getEndTime());
+
+        return productNo;
     }
 
     @Override
@@ -388,6 +395,7 @@ public class ProductServiceImpl implements ProductService {
         }
         product.setIsDeleted(1);
         product.setStatus(2);
+        auctionExpiryWatchdog.cancel(productNo);
     }
 
     /**
@@ -496,7 +504,8 @@ public class ProductServiceImpl implements ProductService {
         if (product.getStatus() != 0) {
             throw new IllegalStateException("진행 중인 경매만 강제 종료할 수 있습니다.");
         }
-        product.setStatus(2); // canceled
+        product.setStatus(2);
+        auctionExpiryWatchdog.cancel(productNo);
 
         // 입찰자 전원에게 경매 취소 알림
         try {
