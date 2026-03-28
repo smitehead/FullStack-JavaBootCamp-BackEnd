@@ -1,6 +1,7 @@
 package com.javajava.project.config;
 
 import io.jsonwebtoken.JwtException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import java.util.Map;
  * @RestControllerAdvice: 모든 @RestController에서 발생한 예외를 한 곳에서 처리.
  * 각 예외 유형에 맞는 HTTP 상태코드를 일관되게 반환하여 프론트와의 에러 처리 규약을 통일.
  */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -93,6 +95,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleException(Exception ex) {
+        log.error("[500] 처리되지 않은 예외: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "서버 오류가 발생했습니다."));
     }

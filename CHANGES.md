@@ -484,3 +484,65 @@ AuctionScheduler 실행 주기 수정 (1초 → 30초)
   - 변경: 트랜잭션 커밋 완료 후에만 알림 발송 → DB 확정 후 발송 보장
 
 ---
+
+## 날짜: 2026-03-28 (버그 수정 — SSE, 스케줄러 중복 처리)
+
+---
+
+### 20. SSE 초기 더미 메시지 파싱 오류 수정
+
+#### 문제
+`SseService.subscribe()`에서 첫 더미 메시지를 `sendToClient()`로 전송 시 이벤트명이 `"notification"`으로 발송됨.
+프론트 `AppContext.tsx`가 `notification` 이벤트 수신 시 `JSON.parse()` 시도 → `"SSE Connected"`는 JSON 아님 → `SyntaxError`.
+
+#### 수정
+- **`SseService.java`** — 초기 더미 메시지를 `"notification"` 이벤트 대신 `"connect"` 이벤트명으로 전송
+  - 프론트에서 `"connect"` 이벤트는 별도 리스너 없으므로 자동 무시됨
+
+---
+
+### 21. SSE 클라이언트 정상 연결 해제 시 zombie emitter 수정
+
+#### 문제
+SSE 클라이언트가 연결을 먼저 끊은 상태에서 서버가 알림 전송 시 `IOException(WSAECONNABORTED)` 발생.
+catch 블록에서 emitter를 map에서 제거했으나 `completeWithError()` 미호출 → Spring 내부에서 emitter를 zombie 상태로 추가 처리하며 stack trace 출력.
+
+#### 수정
+- **`SseService.java`** — `sendToClient()`, `sendPointUpdate()`, `sendForceLogout()` 세 메서드의 catch 블록에 `emitter.completeWithError(e)` 추가
+- **`application.properties`** — `ResponseBodyEmitter` 로그 레벨 WARN으로 설정하여 정상 disconnect 노이즈 제거
+
+---
+
+### 22. GlobalExceptionHandler 미처리 예외 로깅 추가
+
+#### 수정
+- **`GlobalExceptionHandler.java`** — `@Slf4j` 추가, catch-all `handleException()` 에 `log.error("[500] ...")` 추가
+  - 기존: 500 반환 시 콘솔에 아무 로그도 남지 않아 원인 파악 불가
+  - 변경: 예외 메시지와 스택 트레이스 기록
+
+---
+
+### 23. 스케줄러 중복 처리 버그 수정 (Watchdog + AuctionScheduler race condition)
+
+#### 문제
+`AuctionExpiryWatchdog`(정각 처리)과 `AuctionScheduler`(30초 폴링)가 동일 상품에 대해 동시에 `processOne()`을 실행하는 경우 발생.
+두 트랜잭션이 모두 `product.status=0`을 읽은 후 각자 커밋 → `AUCTION_RESULT` 레코드 2개 생성.
+이후 `findByBidNo()`가 `Optional<AuctionResult>` 반환인데 결과 2개 → Hibernate `NonUniqueResultException` → 500.
+
+#### 수정
+- **`AuctionResultRepository.java`** — `findByBidNo()` → `findFirstByBidNo()` 변경
+  - 중복 레코드가 존재해도 `NonUniqueResultException` 없이 첫 번째 결과 반환
+- **`AuctionResultServiceImpl.java`** — `findByBidNo()` → `findFirstByBidNo()` 호출 변경
+- **`AuctionClosingService.java`** — `processOne()` 멱등성 보장 로직 추가
+  - AuctionResult 저장 전 `findFirstByBidNo()`로 이미 존재하는지 확인
+  - 이미 존재하면 AuctionResult 저장 및 이벤트 발행 모두 건너뜀 (중복 알림 방지)
+- **`BidHistoryRepository.java`** — `findWinnerByProductNo()` → `findFirstByProductNoAndIsWinnerOrderByBidPriceDesc()` 변경
+  - 동일 이유: 중복 처리 시 `isWinner=1` 레코드가 2개일 때 `NonUniqueResultException` 방지
+
+#### 근본 해결 (별도 SQL 실행 필요)
+```sql
+ALTER TABLE AUCTION_RESULT ADD CONSTRAINT UQ_AUCTION_RESULT_BID_NO UNIQUE (BID_NO);
+```
+DB 레벨 unique 제약으로 두 트랜잭션이 동시에 같은 BID_NO 저장 시 하나 자동 롤백.
+
+---

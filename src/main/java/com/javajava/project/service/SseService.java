@@ -30,7 +30,14 @@ public class SseService {
         emitter.onError((e) -> emitterMap.remove(clientId));
 
         // 503 Service Unavailable 방지용 첫 더미 데이터 전송
-        sendToClient(clientId, "SSE Connected");
+        // "notification" 이벤트명을 쓰면 프론트가 JSON.parse 시도 → SyntaxError 발생
+        // "connect" 이벤트명은 프론트에서 별도 처리 없이 무시됨
+        try {
+            emitter.send(SseEmitter.event().name("connect").data("SSE Connected"));
+        } catch (IOException e) {
+            emitterMap.remove(clientId);
+            emitter.completeWithError(e);
+        }
 
         return emitter;
     }
@@ -44,8 +51,9 @@ public class SseService {
             try {
                 emitter.send(SseEmitter.event().name("notification").data(data));
             } catch (IOException e) {
-                // 클라이언트 연결이 끊어진 경우 맵에서 제거
+                // 클라이언트가 연결을 먼저 끊은 경우 (페이지 이동, 탭 닫기 등) — 정상 동작
                 emitterMap.remove(clientId);
+                emitter.completeWithError(e); // zombie 상태 방지
             }
         }
     }
@@ -63,6 +71,7 @@ public class SseService {
                 emitter.send(SseEmitter.event().name("pointUpdate").data(data));
             } catch (IOException e) {
                 emitterMap.remove(clientId);
+                emitter.completeWithError(e);
             }
         }
     }
@@ -79,6 +88,7 @@ public class SseService {
                 emitter.send(SseEmitter.event().name("forceLogout").data("{}"));
             } catch (IOException e) {
                 emitterMap.remove(clientId);
+                emitter.completeWithError(e);
             }
         }
     }

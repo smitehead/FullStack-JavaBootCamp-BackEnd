@@ -350,7 +350,7 @@ public class ProductServiceImpl implements ProductService {
 
         // 낙찰된 bid 조회
         List<BidHistory> winnerBids = wonProductNos.stream()
-                .map(pNo -> bidHistoryRepository.findWinnerByProductNo(pNo).orElse(null))
+                .map(pNo -> bidHistoryRepository.findFirstByProductNoAndIsWinnerOrderByBidPriceDesc(pNo, 1).orElse(null))
                 .filter(b -> b != null)
                 .collect(Collectors.toList());
 

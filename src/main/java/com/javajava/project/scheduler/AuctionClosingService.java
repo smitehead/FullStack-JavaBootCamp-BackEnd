@@ -56,6 +56,15 @@ public class AuctionClosingService {
             winningBid.setIsWinner(1);
             product.setStatus(1);
             product.setWinnerNo(winningBid.getMemberNo());
+
+            // 멱등성 보장: AuctionResult 중복 생성 방지 (Watchdog+Scheduler 동시 실행 race condition 대비)
+            boolean resultExists = auctionResultRepository.findFirstByBidNo(winningBid.getBidNo()).isPresent();
+            if (resultExists) {
+                // 이미 다른 실행자가 처리 완료 — 알림까지 모두 건너뜀
+                log.warn("[Scheduler] 상품 번호 {} 낙찰 결과 이미 존재 — 중복 처리 건너뜀", productNo);
+                return;
+            }
+
             auctionResultRepository.save(AuctionResult.builder()
                     .bidNo(winningBid.getBidNo())
                     .status("배송대기")

@@ -34,7 +34,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
     @Override
     public AuctionResultResponseDto getAuctionResultByProductNo(Long productNo, Long memberNo) {
         // 1. 해당 상품의 낙찰 입찰 기록 조회
-        BidHistory winnerBid = bidHistoryRepository.findWinnerByProductNo(productNo)
+        BidHistory winnerBid = bidHistoryRepository.findFirstByProductNoAndIsWinnerOrderByBidPriceDesc(productNo, 1)
                 .orElseThrow(() -> new IllegalArgumentException("해당 상품의 낙찰 기록이 없습니다."));
 
         // 2. 낙찰자 본인 확인
@@ -43,7 +43,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         }
 
         // 3. AuctionResult 조회
-        AuctionResult result = auctionResultRepository.findByBidNo(winnerBid.getBidNo())
+        AuctionResult result = auctionResultRepository.findFirstByBidNo(winnerBid.getBidNo())
                 .orElseThrow(() -> new IllegalArgumentException("낙찰 결과를 찾을 수 없습니다."));
 
         // 4. 상품 정보 조회

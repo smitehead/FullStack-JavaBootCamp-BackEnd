@@ -47,8 +47,8 @@ public interface BidHistoryRepository extends JpaRepository<BidHistory, Long> {
     List<Long> findWonProductNosInList(@Param("memberNo") Long memberNo, @Param("productNos") List<Long> productNos);
 
     // 특정 상품의 낙찰 입찰 기록 조회 (낙찰자 확인용)
-    @Query("SELECT b FROM BidHistory b WHERE b.productNo = :productNo AND b.isWinner = 1")
-    Optional<BidHistory> findWinnerByProductNo(@Param("productNo") Long productNo);
+    // findFirst: 중복 낙찰 처리 시 NonUniqueResultException 방지
+    Optional<BidHistory> findFirstByProductNoAndIsWinnerOrderByBidPriceDesc(Long productNo, Integer isWinner);
 
     // 특정 상품의 고유 입찰자 memberNo 목록 (취소 입찰 제외)
     @Query("SELECT DISTINCT b.memberNo FROM BidHistory b WHERE b.productNo = :productNo AND b.isCancelled = 0")

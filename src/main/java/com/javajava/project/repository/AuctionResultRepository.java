@@ -10,7 +10,8 @@ import java.util.List;
 public interface AuctionResultRepository extends JpaRepository<AuctionResult, Long> {
 
     // 입찰 번호로 낙찰 결과 조회
-    Optional<AuctionResult> findByBidNo(Long bidNo);
+    // findFirst: 중복 처리로 인해 레코드가 2개 있어도 NonUniqueResultException 방지
+    Optional<AuctionResult> findFirstByBidNo(Long bidNo);
 
     // 현재 거래 상태별 목록 조회 (예: 배송대기 중인 건들)
     List<AuctionResult> findByStatus(String status);
