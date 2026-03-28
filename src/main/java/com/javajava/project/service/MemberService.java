@@ -11,4 +11,7 @@ public interface MemberService {
     boolean isUserIdDuplicate(String userId);
     boolean isNicknameDuplicate(String nickname);
     boolean isEmailDuplicate(String email);
+
+    // 프로필 이미지 URL 저장 (/api/images/uuid.jpg 형태의 상대 경로)
+    void updateProfileImage(Long memberNo, String url);
 }

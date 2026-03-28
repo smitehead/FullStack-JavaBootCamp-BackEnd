@@ -42,7 +42,7 @@ public class AdminReportController {
      */
     @PutMapping("/{reportNo}/resolve")
     public ResponseEntity<Void> resolveReport(
-            @PathVariable Long reportNo,
+            @PathVariable("reportNo") Long reportNo,
             @Valid @RequestBody ReportResolveRequestDto dto,
             Authentication authentication) {
         Long adminNo = getAdminNo(authentication);

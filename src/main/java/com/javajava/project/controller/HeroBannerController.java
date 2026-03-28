@@ -40,7 +40,7 @@ public class HeroBannerController {
     }
 
     @PutMapping("/{bannerNo}")
-    public ResponseEntity<Void> update(@PathVariable Long bannerNo,
+    public ResponseEntity<Void> update(@PathVariable("bannerNo") Long bannerNo,
                                        @Valid @RequestBody HeroBannerRequestDto dto,
                                        Authentication authentication) {
         heroBannerService.update(bannerNo, dto);
@@ -49,7 +49,7 @@ public class HeroBannerController {
     }
 
     @DeleteMapping("/{bannerNo}")
-    public ResponseEntity<Void> delete(@PathVariable Long bannerNo,
+    public ResponseEntity<Void> delete(@PathVariable("bannerNo") Long bannerNo,
                                        Authentication authentication) {
         heroBannerService.delete(bannerNo);
         logActivity(authentication, "배너 삭제", bannerNo, "배너 삭제: #" + bannerNo);
@@ -57,7 +57,7 @@ public class HeroBannerController {
     }
 
     @PatchMapping("/{bannerNo}/toggle")
-    public ResponseEntity<Void> toggleActive(@PathVariable Long bannerNo,
+    public ResponseEntity<Void> toggleActive(@PathVariable("bannerNo") Long bannerNo,
                                               Authentication authentication) {
         heroBannerService.toggleActive(bannerNo);
         logActivity(authentication, "배너 토글", bannerNo, "배너 활성화/비활성화 토글: #" + bannerNo);

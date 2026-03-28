@@ -33,7 +33,7 @@ public class AdminProductController {
      * PUT /api/admin/products/{productNo}/cancel
      */
     @PutMapping("/{productNo}/cancel")
-    public ResponseEntity<Void> cancelAuction(@PathVariable Long productNo,
+    public ResponseEntity<Void> cancelAuction(@PathVariable("productNo") Long productNo,
                                                Authentication authentication) {
         productService.cancelAuctionByAdmin(productNo);
         logActivity(authentication, "경매 강제 종료", productNo, "경매 강제 종료: #" + productNo);

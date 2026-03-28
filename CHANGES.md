@@ -547,4 +547,65 @@ DB 레벨 unique 제약으로 두 트랜잭션이 동시에 같은 BID_NO 저장
 
 ---
 
-processPayment()에 sse호출을 통해 결재완료가 되면 판매자의 포인트가 즉시 반영되도록 수정
+---
+
+## 날짜: 2026-03-28
+
+### [백엔드 + 프론트엔드]
+
+---
+
+#### 24. processPayment() SSE 포인트 실시간 반영
+
+##### 배경
+구매자가 결제하기를 누르면 판매자 포인트가 DB에 즉시 반영되지만 헤더의 포인트 숫자는 새로고침 전까지 변경되지 않는 문제.
+
+##### 수정
+- **`AuctionResultServiceImpl.java`** — `processPayment()` 내 판매자 포인트 업데이트 직후 `sseService.sendPointUpdate()` 호출 추가
+- **`AppContext.tsx`** (프론트) — SSE `pointUpdate` 이벤트 수신 시 헤더 포인트 즉시 갱신 (기존 구현 활용)
+
+---
+
+#### 25. 프로필 이미지 변경 기능 구현
+
+##### 배경
+마이페이지에 프로필 이미지 변경 UI는 있었으나 로컬 미리보기만 동작하고 서버 저장은 미구현 상태.
+
+##### 신규
+- **`PUT /api/members/{memberNo}/profile-image-url`** (MemberController) — JSON `{ "url": "/api/images/uuid.jpg" }` 수신 → Member.profileImgUrl 업데이트
+  - 파일 업로드는 기존 `POST /api/images/upload` 재활용 (2단계 분리)
+
+##### 수정
+- **`Member.java`** — `PROFILE_IMG_URL VARCHAR(500)` 컬럼 추가 (ddl-auto=update로 자동 생성)
+- **`MemberService.java`** / **`MemberServiceImpl.java`** — `updateProfileImage(memberNo, url)` 메서드 추가
+- **`MemberController.java`** — `PUT /{memberNo}/profile-image-url` 엔드포인트 추가
+- **`AppContext.tsx`** (프론트)
+  - `mapMemberToUser()` — `profileImgUrl` → `profileImage` URL 변환 매핑 추가
+  - 로그인 / 세션 복원 시 `profileImgUrl` DB 값 반영
+  - `updateCurrentUserProfileImage()` 함수 추가 → 업로드 후 컨텍스트 + sessionStorage 동기화
+- **`MyPage.tsx`** (프론트)
+  - 이미지 선택 시 로컬 미리보기 즉시 반영
+  - 1단계: `POST /images/upload`로 파일 업로드 → URL 수신
+  - 2단계: `PUT /members/{no}/profile-image-url`로 URL 저장
+  - 업로드 중 Settings 버튼 스피너로 교체 + 완료/실패 토스트 표시
+
+---
+
+#### 26. Spring Boot 3.x @PathVariable 파라미터명 누락 수정
+
+##### 배경
+Spring Boot 3.5.x (Spring Framework 6.x)는 `-parameters` 컴파일러 플래그 없이 리플렉션으로 파라미터명을 읽지 못함.
+`pom.xml`에서 `maven-compiler-plugin`에 Lombok `annotationProcessorPaths`만 추가하고 `<parameters>true</parameters>`를 누락 → Spring Boot 부모 POM의 기본값이 덮어씌워짐.
+`@PathVariable Long memberNo` 형태로 이름을 명시하지 않으면 400 Bad Request 발생.
+
+##### 수정
+- **`pom.xml`** — `maven-compiler-plugin` 설정에 `<parameters>true</parameters>` 추가
+- 아래 컨트롤러 전체 `@PathVariable` 어노테이션에 명시적 이름 추가 (이름 없는 형태 → `@PathVariable("xxx")` 형태로 일괄 수정)
+  - `MemberController.java` — `memberNo`
+  - `AdminMemberController.java` — `memberNo` (5개)
+  - `AdminReportController.java` — `reportNo`
+  - `AdminProductController.java` — `productNo`
+  - `HeroBannerController.java` — `bannerNo` (3개)
+  - `NotificationController.java` — `notiNo`
+
+---

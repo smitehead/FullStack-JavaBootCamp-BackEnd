@@ -46,7 +46,7 @@ public class NotificationController {
      * Header: Authorization: Bearer {token}
      */
     @PatchMapping("/{notiNo}/read")
-    public ResponseEntity<Void> markAsRead(@PathVariable Long notiNo) {
+    public ResponseEntity<Void> markAsRead(@PathVariable("notiNo") Long notiNo) {
         notificationService.markAsRead(notiNo);
         return ResponseEntity.ok().build();
     }

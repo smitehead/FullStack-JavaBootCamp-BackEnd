@@ -45,7 +45,7 @@ public class AdminMemberController {
      */
     @PutMapping("/{memberNo}/suspend")
     public ResponseEntity<Void> suspendMember(
-            @PathVariable Long memberNo,
+            @PathVariable("memberNo") Long memberNo,
             @Valid @RequestBody SuspendRequestDto dto,
             Authentication authentication) {
         Long adminNo = getAdminNo(authentication);
@@ -59,7 +59,7 @@ public class AdminMemberController {
      */
     @PutMapping("/{memberNo}/unsuspend")
     public ResponseEntity<Void> unsuspendMember(
-            @PathVariable Long memberNo,
+            @PathVariable("memberNo") Long memberNo,
             Authentication authentication) {
         Long adminNo = getAdminNo(authentication);
         adminService.unsuspendMember(memberNo, adminNo);
@@ -72,7 +72,7 @@ public class AdminMemberController {
      */
     @PutMapping("/{memberNo}/manner-temp")
     public ResponseEntity<Void> updateMannerTemp(
-            @PathVariable Long memberNo,
+            @PathVariable("memberNo") Long memberNo,
             @Valid @RequestBody MannerTempRequestDto dto,
             Authentication authentication) {
         Long adminNo = getAdminNo(authentication);
@@ -86,7 +86,7 @@ public class AdminMemberController {
      */
     @PutMapping("/{memberNo}/points")
     public ResponseEntity<Void> updatePoints(
-            @PathVariable Long memberNo,
+            @PathVariable("memberNo") Long memberNo,
             @Valid @RequestBody PointsRequestDto dto,
             Authentication authentication) {
         Long adminNo = getAdminNo(authentication);
@@ -100,7 +100,7 @@ public class AdminMemberController {
      */
     @PutMapping("/{memberNo}/role")
     public ResponseEntity<Void> updateRole(
-            @PathVariable Long memberNo,
+            @PathVariable("memberNo") Long memberNo,
             @RequestBody java.util.Map<String, Integer> body,
             Authentication authentication) {
         Long adminNo = getAdminNo(authentication);

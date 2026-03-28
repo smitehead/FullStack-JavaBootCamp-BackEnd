@@ -46,6 +46,9 @@ public class Member {
     @Column(name = "PROFILE_IMG_NO")
     private Long profileImgNo;
 
+    @Column(name = "PROFILE_IMG_URL", length = 500)
+    private String profileImgUrl;
+
     @Builder.Default
     @Column(name = "MANNER_TEMP", nullable = false)
     private Double mannerTemp = 36.5;

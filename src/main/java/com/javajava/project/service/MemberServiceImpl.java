@@ -89,4 +89,12 @@ public class MemberServiceImpl implements MemberService {
     public boolean isEmailDuplicate(String email) {
         return memberRepository.existsByEmail(email);
     }
+
+    @Override
+    @Transactional
+    public void updateProfileImage(Long memberNo, String url) {
+        Member member = memberRepository.findById(memberNo)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+        member.setProfileImgUrl(url);
+    }
 }

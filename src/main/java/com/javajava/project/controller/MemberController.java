@@ -55,4 +55,18 @@ public class MemberController {
     public ResponseEntity<Map<String, Boolean>> checkEmail(@RequestParam String email) {
         return ResponseEntity.ok(Map.of("duplicate", memberService.isEmailDuplicate(email)));
     }
+
+    /**
+     * 프로필 이미지 URL 저장
+     * PUT /api/members/{memberNo}/profile-image-url
+     * 파일 업로드는 POST /api/images/upload 로 먼저 완료 후, 반환된 URL을 여기에 저장
+     * 요청: { "url": "/api/images/uuid.jpg" }
+     */
+    @PutMapping("/{memberNo}/profile-image-url")
+    public ResponseEntity<Void> updateProfileImageUrl(
+            @PathVariable("memberNo") Long memberNo,
+            @RequestBody Map<String, String> body) {
+        memberService.updateProfileImage(memberNo, body.get("url"));
+        return ResponseEntity.ok().build();
+    }
 }
