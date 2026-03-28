@@ -96,6 +96,7 @@
                 </dependency>
         </dependencies>
         <build>
+        <finalName>javajava</finalName>
                 <plugins>
                         <plugin>
                                 <groupId>org.apache.maven.plugins</groupId>
