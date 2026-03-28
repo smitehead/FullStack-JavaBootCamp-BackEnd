@@ -5,7 +5,7 @@ import { ProductCard } from '@/components/ProductCard';
 import { Settings, Package, ShoppingBag, Heart, Wallet, Trash2, RefreshCw, AlertTriangle, X, Gavel, CheckCircle2, XCircle } from 'lucide-react';
 import { Product } from '@/types';
 import api from '@/services/api';
-import { resolveImageUrls } from '@/utils/imageUtils';
+import { resolveImageUrls, resolveImageUrl } from '@/utils/imageUtils';
 import { getMemberNo } from '@/utils/memberUtils';
 import { showToast } from '@/components/toastService';
 
@@ -38,7 +38,7 @@ type TabType = 'selling' | 'bidding' | 'purchased' | 'wishlist';
 
 export const MyPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAppContext();
+  const { user, updateCurrentUserProfileImage } = useAppContext();
   const [activeTab, setActiveTab] = useState<TabType>('selling');
   const [sellingFilter, setSellingFilter] = useState<'all' | 'active' | 'completed'>('all');
 
@@ -52,15 +52,45 @@ export const MyPage: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [profileImage, setProfileImage] = useState(user?.profileImage || '');
+  const [uploadingProfile, setUploadingProfile] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // 프로필 이미지 로컬 미리보기 (업로드 API 미구현이므로 로컬 표시만)
-  const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onloadend = () => setProfileImage(reader.result as string);
-      reader.readAsDataURL(file);
+  // user.profileImage가 외부에서 바뀌면(세션 복원 등) 동기화
+  React.useEffect(() => {
+    if (user?.profileImage) setProfileImage(user.profileImage);
+  }, [user?.profileImage]);
+
+  const handleProfileImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0] || !user) return;
+    const file = e.target.files[0];
+
+    // 로컬 미리보기 즉시 반영
+    const reader = new FileReader();
+    reader.onloadend = () => setProfileImage(reader.result as string);
+    reader.readAsDataURL(file);
+
+    // 서버 업로드 (2단계)
+    try {
+      setUploadingProfile(true);
+      const memberNo = getMemberNo(user);
+
+      // 1단계: 파일 업로드 (기존 동작하는 엔드포인트 활용)
+      const formData = new FormData();
+      formData.append('file', file);
+      const uploadRes = await api.post('/images/upload', formData);
+      const relativeUrl: string = uploadRes.data.url; // "/api/images/uuid.jpg"
+
+      // 2단계: 회원 프로필 이미지 URL 저장
+      await api.put(`/members/${memberNo}/profile-image-url`, { url: relativeUrl });
+
+      const fullUrl = resolveImageUrl(relativeUrl) || relativeUrl;
+      updateCurrentUserProfileImage(fullUrl);
+      setProfileImage(fullUrl);
+      showToast('프로필 이미지가 변경되었습니다.', 'success');
+    } catch (err) {
+      showToast('이미지 업로드에 실패했습니다.', 'error');
+    } finally {
+      setUploadingProfile(false);
     }
   };
 
@@ -206,8 +236,11 @@ export const MyPage: React.FC = () => {
                 <span className="text-4xl text-gray-400">{user.nickname?.charAt(0) || '?'}</span>
               )}
             </div>
-            <button onClick={triggerFileInput} className="absolute -bottom-2 -right-2 bg-white text-gray-700 p-2.5 rounded-2xl shadow-lg hover:bg-indigo-600 hover:text-white transition-all duration-300 border border-gray-100">
-              <Settings className="w-5 h-5" />
+            <button onClick={triggerFileInput} disabled={uploadingProfile} className="absolute -bottom-2 -right-2 bg-white text-gray-700 p-2.5 rounded-2xl shadow-lg hover:bg-indigo-600 hover:text-white transition-all duration-300 border border-gray-100 disabled:opacity-50">
+              {uploadingProfile
+                ? <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                : <Settings className="w-5 h-5" />
+              }
             </button>
             <input type="file" ref={fileInputRef} onChange={handleProfileImageChange} accept="image/*" className="hidden" />
           </div>

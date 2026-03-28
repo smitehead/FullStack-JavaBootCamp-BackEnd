@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect, useCa
 import { Notification, ChatRoom, User, Product, WithdrawnUser, NotificationType, Report, MannerHistory, ActivityLog } from '@/types';
 import { NOTIFICATIONS as INITIAL_NOTIFICATIONS, MOCK_CHATS as INITIAL_CHATS, CURRENT_USER as MOCK_USER, ADMIN_USER, MOCK_PRODUCTS as INITIAL_PRODUCTS, MOCK_USERS as INITIAL_USERS, MOCK_REPORTS as INITIAL_REPORTS } from '@/services/mockData';
 import api from '@/services/api';
-import { BACKEND_URL } from '@/utils/imageUtils';
+import { BACKEND_URL, resolveImageUrl } from '@/utils/imageUtils';
 import { getMemberNo } from '@/utils/memberUtils';
 import { showToast } from '@/components/toastService';
 
@@ -14,7 +14,7 @@ const extractMemberNo = (userId: string): number =>
 const mapMemberToUser = (m: any): User => ({
   id: `user_${m.memberNo}`,
   nickname: m.nickname,
-  profileImage: '',
+  profileImage: resolveImageUrl(m.profileImgUrl) || '',
   points: m.points || 0,
   mannerTemp: m.mannerTemp || 36.5,
   joinedAt: m.joinedAt,
@@ -116,6 +116,7 @@ interface AppContextType {
   updateUserManner: (userId: string, mannerTemp: number, reason: string) => void;
   updateUserPoints: (userId: string, points: number) => void;
   updateCurrentUserPoints: (points: number) => void;
+  updateCurrentUserProfileImage: (profileImageUrl: string) => void;
   sendAdminMessage: (userId: string, content: string) => void;
   toggleMaintenanceMode: (enabled: boolean, message?: string) => void;
   unreadNotificationsCount: number;
@@ -235,7 +236,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           if (res.data) {
             setUser(prev => {
               if (!prev) return prev;
-              const updated = { ...prev, points: res.data.points || 0, mannerTemp: res.data.mannerTemp || 36.5 };
+              const updated = {
+                ...prev,
+                points: res.data.points || 0,
+                mannerTemp: res.data.mannerTemp || 36.5,
+                profileImage: resolveImageUrl(res.data.profileImgUrl) || prev.profileImage,
+              };
               sessionStorage.setItem('java_user', JSON.stringify(updated));
               return updated;
             });
@@ -255,23 +261,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       sessionStorage.setItem('java_token', token);
 
-      // FETCH REAL POINTS HERE
       let dbPoints = 0;
       let dbMannerTemp = 36.5;
       let dbIsAdmin = false;
+      let dbProfileImage = '';
       try {
         const memberRes = await api.get(`/members/${memberNo}`);
         dbPoints = memberRes.data.points || 0;
         dbMannerTemp = memberRes.data.mannerTemp || 36.5;
         dbIsAdmin = memberRes.data.isAdmin === 1;
+        dbProfileImage = resolveImageUrl(memberRes.data.profileImgUrl) || '';
       } catch (err) {
-        console.error("로그인 중 포인트 조회 실패", err);
+        console.error("로그인 중 회원 정보 조회 실패", err);
       }
 
       const loggedInUser: User = {
         id: `user_${memberNo}`,
         nickname: nickname || userId,
-        profileImage: '',
+        profileImage: dbProfileImage,
         points: dbPoints,
         mannerTemp: dbMannerTemp,
         joinedAt: new Date().toISOString(),
@@ -482,6 +489,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  const updateCurrentUserProfileImage = (profileImageUrl: string) => {
+    if (user) {
+      const updated = { ...user, profileImage: profileImageUrl };
+      setUser(updated);
+      sessionStorage.setItem('java_user', JSON.stringify(updated));
+    }
+  };
+
   const unreadNotificationsCount = notifications.filter(n => !n.read).length;
   const unreadChatsCount = chats.filter(c => c.unreadCount > 0).length;
 
@@ -513,6 +528,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       updateUserManner,
       updateUserPoints,
       updateCurrentUserPoints,
+      updateCurrentUserProfileImage,
       sendAdminMessage,
       toggleMaintenanceMode,
       unreadNotificationsCount,
