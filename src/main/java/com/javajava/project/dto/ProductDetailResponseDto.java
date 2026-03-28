@@ -31,6 +31,7 @@ public class ProductDetailResponseDto {
         private Long sellerNo;
         private String nickname;
         private Double mannerTemp;
+        private String profileImgUrl;
     }
 
     @Getter @Setter @Builder

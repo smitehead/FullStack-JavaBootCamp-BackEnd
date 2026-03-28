@@ -591,6 +591,30 @@ DB 레벨 unique 제약으로 두 트랜잭션이 동시에 같은 BID_NO 저장
 
 ---
 
+#### 27. 판매자 프로필 페이지 DB 연동
+
+##### 배경
+상품 상세 페이지에서 판매자 클릭 시 이동하는 `/seller/:id` 페이지가 mock 데이터로만 구성되어 있었음.
+
+##### 신규
+- **`SellerProfileResponseDto.java`** — 판매자 공개 프로필 응답 DTO (sellerNo, nickname, profileImgUrl, mannerTemp, joinedAt, 판매상품 목록)
+- **`GET /api/members/{memberNo}/seller-profile`** (MemberController) — 판매자 기본 정보 + 판매 상품 목록 반환
+
+##### 수정
+- **`MemberService.java`** / **`MemberServiceImpl.java`** — `getSellerProfile()` 구현
+  - MemberServiceImpl에 ProductRepository, ProductImageRepository, BidHistoryRepository 추가 주입
+  - 삭제되지 않은 판매 상품 조회 + 메인 이미지 / 참여자 수 배치 조회
+- **`ProductDetailResponseDto.SellerInfoDto`** — `profileImgUrl` 필드 추가
+- **`ProductServiceImpl.java`** — `getProductDetail()` 내 SellerInfoDto 빌드 시 `profileImgUrl` 포함
+- **`SellerProfile.tsx`** (프론트) — mock 데이터 제거 → `GET /members/{id}/seller-profile` API 연동
+  - 판매자 프로필 이미지 없을 시 닉네임 첫 글자 폴백
+  - 판매 상품 필터(전체/판매중/판매완료) 동작
+  - 로딩 스피너 추가
+  - 거래 후기 탭은 후기 기능 미구현으로 빈 상태 표시
+- **`ProductDetail.tsx`** (프론트) — 판매자 정보 매핑 시 `profileImgUrl` → `profileImage` 반영
+
+---
+
 #### 26. Spring Boot 3.x @PathVariable 파라미터명 누락 수정
 
 ##### 배경

@@ -1,6 +1,7 @@
 package com.javajava.project.controller;
 
 import com.javajava.project.dto.MemberRequestDto;
+import com.javajava.project.dto.SellerProfileResponseDto;
 import com.javajava.project.entity.Member;
 import com.javajava.project.service.MemberService;
 import jakarta.validation.Valid;
@@ -62,6 +63,17 @@ public class MemberController {
      * 파일 업로드는 POST /api/images/upload 로 먼저 완료 후, 반환된 URL을 여기에 저장
      * 요청: { "url": "/api/images/uuid.jpg" }
      */
+    /**
+     * 판매자 공개 프로필 조회
+     * GET /api/members/{memberNo}/seller-profile
+     * 응답: 판매자 기본 정보 + 판매 상품 목록
+     */
+    @GetMapping("/{memberNo}/seller-profile")
+    public ResponseEntity<SellerProfileResponseDto> getSellerProfile(
+            @PathVariable("memberNo") Long memberNo) {
+        return ResponseEntity.ok(memberService.getSellerProfile(memberNo));
+    }
+
     @PutMapping("/{memberNo}/profile-image-url")
     public ResponseEntity<Void> updateProfileImageUrl(
             @PathVariable("memberNo") Long memberNo,
