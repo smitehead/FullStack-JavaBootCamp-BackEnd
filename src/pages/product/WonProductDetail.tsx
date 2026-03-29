@@ -334,20 +334,12 @@ export const WonProductDetail: React.FC = () => {
                 )}
 
                 {isPaid && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <button
-                      onClick={() => setShowPurchaseConfirm(true)}
-                      className="w-full py-5 bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-2xl transition-all shadow-lg shadow-emerald-900/20 active:scale-95"
-                    >
-                      구매 확정하기
-                    </button>
-                    <button
-                      onClick={() => showToast('판매자에게 환불 요청을 보냈습니다.', 'info')}
-                      className="w-full py-5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-2xl transition-all border border-gray-200"
-                    >
-                      환불 요청
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setShowPurchaseConfirm(true)}
+                    className="w-full py-5 bg-emerald-500 hover:bg-emerald-400 text-white font-black rounded-2xl transition-all shadow-lg shadow-emerald-900/20 active:scale-95"
+                  >
+                    구매 확정하기
+                  </button>
                 )}
 
                 {isCompleted && (
@@ -406,7 +398,6 @@ export const WonProductDetail: React.FC = () => {
                     <p className="text-xs font-bold text-gray-900 mb-1">안전 거래 안내</p>
                     <p className="text-[11px] text-gray-500 leading-relaxed">
                       결제된 포인트는 LiveBid에서 안전하게 보관하며, 구매자가 '구매 확정'을 누른 후에 판매자에게 전달됩니다.
-                      물건을 받지 못했거나 설명과 다를 경우 환불 요청을 해주세요.
                     </p>
                   </div>
                 </div>

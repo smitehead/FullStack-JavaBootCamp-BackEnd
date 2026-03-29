@@ -189,7 +189,7 @@ export interface Notice {
   createdAt: string;
 }
 
-export type InquiryCategory = "버그 신고" | "환불 문의" | "계정 문의" | "기타";
+export type InquiryCategory = "버그 신고" | "계정 문의" | "기타";
 export type BugType =
   | "기능 작동 오류"
   | "화면/UI 오류"

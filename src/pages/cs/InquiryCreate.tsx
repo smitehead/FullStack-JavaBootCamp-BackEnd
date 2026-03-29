@@ -14,7 +14,7 @@ export const InquiryCreate: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const categories: InquiryCategory[] = ['버그 신고', '환불 문의', '계정 문의', '기타'];
+  const categories: InquiryCategory[] = ['버그 신고', '계정 문의', '기타'];
   const bugTypes: BugType[] = ['기능 작동 오류', '화면/UI 오류', '데이터/정보 오류', '로그인/계정 문제', '속도/접속 저하', '기타'];
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -200,10 +200,7 @@ export const InquiryCreate: React.FC = () => {
           <span className="font-bold">문의 전 확인해주세요</span>
         </div>
         <ul className="space-y-3 text-sm text-gray-500 font-medium">
-          <li className="flex gap-2">
-            <span className="text-red-500">•</span>
-            환불 문의 시 낙찰된 상품명과 낙찰 일시를 정확히 기재해 주시면 빠른 처리가 가능합니다.
-          </li>
+
           <li className="flex gap-2">
             <span className="text-red-500">•</span>
             버그 신고 시 오류가 발생한 화면의 스크린샷을 첨부해 주시면 원인 파악에 큰 도움이 됩니다.

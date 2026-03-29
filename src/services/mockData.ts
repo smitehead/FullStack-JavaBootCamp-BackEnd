@@ -157,10 +157,10 @@ export const BLOCKED_USERS: User[] = [
 
 const generateBids = (basePrice: number): BidHistory[] => {
   return [
-    { id: 'bid_1', bidderName: '입찰자A', amount: basePrice, timestamp: '2023-10-25T10:00:00' },
-    { id: 'bid_2', bidderName: '입찰자B', amount: basePrice + 5000, timestamp: '2023-10-25T10:30:00' },
-    { id: 'bid_3', bidderName: '입찰자C', amount: basePrice + 12000, timestamp: '2023-10-25T11:15:00' },
-    { id: 'bid_4', bidderName: '입찰자A', amount: basePrice + 15000, timestamp: '2023-10-25T12:00:00' },
+    { id: 'bid_1', bidderId: 'user_10', bidderName: '입찰자A', amount: basePrice, timestamp: '2023-10-25T10:00:00' },
+    { id: 'bid_2', bidderId: 'user_11', bidderName: '입찰자B', amount: basePrice + 5000, timestamp: '2023-10-25T10:30:00' },
+    { id: 'bid_3', bidderId: 'user_12', bidderName: '입찰자C', amount: basePrice + 12000, timestamp: '2023-10-25T11:15:00' },
+    { id: 'bid_4', bidderId: 'user_10', bidderName: '입찰자A', amount: basePrice + 15000, timestamp: '2023-10-25T12:00:00' },
   ];
 };
 
@@ -267,8 +267,8 @@ export const MOCK_PRODUCTS: Product[] = [
     images: ["https://picsum.photos/seed/watch/600/400"],
     participantCount: 8,
     bids: [
-      { id: 'bid_w1', bidderName: '입찰자X', amount: 700000, timestamp: '2023-10-20T10:00:00' },
-      { id: 'bid_w2', bidderName: '경매왕', amount: 850000, timestamp: '2023-10-24T17:30:00' },
+      { id: 'bid_w1', bidderId: 'user_13', bidderName: '입찰자X', amount: 700000, timestamp: '2023-10-20T10:00:00' },
+      { id: 'bid_w2', bidderId: 'user_1', bidderName: '경매왕', amount: 850000, timestamp: '2023-10-24T17:30:00' },
     ],
     status: "completed",
     location: "서울 마포구",
@@ -290,7 +290,7 @@ export const MOCK_PRODUCTS: Product[] = [
     images: ["https://picsum.photos/seed/switch/600/400"],
     participantCount: 15,
     bids: [
-      { id: 'bid_s1', bidderName: '홈스타일링', amount: 320000, timestamp: '2023-10-24T19:45:00' },
+      { id: 'bid_s1', bidderId: 'user_3', bidderName: '홈스타일링', amount: 320000, timestamp: '2023-10-24T19:45:00' },
     ],
     status: "completed",
     location: "서울 강남구",
@@ -490,16 +490,7 @@ export const MOCK_INQUIRIES: Inquiry[] = [
     answeredAt: "2024-05-21T10:00:00",
     createdAt: "2024-05-20T15:00:00",
   },
-  {
-    id: "inq_2",
-    userId: "user_1",
-    category: "환불 문의",
-    title: "낙찰 취소 및 환불 요청합니다",
-    content:
-      "상품 설명과 실제 상품 상태가 너무 다릅니다. 환불 절차 안내 부탁드립니다.",
-    status: "답변 대기중",
-    createdAt: "2024-05-22T09:00:00",
-  },
+
   {
     id: "inq_3",
     userId: "user_1",
@@ -540,78 +531,69 @@ export const MOCK_REPORTS: Report[] = [
 
 export const MOCK_HERO_BANNERS: HeroBanner[] = [
   {
-    id: "banner_1",
-    type: "hero",
-    imageUrl:
+    bannerNo: 1,
+    bannerType: "hero",
+    imgUrl:
       "https://images.unsplash.com/photo-1449034446853-66c86144b0ad?auto=format&fit=crop&w=1920&q=80",
-    title: "",
-    subtitle: "",
-    label: "",
-    buttons: [],
-    link: "/search",
-    isActive: true,
+    linkUrl: "/search",
+    sortOrder: 1,
+    isActive: 1,
     createdAt: "2024-01-01T00:00:00",
+    endAt: null,
   },
   {
-    id: "banner_2",
-    type: "hero",
-    imageUrl:
+    bannerNo: 2,
+    bannerType: "hero",
+    imgUrl:
       "https://images.unsplash.com/photo-1556742049-02e53f40d990?auto=format&fit=crop&w=1920&q=80",
-    title: "",
-    subtitle: "",
-    label: "",
-    buttons: [],
-    link: "/signup",
-    isActive: true,
+    linkUrl: "/signup",
+    sortOrder: 2,
+    isActive: 1,
     createdAt: "2024-01-02T00:00:00",
+    endAt: null,
   },
   {
-    id: "banner_3",
-    type: "hero",
-    imageUrl:
+    bannerNo: 3,
+    bannerType: "hero",
+    imgUrl:
       "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1920&q=80",
-    title: "",
-    subtitle: "",
-    label: "",
-    buttons: [],
-    link: "/search",
-    isActive: true,
+    linkUrl: "/search",
+    sortOrder: 3,
+    isActive: 1,
     createdAt: "2024-01-03T00:00:00",
+    endAt: null,
   },
   {
-    id: "ad_1",
-    type: "ad",
-    imageUrl:
+    bannerNo: 4,
+    bannerType: "ad",
+    imgUrl:
       "https://images.unsplash.com/photo-1556742049-02e53f40d990?auto=format&fit=crop&w=1920&q=80",
-    title: "",
-    subtitle: "",
-    buttons: [],
-    link: "/signup",
-    isActive: true,
+    linkUrl: "/signup",
+    sortOrder: 1,
+    isActive: 1,
     createdAt: "2024-01-04T00:00:00",
+    endAt: null,
   },
   {
-    id: "ad_2",
-    type: "ad",
-    imageUrl:
+    bannerNo: 5,
+    bannerType: "ad",
+    imgUrl:
       "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1920&q=80",
-    title: "",
-    subtitle: "",
-    buttons: [],
-    link: "/mypage/invite",
-    isActive: true,
+    linkUrl: "/mypage/invite",
+    sortOrder: 2,
+    isActive: 1,
     createdAt: "2024-01-05T00:00:00",
+    endAt: null,
   },
   {
-    id: "ad_3",
-    type: "ad",
-    imageUrl:
+    bannerNo: 6,
+    bannerType: "ad",
+    imgUrl:
       "https://images.unsplash.com/photo-1556742049-02e53f40d990?auto=format&fit=crop&w=1920&q=80",
-    title: "",
-    subtitle: "",
-    buttons: [],
-    link: "/download",
-    isActive: true,
+    linkUrl: "/download",
+    sortOrder: 3,
+    isActive: 1,
     createdAt: "2024-01-06T00:00:00",
+    endAt: null,
   },
 ];

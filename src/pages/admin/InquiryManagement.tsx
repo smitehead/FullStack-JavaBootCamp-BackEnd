@@ -95,7 +95,7 @@ export const InquiryManagement: React.FC = () => {
 
           {(activeTab === '답변 대기중' || activeTab === '답변 완료') && (
             <div className="flex items-center space-x-2 overflow-x-auto pb-1 scrollbar-hide">
-              {['전체', '버그 신고', '환불 문의', '계정 문의', '기타'].map((cat) => (
+              {['전체', '버그 신고', '계정 문의', '기타'].map((cat) => (
                 <button
                   key={cat}
                   type="button"
