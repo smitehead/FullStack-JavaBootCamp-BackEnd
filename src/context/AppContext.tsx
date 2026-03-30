@@ -110,6 +110,7 @@ interface AppContextType {
   cancelAuction: (productId: string, reason: string) => void;
   resolveReport: (reportId: string, action: string) => void;
   markNotificationAsRead: (id: string) => void;
+  markAllNotificationsAsRead: () => void;
   markChatAsRead: (id: string) => void;
   addNotification: (message: string, link: string, type?: NotificationType) => void;
   updateUserRole: (userId: string, isAdmin: boolean) => void;
@@ -130,8 +131,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
-  const [chats, setChats] = useState<ChatRoom[]>(INITIAL_CHATS);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [chats, setChats] = useState<ChatRoom[]>([]);
   const [reports, setReports] = useState<Report[]>(INITIAL_REPORTS);
   const [mannerHistory, setMannerHistory] = useState<MannerHistory[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
@@ -154,6 +155,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       withdrawnAt: '2024-03-21T15:30:00Z'
     }
   ]);
+
+  // 알림 목록 API 로드
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await api.get('/notifications');
+      const mapped: Notification[] = (res.data || []).map((n: any) => ({
+        id: String(n.notiNo),
+        message: n.content,
+        read: n.isRead === 1,
+        link: n.linkUrl || '/',
+        createdAt: n.createdAt,
+        type: n.type as NotificationType,
+      }));
+      setNotifications(mapped);
+    } catch (err) {
+      console.error('[알림] 목록 로딩 실패:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) fetchNotifications();
+    else setNotifications([]);
+  }, [user?.id, fetchNotifications]);
 
   // 전역 SSE 구독 - 로그인한 사용자의 포인트/알림 실시간 업데이트
   useEffect(() => {
@@ -410,10 +434,24 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
-  const markNotificationAsRead = (id: string) => {
+  const markNotificationAsRead = async (id: string) => {
     setNotifications(prev =>
       prev.map(noti => noti.id === id ? { ...noti, read: true } : noti)
     );
+    try {
+      await api.patch(`/notifications/${id}/read`);
+    } catch (err) {
+      console.error('[알림] 읽음 처리 실패:', err);
+    }
+  };
+
+  const markAllNotificationsAsRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    try {
+      await api.patch('/notifications/read-all');
+    } catch (err) {
+      console.error('[알림] 전체 읽음 처리 실패:', err);
+    }
   };
 
   const markChatAsRead = (id: string) => {
@@ -522,6 +560,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       cancelAuction,
       resolveReport,
       markNotificationAsRead,
+      markAllNotificationsAsRead,
       markChatAsRead,
       addNotification,
       updateUserRole,

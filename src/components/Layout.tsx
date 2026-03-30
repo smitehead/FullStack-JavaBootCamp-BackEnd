@@ -11,7 +11,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onLogout }) => {
-  const { user, notifications, chats, markNotificationAsRead, markChatAsRead, unreadNotificationsCount } = useAppContext();
+  const { user, notifications, markNotificationAsRead, markAllNotificationsAsRead, unreadNotificationsCount } = useAppContext();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [isNotiOpen, setIsNotiOpen] = useState(false);
@@ -208,7 +208,11 @@ const Header: React.FC<HeaderProps> = ({ onLogout }) => {
 
                 <div className="relative">
                   <button
-                    onClick={() => setIsNotiOpen(!isNotiOpen)}
+                    onClick={() => {
+                      const opening = !isNotiOpen;
+                      setIsNotiOpen(opening);
+                      if (opening) markAllNotificationsAsRead();
+                    }}
                     className="p-2.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-xl transition-all relative"
                   >
                     <Bell className="w-6 h-6" />
@@ -221,29 +225,23 @@ const Header: React.FC<HeaderProps> = ({ onLogout }) => {
                       <div className="flex border-b border-gray-50">
                         <button
                           onClick={() => setNotiTab('noti')}
-                          className={`flex-1 px-5 py-3 text-sm transition-all ${notiTab === 'noti'
-                              ? 'font-black text-gray-900 border-b-2 border-gray-900'
-                              : 'font-bold text-gray-400 hover:text-gray-600'
-                            }`}
+                          className={`flex-1 px-5 py-3 text-sm transition-all ${notiTab === 'noti' ? 'font-black text-gray-900 border-b-2 border-gray-900' : 'font-bold text-gray-400 hover:text-gray-600'}`}
                         >
                           알림
                         </button>
                         <button
                           onClick={() => setNotiTab('chat')}
-                          className={`flex-1 px-5 py-3 text-sm transition-all ${notiTab === 'chat'
-                              ? 'font-black text-gray-900 border-b-2 border-gray-900'
-                              : 'font-bold text-gray-400 hover:text-gray-600'
-                            }`}
+                          className={`flex-1 px-5 py-3 text-sm transition-all ${notiTab === 'chat' ? 'font-black text-gray-900 border-b-2 border-gray-900' : 'font-bold text-gray-400 hover:text-gray-600'}`}
                         >
                           대화
                         </button>
                       </div>
                       <div className="max-h-80 overflow-y-auto">
                         {notiTab === 'noti' ? (
-                          notifications.map(noti => (
+                          notifications.length > 0 ? notifications.map(noti => (
                             <Link
                               key={noti.id}
-                              to={`/inbox?tab=noti`}
+                              to="/inbox?tab=noti"
                               className={`block px-5 py-4 text-sm hover:bg-gray-50 transition-colors ${!noti.read ? 'bg-red-50/30' : ''}`}
                               onClick={() => {
                                 markNotificationAsRead(noti.id);
@@ -253,30 +251,11 @@ const Header: React.FC<HeaderProps> = ({ onLogout }) => {
                               <p className="text-gray-700 leading-snug font-medium line-clamp-2">{noti.message}</p>
                               <span className="text-[10px] font-bold text-gray-300 mt-2 block uppercase tracking-wider">{new Date(noti.createdAt).toLocaleDateString()}</span>
                             </Link>
-                          ))
+                          )) : (
+                            <div className="py-10 text-center text-sm text-gray-400 font-medium">알림이 없습니다.</div>
+                          )
                         ) : (
-                          chats.map(chat => (
-                            <Link
-                              key={chat.id}
-                              to={`/inbox?tab=chat`}
-                              className="block px-5 py-4 text-sm hover:bg-gray-50 transition-colors"
-                              onClick={() => {
-                                markChatAsRead(chat.id);
-                                setIsNotiOpen(false);
-                              }}
-                            >
-                              <div className="flex items-center gap-3">
-                                <img src={chat.otherUser.profileImage || undefined} className="w-8 h-8 rounded-full object-cover" alt="" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-gray-900 font-bold truncate">{chat.otherUser.nickname}</p>
-                                  <p className="text-gray-500 text-xs truncate">{chat.lastMessage}</p>
-                                </div>
-                                {chat.unreadCount > 0 && (
-                                  <span className="w-2 h-2 bg-[#FF5A5A] rounded-full"></span>
-                                )}
-                              </div>
-                            </Link>
-                          ))
+                          <div className="py-10 text-center text-sm text-gray-400 font-medium">대화 내역이 없습니다.</div>
                         )}
                       </div>
                       <Link
