@@ -189,13 +189,13 @@ export const MyPage: React.FC = () => {
       case 'bidding':
         return (
           <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-bold">
-            <Gavel className="w-3 h-3" /> 경매중
+            <Gavel className="w-3 h-3" /> 입찰중
           </span>
         );
       case 'won':
         return (
           <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-xs font-bold">
-            <CheckCircle2 className="w-3 h-3" /> 낙찰
+            <CheckCircle2 className="w-3 h-3" /> 낙찰성공
           </span>
         );
       case 'lost':
@@ -395,7 +395,7 @@ export const MyPage: React.FC = () => {
                   </div>
                 ))}
 
-                {/* 입찰 내역 — won: ProductCard 내부 Link가 /won/:id로 이동, 나머지: /products/:id */}
+                {/* 입찰 내역 */}
                 {activeTab === 'bidding' && biddingProducts.map(p => (
                   <div key={p.id} className="flex flex-col gap-2">
                     <ProductCard
@@ -408,9 +408,9 @@ export const MyPage: React.FC = () => {
                       {p.bidStatus === 'won' && (
                         <button
                           onClick={() => navigate(`/won/${p.id}`)}
-                          className="px-4 py-1.5 bg-emerald-500 text-white rounded-xl text-xs font-bold hover:bg-emerald-600 transition-all"
+                          className="px-4 py-1.5 bg-amber-500 text-white rounded-xl text-xs font-bold hover:bg-amber-600 transition-all"
                         >
-                          낙찰 상세보기
+                          결제대기중
                         </button>
                       )}
                     </div>
@@ -419,7 +419,14 @@ export const MyPage: React.FC = () => {
 
                 {/* 구매 내역 */}
                 {activeTab === 'purchased' && purchasedProducts.map(p => (
-                  <ProductCard key={p.id} product={p} isSold />
+                  <div key={p.id} className="flex flex-col gap-2">
+                    <ProductCard product={p} isSold />
+                    <div className="flex items-center px-1">
+                      <span className="inline-flex items-center gap-1 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-xs font-bold">
+                        <CheckCircle2 className="w-3 h-3" /> 구매완료
+                      </span>
+                    </div>
+                  </div>
                 ))}
 
                 {/* 찜 목록 */}
