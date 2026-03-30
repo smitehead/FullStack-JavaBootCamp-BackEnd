@@ -633,3 +633,4 @@ Spring Boot 3.5.x (Spring Framework 6.x)는 `-parameters` 컴파일러 플래그
   - `NotificationController.java` — `notiNo`
 
 ---
+커밋용 메세지
