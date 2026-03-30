@@ -208,8 +208,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     });
 
+    // SSE 디버그
+    console.log('[SSE] EventSource 생성, clientId:', String(memberNo));
+    eventSource.onopen = () => console.log('[SSE] 연결 성공!');
+    eventSource.onmessage = (event: MessageEvent) => {
+      console.log('[SSE] onmessage (unnamed event):', event.data);
+    };
+
     // 실시간 알림 수신
     eventSource.addEventListener('notification', (event: MessageEvent) => {
+      console.log('[SSE] notification 이벤트 수신:', event.data);
       try {
         const data = JSON.parse(event.data);
         if (data && data.notiNo) {
