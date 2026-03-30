@@ -322,7 +322,7 @@ export const WonProductDetail: React.FC = () => {
                       disabled={isProcessing}
                       className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl transition-all shadow-lg shadow-indigo-900/20 active:scale-95 disabled:opacity-50"
                     >
-                      {isProcessing ? '처리 중...' : '입찰 구매 확정 (결제)'}
+                      {isProcessing ? '처리 중...' : '결제하기'}
                     </button>
                     <button
                       onClick={() => setShowCancelConfirm(true)}
