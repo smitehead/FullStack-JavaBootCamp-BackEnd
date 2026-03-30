@@ -99,6 +99,21 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         Member seller = memberRepository.findById(product.getSellerNo())
                 .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
 
+        // 구매자 포인트 차감
+        Member buyer = memberRepository.findById(memberNo)
+                .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
+        if (buyer.getPoints() < bid.getBidPrice()) {
+            throw new IllegalStateException("포인트가 부족합니다. 현재 포인트: " + buyer.getPoints() + ", 필요 포인트: " + bid.getBidPrice());
+        }
+        buyer.setPoints(buyer.getPoints() - bid.getBidPrice());
+        pointHistoryRepository.save(PointHistory.builder()
+                .memberNo(buyer.getMemberNo())
+                .type("낙찰대금결제")
+                .amount(-bid.getBidPrice())
+                .balance(buyer.getPoints())
+                .reason("[" + product.getTitle() + "] 낙찰 대금 결제")
+                .build());
+
         // 낙찰 금액을 판매자 포인트에 지급
         seller.setPoints(seller.getPoints() + bid.getBidPrice());
         pointHistoryRepository.save(PointHistory.builder()
@@ -114,6 +129,9 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 ? (addressDetail != null && !addressDetail.isBlank() ? address + " " + addressDetail : address)
                 : addressDetail;
         result.setDeliveryAddrDetail(fullAddr);
+
+        // 구매자 포인트 실시간 반영 (SSE)
+        sseService.sendPointUpdate(buyer.getMemberNo(), buyer.getPoints());
 
         // 판매자 포인트 실시간 반영 (SSE)
         sseService.sendPointUpdate(seller.getMemberNo(), seller.getPoints());
