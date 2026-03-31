@@ -2,6 +2,47 @@
 
 ---
 
+## 날짜: 2026-03-30
+
+### [백엔드]
+
+---
+
+#### 28. 자동입찰 기능 구현
+
+##### 신규 생성
+- **`AutoBid.java`** — 자동입찰 엔티티 (`AUTO_BID` 테이블, AUTO_BID_SEQ 시퀀스, isActive 플래그)
+- **`AutoBidRequestDto.java`** — 자동입찰 등록 요청 DTO (`productNo`, `maxPrice`)
+- **`AutoBidResponseDto.java`** — 자동입찰 응답 DTO
+- **`AutoBidRepository.java`** — 자동입찰 레포지터리
+  - `findActiveByProductNo()` — 상품의 활성 자동입찰 목록 (최대가 높은 순)
+  - `findByMemberNoAndProductNoAndIsActive()` — 특정 회원의 특정 상품 자동입찰 조회
+  - `existsByMemberNoAndProductNoAndIsActive()` — 자동입찰 존재 여부 확인
+- **`AutoBidService.java`** — 자동입찰 서비스 인터페이스
+  - `registerAutoBid()` — 자동입찰 등록 (이미 있으면 maxPrice 갱신)
+  - `cancelAutoBid()` — 자동입찰 취소
+  - `triggerAutoBids()` — 입찰 발생 시 자동입찰 트리거
+  - `getActiveAutoBid()` — 특정 회원의 특정 상품 활성 자동입찰 조회
+
+##### 수정
+- **`AuctionResultServiceImpl.java`** — `processPayment()` 구매자 포인트 차감 로직 추가
+  - 결제 시 구매자 포인트 잔액 검증 후 낙찰 금액 차감
+  - `PointHistory` 타입 `"낙찰대금결제"` 로 이력 기록
+  - 구매자 포인트 SSE 실시간 반영 (`sseService.sendPointUpdate()`)
+- **`ProductServiceImpl.java`**
+  - `getMyBiddingProducts()` — 결제완료/구매확정된 낙찰 상품은 입찰내역에서 제외 (구매내역으로 이동)
+  - `getMyPurchasedProducts()` — 구매확정뿐만 아니라 결제완료 상태도 포함하도록 조건 확장
+- **`SecurityConfig.java`** — CORS 허용 Origin에 EC2 서버 IP 추가 (`http://54.164.62.214`, `:3000`, `:5173`)
+
+---
+
+#### 29. ProductController 병합 충돌 해결
+
+##### 수정
+- **`ProductController.java`** — 이전 브랜치 병합 과정에서 발생한 충돌 해결
+
+---
+
 ## 날짜: 2026-03-27
 
 ### [백엔드]
