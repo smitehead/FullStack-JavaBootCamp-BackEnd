@@ -547,8 +547,6 @@ DB 레벨 unique 제약으로 두 트랜잭션이 동시에 같은 BID_NO 저장
 
 ---
 
----
-
 ## 날짜: 2026-03-28
 
 ### [백엔드 + 프론트엔드]
@@ -634,3 +632,75 @@ Spring Boot 3.5.x (Spring Framework 6.x)는 `-parameters` 컴파일러 플래그
 
 ---
 커밋용 메세지
+
+---
+
+## 날짜: 2026-03-31 (자동입찰 구현 및 경매 결과 크리티컬 버그 수정)
+
+---
+
+### 24. 자동입찰 전체 스택 신규 구현
+
+#### 신규 생성
+
+- **`entity/AutoBid.java`** — 자동입찰 엔티티 (`AUTO_BID` 테이블, `AUTO_BID_SEQ` 시퀀스)
+- **`repository/AutoBidRepository.java`** — 자동입찰 조회 리포지토리
+  - `findActiveByProductNo()` — `@Query`로 `maxPrice DESC` 정렬 보장
+  - `findByMemberNoAndProductNoAndIsActive()` — 내 활성 자동입찰 조회
+- **`dto/AutoBidRequestDto.java`** — 자동입찰 등록 요청 DTO (`productNo`, `maxPrice`)
+- **`dto/AutoBidResponseDto.java`** — 자동입찰 응답 DTO
+- **`service/AutoBidService.java`** — 서비스 인터페이스
+- **`service/AutoBidServiceImpl.java`** — 서비스 구현체
+- **`controller/AutoBidController.java`** — REST API 컨트롤러
+
+| 메서드 | 경로 | 설명 |
+|--------|------|------|
+| POST | `/api/auto-bid` | 자동입찰 등록/수정 |
+| DELETE | `/api/auto-bid/{productNo}` | 자동입찰 취소 |
+| GET | `/api/auto-bid/active?productNo=` | 내 활성 자동입찰 조회 (없으면 204) |
+
+---
+
+### 25. 자동입찰 경쟁 해소 알고리즘 구현 (triggerAutoBids)
+
+#### 핵심 로직
+활성 자동입찰을 `maxPrice` 내림차순으로 조회 후 한 트랜잭션에서 승자 결정 및 단 1회 입찰 처리.
+
+- **승자**: `maxPrice` 1위
+- **낙찰가**: `min(2위.maxPrice + minUnit, 1위.maxPrice)`, 단 `minNextBid` 이상 보장
+- **2위 이하**: 즉시 비활성화 + 패배 알림
+- **승자 포인트 부족**: 승자도 비활성화
+
+#### 수정
+- **`service/BidServiceImpl.java`** — `processBid()` 완료 후 `autoBidService.triggerAutoBids()` 호출 추가 (수동 입찰자 제외)
+
+---
+
+### 26. [크리티컬 버그 수정] processPayment 구매자 이중 차감
+
+#### 문제
+`AuctionResultServiceImpl.processPayment()`에서 구매자 포인트를 재차감하는 버그.
+입찰 시 에스크로로 이미 차감된 금액을 결제 시에도 다시 차감 → 낙찰가를 두 번 납부.
+
+#### 수정
+- **`AuctionResultServiceImpl.java`** — 구매자 차감 블록 전체 제거
+  - 변경 전: 구매자 차감 + PointHistory + SSE + 판매자 지급
+  - 변경 후: 판매자 지급만 (에스크로 이전 역할만 수행)
+
+---
+
+### 27. [크리티컬 버그 수정] cancelTransaction 포인트 환불 없음
+
+#### 문제
+`cancelTransaction()`이 상태를 "거래취소"로만 변경하고 포인트 환불/회수를 하지 않음 → 구매자 에스크로 영구 소멸.
+
+#### 수정
+- **`AuctionResultServiceImpl.java`** — 상태별 분기 환불 로직 추가
+
+| 취소 시점 | 처리 내용 |
+|-----------|-----------|
+| 배송대기 | 구매자 에스크로 환불 (`buyer.points += bidPrice`) + PointHistory + SSE |
+| 결제완료 | 판매자 대금 회수 (`seller.points -= bidPrice`) + PointHistory + SSE + 알림 → 구매자 에스크로 환불 + PointHistory + SSE |
+
+- 비관적 락 순서(memberNo 오름차순) 적용으로 데드락 방지
+- 이미 취소된 거래 재시도 시 `IllegalStateException` 반환

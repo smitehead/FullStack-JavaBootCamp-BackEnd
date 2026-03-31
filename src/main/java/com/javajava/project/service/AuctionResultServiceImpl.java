@@ -99,22 +99,15 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         Member seller = memberRepository.findById(product.getSellerNo())
                 .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
 
-        // 구매자 포인트 차감
-        Member buyer = memberRepository.findById(memberNo)
-                .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
-        if (buyer.getPoints() < bid.getBidPrice()) {
-            throw new IllegalStateException("포인트가 부족합니다. 현재 포인트: " + buyer.getPoints() + ", 필요 포인트: " + bid.getBidPrice());
-        }
-        buyer.setPoints(buyer.getPoints() - bid.getBidPrice());
-        pointHistoryRepository.save(PointHistory.builder()
-                .memberNo(buyer.getMemberNo())
-                .type("낙찰대금결제")
-                .amount(-bid.getBidPrice())
-                .balance(buyer.getPoints())
-                .reason("[" + product.getTitle() + "] 낙찰 대금 결제")
-                .build());
+        // ─────────────────────────────────────────────────────────────────
+        // [수정] 구매자 포인트를 여기서 차감하지 않음.
+        //
+        // 입찰 시점에 이미 낙찰가만큼 차감(에스크로)되어 있음.
+        // processPayment는 그 에스크로를 판매자에게 이전하는 역할만 함.
+        // 구매자를 다시 차감하면 낙찰가를 두 번 내는 이중 청구 버그 발생.
+        // ─────────────────────────────────────────────────────────────────
 
-        // 낙찰 금액을 판매자 포인트에 지급
+        // 에스크로(입찰 시 차감된 금액)를 판매자에게 지급
         seller.setPoints(seller.getPoints() + bid.getBidPrice());
         pointHistoryRepository.save(PointHistory.builder()
                 .memberNo(seller.getMemberNo())
@@ -129,9 +122,6 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 ? (addressDetail != null && !addressDetail.isBlank() ? address + " " + addressDetail : address)
                 : addressDetail;
         result.setDeliveryAddrDetail(fullAddr);
-
-        // 구매자 포인트 실시간 반영 (SSE)
-        sseService.sendPointUpdate(buyer.getMemberNo(), buyer.getPoints());
 
         // 판매자 포인트 실시간 반영 (SSE)
         sseService.sendPointUpdate(seller.getMemberNo(), seller.getPoints());
@@ -183,6 +173,69 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         if ("구매확정".equals(result.getStatus())) {
             throw new IllegalStateException("이미 구매 확정된 거래는 취소할 수 없습니다.");
         }
+        if ("거래취소".equals(result.getStatus())) {
+            throw new IllegalStateException("이미 취소된 거래입니다.");
+        }
+
+        BidHistory bid = bidHistoryRepository.findById(result.getBidNo())
+                .orElseThrow(() -> new IllegalArgumentException("입찰 기록을 찾을 수 없습니다."));
+        Product product = productRepository.findById(bid.getProductNo())
+                .orElseThrow(() -> new IllegalArgumentException("상품 정보를 찾을 수 없습니다."));
+
+        // memberNo 오름차순으로 락 획득 (데드락 방지)
+        Member buyer;
+        Member sellerForRefund = null;
+
+        if ("결제완료".equals(result.getStatus())) {
+            // 결제완료 상태: 판매자에게서 회수 + 구매자에게 환불
+            Long sellerNo = product.getSellerNo();
+            if (sellerNo < memberNo) {
+                sellerForRefund = memberRepository.findByIdWithLock(sellerNo)
+                        .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
+                buyer = memberRepository.findByIdWithLock(memberNo)
+                        .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
+            } else {
+                buyer = memberRepository.findByIdWithLock(memberNo)
+                        .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
+                sellerForRefund = memberRepository.findByIdWithLock(sellerNo)
+                        .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
+            }
+
+            // 판매자 포인트 회수
+            sellerForRefund.setPoints(sellerForRefund.getPoints() - bid.getBidPrice());
+            pointHistoryRepository.save(PointHistory.builder()
+                    .memberNo(sellerForRefund.getMemberNo())
+                    .type("거래취소회수")
+                    .amount(-bid.getBidPrice())
+                    .balance(sellerForRefund.getPoints())
+                    .reason("[" + product.getTitle() + "] 거래 취소로 인한 낙찰 대금 회수")
+                    .build());
+            sseService.sendPointUpdate(sellerForRefund.getMemberNo(), sellerForRefund.getPoints());
+
+            try {
+                notificationService.sendAndSaveNotification(
+                        sellerForRefund.getMemberNo(), "activity",
+                        "구매자가 [" + product.getTitle() + "] 거래를 취소하여 낙찰 대금이 회수되었습니다.",
+                        "/product/" + product.getProductNo());
+            } catch (Exception e) {
+                log.warn("[AuctionResult] 판매자 거래취소 알림 전송 실패: {}", e.getMessage());
+            }
+        } else {
+            // 배송대기 상태: 에스크로(구매자 입찰 차감금액) 환불만
+            buyer = memberRepository.findByIdWithLock(memberNo)
+                    .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
+        }
+
+        // 구매자 포인트 환불 (에스크로 반환)
+        buyer.setPoints(buyer.getPoints() + bid.getBidPrice());
+        pointHistoryRepository.save(PointHistory.builder()
+                .memberNo(buyer.getMemberNo())
+                .type("거래취소환불")
+                .amount(bid.getBidPrice())
+                .balance(buyer.getPoints())
+                .reason("[" + product.getTitle() + "] 거래 취소로 인한 환불")
+                .build());
+        sseService.sendPointUpdate(buyer.getMemberNo(), buyer.getPoints());
 
         result.setStatus("거래취소");
     }
