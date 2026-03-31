@@ -2,6 +2,29 @@
 
 ---
 
+## 날짜: 2026-03-31
+
+### [백엔드]
+
+---
+
+#### 30. SSE 안정화 — 좀비 emitter 및 재연결 루프 수정 (오수환)
+
+##### 문제
+- 프론트엔드 React StrictMode(개발 환경)가 useEffect를 두 번 실행하면서 같은 `clientId`로 SSE를 두 번 연결
+- 첫 번째 연결의 `onCompletion`이 두 번째 emitter까지 `remove(clientId)`로 삭제 → 알림 전송 시 emitter 없음
+- `subscribe` 시 기존 emitter에 `complete()` 호출 → 브라우저 자동 재연결 루프 발생
+
+##### 수정
+- **`SseService.java`**
+  - `onCompletion` / `onTimeout` / `onError` 콜백을 `remove(clientId)` → `remove(clientId, emitter)`로 변경
+    - 새 emitter가 등록된 후 기존 emitter의 cleanup이 새 것을 삭제하는 문제 방지
+  - `subscribe` 시 기존 emitter `complete()` 호출 제거 → 맵에서만 교체 (재연결 루프 방지)
+  - `sendPointUpdate`, `sendForceLogout`도 동일하게 `remove(clientId, emitter)` 적용
+  - 디버그용 `log.info` 전체 제거 및 Logger 의존성 제거
+
+---
+
 ## 날짜: 2026-03-30
 
 ### [백엔드]
