@@ -257,3 +257,36 @@ useRef 플래그로 내가 방금 입찰한 직후엔 SSE 토스트를 건너뛰
 - **`context/AppContext.tsx`** — SSE 연결/메시지 디버깅용 콘솔 로그 추가 (추후 제거 예정)
   - `eventSource.onopen`, `eventSource.onmessage` 로그
   - `notification` 이벤트 수신 로그
+
+---
+
+## 날짜: 2026-03-31 (자동입찰 UI 구현)
+
+---
+
+### 24. 자동입찰 등록/수정/취소 UI (`pages/product/ProductDetail.tsx`)
+
+#### 신규 상태
+- `activeAutoBid: { autoBidNo: number; maxPrice: number } | null` — 내 활성 자동입찰 정보
+
+#### 수정 내용
+
+**자동입찰 상태 초기 로드**
+- `fetchProduct()` 내에서 `GET /api/auto-bid/active?productNo=` 호출
+- 200 응답 시 `activeAutoBid` 설정, 204(미존재) 시 `null`
+
+**자동입찰 등록/수정 모달 연동**
+- `openBidModal('auto')` 호출 시 `activeAutoBid`가 있으면 기존 `maxPrice`로 입력값 초기화
+- `handleBidSubmit()` — `modalType === 'auto'`이면 `POST /api/auto-bid`로 `{productNo, maxPrice}` 전송
+- 성공 시 `activeAutoBid` 상태 갱신 + 토스트 표시
+- 자동입찰 버튼 텍스트: `activeAutoBid` 존재 여부에 따라 "자동 입찰" / "자동입찰 수정"으로 전환
+
+**자동입찰 취소 버튼**
+- `activeAutoBid` 존재 시 버튼 아래 "설정중 · 최대 {maxPrice}원 / 취소" 배지 표시
+- 취소 클릭 → `DELETE /api/auto-bid/{productNo}` 호출
+- 400 응답도 성공으로 처리 (시스템이 이미 취소한 경우 멱등 처리)
+- 성공 시 `setActiveAutoBid(null)` + 토스트 표시
+
+**SSE 실시간 배지 갱신**
+- `pointUpdate` 이벤트 수신 시 `GET /api/auto-bid/active` 재조회 → 자동입찰이 취소되었으면 배지 자동 제거
+  - 근거: 자동입찰 취소(경쟁 패배/상위 입찰)는 반드시 포인트 환불 SSE를 동반함

@@ -56,6 +56,7 @@ export const ProductDetail: React.FC = () => {
   const [modalType, setModalType] = useState<'bid' | 'auto'>('bid');
   const [autoBidMaxAmount, setAutoBidMaxAmount] = useState<number>(0);
   const [showRechargePrompt, setShowRechargePrompt] = useState(false);
+  const [activeAutoBid, setActiveAutoBid] = useState<{ autoBidNo: number; maxPrice: number } | null>(null);
 
   const [visibleBidsCount, setVisibleBidsCount] = useState(5);
   const [timeLeft, setTimeLeft] = useState<string>('');
@@ -109,6 +110,21 @@ export const ProductDetail: React.FC = () => {
       setBidAmount((mappedProduct.currentPrice || 0) + (mappedProduct.minBidIncrement || 0));
       setAutoBidMaxAmount((mappedProduct.currentPrice || 0) + (mappedProduct.minBidIncrement || 0) * 5);
       setIsWishlisted(mappedProduct.isWishlisted || false);
+
+      // 활성 자동입찰 조회 (로그인 사용자만)
+      const loginMemberNo = getMemberNo(user);
+      if (loginMemberNo) {
+        try {
+          const autoBidRes = await api.get(`/auto-bid/active?productNo=${data.productNo}`);
+          if (autoBidRes.status === 200 && autoBidRes.data) {
+            setActiveAutoBid({ autoBidNo: autoBidRes.data.autoBidNo, maxPrice: autoBidRes.data.maxPrice });
+          } else {
+            setActiveAutoBid(null);
+          }
+        } catch {
+          setActiveAutoBid(null);
+        }
+      }
 
     } catch (error) {
       console.error('상품 상세 조회 실패', error);
@@ -177,6 +193,19 @@ export const ProductDetail: React.FC = () => {
             const truncatedTitle = title.length > 10 ? title.substring(0, 10) + '..' : title;
             showToast(`'${truncatedTitle}' 상품에 새로운 입찰이 생겼습니다!`, 'bid');
           }
+          // 자동입찰 설정 중이면 상태 재확인 (상위입찰에 의해 취소됐을 수 있음)
+          const loginMemberNo = getMemberNo(user);
+          if (loginMemberNo) {
+            api.get(`/auto-bid/active?productNo=${data.productNo}`)
+              .then(res => {
+                if (res.status === 200 && res.data) {
+                  setActiveAutoBid({ autoBidNo: res.data.autoBidNo, maxPrice: res.data.maxPrice });
+                } else {
+                  setActiveAutoBid(null);
+                }
+              })
+              .catch(() => setActiveAutoBid(null));
+          }
         }
       } catch (e) {
         console.error('[SSE] priceUpdate 파싱 오류', e);
@@ -184,14 +213,24 @@ export const ProductDetail: React.FC = () => {
     });
 
     // 2. 포인트 실시간 갱신 (입찰 차감 / 환불)
-    // AppContext의 pointUpdate와 동일한 채널이지만,
-    // 입찰 팝업이 열려 있는 경우 팝업 안의 포인트도 즉시 반영되게 updateCurrentUserPoints 호출
+    // 경쟁 자동입찰에 밀렸을 때도 pointUpdate(환불)가 반드시 발생하므로,
+    // 이 시점에 자동입찰 상태를 재확인해 뱃지를 자동 해제함
     eventSource.addEventListener('pointUpdate', (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
         if (data && typeof data.points === 'number') {
-          // AppContext user.points 갱신 → 헤더 + 이 팝업의 {user?.points} 모두 자동 반영
           updateCurrentUserPoints(data.points);
+          // 포인트 변동 시 자동입찰 상태 재확인 (자동입찰에 밀려 비활성화됐을 수 있음)
+          const currentMemberNo = getMemberNo(user);
+          if (currentMemberNo && product?.id) {
+            api.get(`/auto-bid/active?productNo=${product.id}`)
+              .then(res => {
+                setActiveAutoBid(res.status === 200 && res.data
+                  ? { autoBidNo: res.data.autoBidNo, maxPrice: res.data.maxPrice }
+                  : null);
+              })
+              .catch(() => setActiveAutoBid(null));
+          }
         }
       } catch (e) {
         console.error('[SSE] pointUpdate 파싱 오류', e);
@@ -280,6 +319,11 @@ export const ProductDetail: React.FC = () => {
 
     setModalType(type);
     setBidAmount(product.currentPrice + product.minBidIncrement);
+    if (type === 'auto' && activeAutoBid) {
+      setAutoBidMaxAmount(activeAutoBid.maxPrice);
+    } else if (type === 'auto') {
+      setAutoBidMaxAmount(product.currentPrice + product.minBidIncrement * 5);
+    }
     setIsBidModalOpen(true);
   };
 
@@ -309,20 +353,25 @@ export const ProductDetail: React.FC = () => {
     try {
       const memberNo = getMemberNo(user);
       if (!memberNo) return;
-      // API 호출 전에 플래그 설정 — SSE가 응답보다 먼저 도착해도 토스트 중복 방지
       justBidRef.current = true;
       setTimeout(() => { justBidRef.current = false; }, 3000);
-      await api.post('/bids', {
-        productNo: product.id,
-        memberNo: memberNo,
-        bidPrice: amountToValidate
-      });
+
+      if (modalType === 'auto') {
+        await api.post('/auto-bid', {
+          productNo: Number(product.id),
+          maxPrice: autoBidMaxAmount
+        });
+      } else {
+        await api.post('/bids', {
+          productNo: product.id,
+          memberNo: memberNo,
+          bidPrice: amountToValidate
+        });
+      }
 
       setIsBidModalOpen(false);
       showToast(modalType === 'bid' ? '입찰이 완료되었습니다!' : '자동 입찰이 설정되었습니다!', 'success');
 
-      // [수정] window.location.reload() 제거 - SSE가 실시간 가격 갱신을 처리함
-      // 입찰 기록 등 추가 데이터를 위해 상품 정보만 재조회
       await fetchProduct();
 
     } catch (error: any) {
@@ -541,13 +590,40 @@ export const ProductDetail: React.FC = () => {
                   {product.wishlistCount || 0}
                 </span>
               </button>
-              <button
-                onClick={() => openBidModal('auto')}
-                disabled={isFinished}
-                className="flex-1 py-4 border border-orange-500 text-orange-500 font-bold rounded-xl hover:bg-orange-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                자동 입찰
-              </button>
+              <div className="flex-1 flex flex-col gap-1">
+                <button
+                  onClick={() => openBidModal('auto')}
+                  disabled={isFinished}
+                  className="w-full py-4 border border-orange-500 text-orange-500 font-bold rounded-xl hover:bg-orange-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {activeAutoBid ? '자동입찰 수정' : '자동 입찰'}
+                </button>
+                {activeAutoBid && (
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[11px] text-orange-500 font-bold">
+                      설정중 · 최대 {activeAutoBid.maxPrice.toLocaleString()}원
+                    </span>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await api.delete(`/auto-bid/${product.id}`);
+                        } catch (err: any) {
+                          // 이미 비활성화된 경우(400)도 취소 성공으로 처리
+                          if (err?.response?.status !== 400) {
+                            showToast('자동입찰 취소에 실패했습니다.', 'error');
+                            return;
+                          }
+                        }
+                        setActiveAutoBid(null);
+                        showToast('자동입찰이 취소되었습니다.', 'success');
+                      }}
+                      className="text-[11px] text-gray-400 hover:text-red-500 font-bold underline underline-offset-2"
+                    >
+                      취소
+                    </button>
+                  </div>
+                )}
+              </div>
               <button
                 onClick={() => openBidModal('bid')}
                 disabled={isFinished}
