@@ -32,6 +32,7 @@ public class BidServiceImpl implements BidService {
     private final PointHistoryRepository pointHistoryRepository;
     private final SseService sseService;
     private final NotificationService notificationService;
+    private final AutoBidService autoBidService;
 
     /**
      * 입찰 프로세스 실행 (검증 + 포인트 환불/차감 + 상품 갱신 + 입찰 기록)
@@ -168,6 +169,12 @@ public class BidServiceImpl implements BidService {
             sseService.broadcastPriceUpdate(product.getProductNo(), bidDto.getBidPrice());
         } catch (Exception e) {
             log.warn("[BidService] 브로드캐스트 실패: {}", e.getMessage()); }
+
+        // 11. 자동입찰 트리거 (방금 입찰한 사람 제외하고 자동입찰자가 있으면 즉시 응찰)
+        try {
+            autoBidService.triggerAutoBids(product.getProductNo(), bidDto.getBidPrice(), bidDto.getMemberNo());
+        } catch (Exception e) {
+            log.warn("[BidService] 자동입찰 트리거 실패: {}", e.getMessage()); }
 
         return "SUCCESS";
     }
