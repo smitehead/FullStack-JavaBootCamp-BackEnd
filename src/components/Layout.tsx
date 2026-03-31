@@ -249,7 +249,7 @@ const Header: React.FC<HeaderProps> = ({ onLogout }) => {
                               }}
                             >
                               <p className="text-gray-700 leading-snug font-medium line-clamp-2">{noti.message}</p>
-                              <span className="text-[10px] font-bold text-gray-300 mt-2 block uppercase tracking-wider">{new Date(noti.createdAt).toLocaleDateString()}</span>
+                              <span className="text-[10px] font-bold text-gray-300 mt-2 block uppercase tracking-wider">{new Date(noti.createdAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}</span>
                             </Link>
                           )) : (
                             <div className="py-10 text-center text-sm text-gray-400 font-medium">알림이 없습니다.</div>
