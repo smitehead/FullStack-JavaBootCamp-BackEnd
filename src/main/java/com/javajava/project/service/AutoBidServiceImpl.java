@@ -216,12 +216,6 @@ public class AutoBidServiceImpl implements AutoBidService {
                     .build());
             try { sseService.sendPointUpdate(previousBidder.getMemberNo(), previousBidder.getPoints()); }
             catch (Exception e) { log.warn("[AutoBid] SSE 실패: {}", e.getMessage()); }
-            try {
-                notificationService.sendAndSaveNotification(
-                        previousBidder.getMemberNo(), "bid",
-                        "자동입찰 발생: [" + product.getTitle() + "]에 새로운 자동입찰이 등록되었습니다.",
-                        "/product/" + productNo);
-            } catch (Exception e) { log.warn("[AutoBid] 알림 실패: {}", e.getMessage()); }
         }
 
         // 승자 포인트 차감
