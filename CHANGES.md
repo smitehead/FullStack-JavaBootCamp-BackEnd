@@ -179,7 +179,34 @@ useRef 플래그로 내가 방금 입찰한 직후엔 SSE 토스트를 건너뛰
 
 ---
 
+## 날짜: 2026-03-29
+
+---
+
+### 19. WonProductDetail 환불하기 기능 삭제 (박종권)
+
+#### 수정
+- **`WonProductDetail.tsx`** — 결제완료 상태에서 "환불 요청" 버튼 제거, "구매 확정하기" 단독 버튼으로 교체
+  - 안전 거래 안내 문구 중 "환불 요청" 관련 안내 문구 제거
+- **`InquiryManagement.tsx`** — 환불 관련 코드 정리
+- **`InquiryCreate.tsx`** — 환불 관련 코드 정리
+- **`mockData.ts`** — 환불 관련 mock 데이터 제거 및 정리
+- **`types.ts`** — 환불 관련 타입 정의 제거
+
+---
+
 ## 날짜: 2026-03-30 (마이페이지 세부 기능 및 뼈대 코드 추가)
+
+---
+
+### 20. 마이페이지 미구현 기능 뼈대 컴포넌트 추가 (박종권)
+
+#### 신규 생성
+- **`MyPageStubs.tsx`** — 추후 구현 예정 기능의 stub 컴포넌트 모음
+  - `ProfileEditStub` — 회원정보 수정 (닉네임, 휴대폰번호, 이메일, 주소)
+  - `MembershipWithdrawalStub` — 회원 탈퇴 확인 모달
+  - `ReviewManagementStub` — 내가 작성한/받은 리뷰 목록
+  - `NoticePageStub` — 공지사항 리스트
 
 ### 마이페이지 추가 작업 예정 목록
 - [ ] 입찰기록 - 판매 구매기록 연동
@@ -190,3 +217,43 @@ useRef 플래그로 내가 방금 입찰한 직후엔 SSE 토스트를 건너뛰
 - [ ] 공지사항 페이지 생성
 - [ ] 찜목록 가져오기 연동
 - [ ] 입찰기록 상세 페이지 연동
+
+---
+
+### 21. 자동입찰 관련 마이페이지 UI 수정
+
+#### 수정
+- **`MyPage.tsx`**
+  - 입찰 상태 배지 텍스트 변경: `"경매중"` → `"입찰중"`, `"낙찰"` → `"낙찰성공"`
+  - 낙찰 상품 버튼 텍스트/색상 변경: `"낙찰 상세보기"` (초록) → `"결제대기중"` (노란/amber)
+  - 구매내역 탭에 `"구매완료"` (indigo) 배지 추가
+- **`WonProductDetail.tsx`** — 소폭 UI 수정
+
+---
+
+### 22. 알림함 DB 연동 및 대화탭 정리 (오수환)
+
+#### 문제
+알림 목록이 mock 데이터로만 구성되어 실제 DB 알림이 표시되지 않았음. 알림탭 열어도 읽음 처리 API가 호출되지 않음.
+
+#### 수정
+- **`context/AppContext.tsx`**
+  - `notifications`, `chats` 초기값을 mock 데이터 → 빈 배열(`[]`)로 교체
+  - `fetchNotifications()` 추가 — `GET /api/notifications` 호출 후 상태 매핑 (`notiNo`, `content`, `isRead`, `linkUrl`, `type`)
+  - 로그인/로그아웃 시 알림 목록 자동 갱신 (`useEffect` — `user` 의존성)
+  - `markAllNotificationsAsRead()` 추가 — `PATCH /notifications/read-all` 호출
+  - `markNotificationAsRead()` — `PATCH /notifications/{id}/read` API 호출 추가 (기존엔 로컬 상태만 변경)
+- **`components/Layout.tsx`**
+  - 알림 드롭다운 열 때 `markAllNotificationsAsRead()` 자동 호출 (전체 읽음 처리)
+  - 알림 목록 비어있을 때 "알림이 없습니다." 빈 상태 표시 추가
+  - 대화 탭 채팅 목록 내용 제거 (미구현 상태 정리)
+  - `chats` 의존성 및 `markChatAsRead` 사용 제거
+
+---
+
+### 23. SSE 디버그 로그 추가 (오수환, 임시)
+
+#### 수정
+- **`context/AppContext.tsx`** — SSE 연결/메시지 디버깅용 콘솔 로그 추가 (추후 제거 예정)
+  - `eventSource.onopen`, `eventSource.onmessage` 로그
+  - `notification` 이벤트 수신 로그
