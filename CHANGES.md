@@ -290,3 +290,48 @@ useRef 플래그로 내가 방금 입찰한 직후엔 SSE 토스트를 건너뛰
 **SSE 실시간 배지 갱신**
 - `pointUpdate` 이벤트 수신 시 `GET /api/auto-bid/active` 재조회 → 자동입찰이 취소되었으면 배지 자동 제거
   - 근거: 자동입찰 취소(경쟁 패배/상위 입찰)는 반드시 포인트 환불 SSE를 동반함
+
+---
+
+## 날짜: 2026-03-31 (알림 UX 개선 및 SSE 안정화)
+
+---
+
+### 25. 알림 시간 표시 추가 (오수환)
+
+#### 수정
+- **`components/Layout.tsx`** — 알림 목록에 발송 시간 표시 추가
+  - `toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month, day, hour, minute })` 형식
+  - 항상 서울(KST) 기준으로 표시 (사용자 PC 시간대 무관)
+
+---
+
+### 26. 알림 SSE 실시간 처리 및 폴링 백업 (오수환)
+
+#### 문제
+SSE `notification` 이벤트가 오더라도 빨간점이 즉시 활성화되지 않고 수십 초 딜레이가 발생함.
+
+#### 원인
+- `ProductDetail.tsx`가 AppContext와 동일한 `clientId(memberNo)`로 SSE를 별도 연결 → 서로의 emitter를 덮어써 무한 재연결 루프 발생
+- SSE 이벤트 수신 시 `fetchNotifications()` API 호출 방식 사용 → 네트워크 왕복 딜레이
+
+#### 수정
+- **`context/AppContext.tsx`**
+  - SSE `notification` 이벤트 수신 시 즉시 state에 알림 추가 (API 호출 제거)
+  - 중복 알림 방지 (`notiNo` 기준 중복 체크)
+  - 60초 주기 폴링 유지 (SSE 누락 시 백업용)
+  - 디버그용 콘솔 로그 전체 제거
+- **`pages/product/ProductDetail.tsx`**
+  - SSE clientId를 `product_{id}_{랜덤}` 형식으로 변경 → AppContext 채널과 완전 분리
+  - 여러 탭에서 같은 상품 열어도 서로 간섭 없음
+
+---
+
+### 27. 알림 UI 개선 — 읽음/미읽음 구분 (오수환)
+
+#### 수정
+- **`components/Layout.tsx`**
+  - 미읽음 알림: 주황빛 배경 + 왼쪽 빨간 점 + 굵은 텍스트
+  - 읽음 알림: 흰 배경 + 회색 흐린 텍스트
+  - 알림창 열 때 즉시 읽음 처리 제거 → 닫을 때 전체 읽음 처리로 변경
+  - 알림탭 최대 10개까지만 표시 (전체보기 페이지에서 전체 조회 가능)

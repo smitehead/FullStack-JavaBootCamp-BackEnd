@@ -175,9 +175,8 @@ export const ProductDetail: React.FC = () => {
   useEffect(() => {
     if (!product || !product.id) return;
 
-    // 로그인한 사용자는 memberNo를 clientId로 사용 (AppContext SSE와 같은 채널)
-    // 비로그인은 게스트 ID 사용 (priceUpdate만 수신)
-    const clientId = getMemberNo(user)?.toString() ?? `guest_${id}`;
+    // 탭마다 고유한 채널 ID 사용 — 동일 상품을 여러 탭에서 열어도 서로 덮어쓰지 않도록
+    const clientId = `product_${id}_${Math.random().toString(36).slice(2, 9)}`;
     const sseUrl = `${BACKEND_URL}/api/sse/subscribe?clientId=${clientId}`;
     const eventSource = new EventSource(sseUrl);
 

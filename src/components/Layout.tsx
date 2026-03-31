@@ -209,9 +209,10 @@ const Header: React.FC<HeaderProps> = ({ onLogout }) => {
                 <div className="relative">
                   <button
                     onClick={() => {
-                      const opening = !isNotiOpen;
-                      setIsNotiOpen(opening);
-                      if (opening) markAllNotificationsAsRead();
+                      setIsNotiOpen(prev => {
+                        if (prev) markAllNotificationsAsRead(); // 닫을 때 전체 읽음 처리
+                        return !prev;
+                      });
                     }}
                     className="p-2.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-xl transition-all relative"
                   >
@@ -238,18 +239,21 @@ const Header: React.FC<HeaderProps> = ({ onLogout }) => {
                       </div>
                       <div className="max-h-80 overflow-y-auto">
                         {notiTab === 'noti' ? (
-                          notifications.length > 0 ? notifications.map(noti => (
+                          notifications.length > 0 ? notifications.slice(0, 10).map(noti => (
                             <Link
                               key={noti.id}
                               to="/inbox?tab=noti"
-                              className={`block px-5 py-4 text-sm hover:bg-gray-50 transition-colors ${!noti.read ? 'bg-red-50/30' : ''}`}
+                              className={`block px-5 py-4 text-sm transition-colors hover:bg-gray-50 relative ${!noti.read ? 'bg-orange-50/60' : 'bg-white'}`}
                               onClick={() => {
                                 markNotificationAsRead(noti.id);
                                 setIsNotiOpen(false);
                               }}
                             >
-                              <p className="text-gray-700 leading-snug font-medium line-clamp-2">{noti.message}</p>
-                              <span className="text-[10px] font-bold text-gray-300 mt-2 block uppercase tracking-wider">{new Date(noti.createdAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                              {!noti.read && (
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-[#FF5A5A]" />
+                              )}
+                              <p className={`leading-snug line-clamp-2 ${!noti.read ? 'font-semibold text-gray-800' : 'font-normal text-gray-400'}`}>{noti.message}</p>
+                              <span className="text-[10px] text-gray-300 mt-1 block">{new Date(noti.createdAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}</span>
                             </Link>
                           )) : (
                             <div className="py-10 text-center text-sm text-gray-400 font-medium">알림이 없습니다.</div>
