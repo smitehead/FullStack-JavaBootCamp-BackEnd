@@ -1,4 +1,4 @@
-name: CI/CD Pipeline # 액션의 이름
+name: CI/CD Pipeline # 액션의 이름 ff
 
 on:
   push:
