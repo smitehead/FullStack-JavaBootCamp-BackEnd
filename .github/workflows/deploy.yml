@@ -23,8 +23,7 @@ jobs:
     # (3) 코드를 빌드해서 .jar 파일을 만듭니다. (자동 빌드 구간)
     - name: Build with Maven
       run: |
-        chmod +x ./mvnw
-        ./mvnw clean build -x test
+        ./mvnw clean package -DskipTests
 
     # (4) 빌드된 결과물(.jar)을 내 EC2 서버로 안전하게 보냅니다.
     - name: Deliver build file to EC2
