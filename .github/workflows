@@ -1,7 +1,7 @@
 name: CI/CD Pipeline # 액션의 이름
 
 on:
-  commit:
+  push:
     branches: [ "main" ] # main 브랜치에 코드 push가 발생하면 감지해서 실행
 
 jobs:
