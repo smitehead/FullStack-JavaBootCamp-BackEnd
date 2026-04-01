@@ -25,6 +25,7 @@ jobs:
       run: |
         chmod +x ./mvnw
         ./mvnw clean package -DskipTests
+        ls -l target/*.jar  # .jar 파일만 확인
 
     # (4) 빌드된 결과물(.jar)을 내 EC2 서버로 안전하게 보냅니다.
     - name: Deliver build file to EC2
@@ -33,7 +34,7 @@ jobs:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
-        source: "./target/*.jar"
+        source: "target/*.jar"
         target: "/home/ubuntu/app" # 파일이 저장될 EC2 경로
         strip_components: 2
 
