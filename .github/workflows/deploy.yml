@@ -29,7 +29,7 @@ jobs:
     # (4) 빌드된 결과물(.jar)을 내 EC2 서버로 안전하게 보냅니다.
     - name: Deliver build file to EC2
       run : |
-        echo "${{ secrets.EC2_SSH_KEY }}" > mykey.pem
+        echo ${{ secrets.EC2_SSH_KEY }} > mykey.pem
         chmod 600 mykey.pem
         scp -i mykey.pem target/*.jar ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/app/
 
