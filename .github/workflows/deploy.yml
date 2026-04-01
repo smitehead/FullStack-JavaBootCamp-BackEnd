@@ -23,6 +23,7 @@ jobs:
     # (3) 코드를 빌드해서 .jar 파일을 만듭니다. (자동 빌드 구간)
     - name: Build with Maven
       run: |
+        chmod +x ./mvnw
         ./mvnw clean package -DskipTests
 
     # (4) 빌드된 결과물(.jar)을 내 EC2 서버로 안전하게 보냅니다.
@@ -44,6 +45,7 @@ jobs:
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
+          
           cd /home/ubuntu/app
           # 기존에 8080 포트에서 돌아가던 스프링 부트 종료
           fuser -k 8080/tcp || true 
