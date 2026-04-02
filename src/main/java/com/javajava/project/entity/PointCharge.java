@@ -6,7 +6,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "POINT_CHARGE")
-@Getter @Setter
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -21,6 +22,15 @@ public class PointCharge {
     @Column(name = "MEMBER_NO", nullable = false)
     private Long memberNo; // 충전한 회원번호 (FK)
 
+    //멱등성 처리를 위한 결제 고유 식별자
+    //형식: charge_{memberNo}_{timestamp}
+    @Column(name = "MERCHANT_UID", unique = true, length = 100)
+    private String merchantUid;
+
+    //portone이 반환하는 결제 고유번호(검증/취소에 사용)
+    @Column(name = "PG_TID", length = 100)
+    private String pgTid;
+
     @Column(name = "CARD_COMPANY", length = 30)
     private String cardCompany; // 카드사명 (PG사 응답값)
 
@@ -34,15 +44,14 @@ public class PointCharge {
     private Long pointAmount; // 전환된 포인트 금액
 
     @Column(name = "DISCOUNT", nullable = false)
-    private Long discount = 0L; // 할인 금액
+    private Long discount = 0L; // 할인 금액(마지막에 보고 삭제)
 
-    @Column(name = "STATUS", nullable = false, length = 20)
-    private String status = "성공"; // 결제 상태 (성공/실패/취소)
-
-    @Column(name = "PG_TID", length = 100)
-    private String pgTid; // PG사 거래번호
-
-    @Column(name = "CHARGED_AT", nullable = false, updatable = false)
+    // PENDING → SUCCESS 또는 FAILED
     @Builder.Default
+    @Column(name = "STATUS", nullable = false, length = 20)
+    private String status = "PENDING";
+
+    @Builder.Default
+    @Column(name = "CHARGED_AT", nullable = false, updatable = false)
     private LocalDateTime chargedAt = LocalDateTime.now();
 }
