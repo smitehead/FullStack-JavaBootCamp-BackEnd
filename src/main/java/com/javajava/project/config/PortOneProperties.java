@@ -13,4 +13,5 @@ public class PortOneProperties {
     private String apiKey;
     private String apiSecret;
     private String baseUrl;
+    private String channelKey;
 }

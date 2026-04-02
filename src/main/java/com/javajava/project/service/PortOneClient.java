@@ -95,6 +95,10 @@ public class PortOneClient {
         public Map<?, ?> issueBillingKey(String accessToken, String customerUid,
                                   String cardNumber, String expiry,
                                   String birth, String pwd2digit) {
+            
+            log.info("[PortOne] 빌링키 발급 요청 - customerUid: {}, channelKey: {}",
+                    customerUid, portOneProperties.getChannelKey());
+                    
             Map<?, ?> response = webClient().post()
                 .uri("/subscribe/customers/{customerUid}", customerUid)
                 .header("Authorization", accessToken)
@@ -102,7 +106,8 @@ public class PortOneClient {
                         "card_number", cardNumber,   // 카드번호 (하이픈 제거, 16자리)
                         "expiry",      expiry,        // 유효기간 YYYY-MM 형식
                         "birth",       birth,         // 생년월일 6자리 또는 사업자번호 10자리
-                        "pwd_2digit",  pwd2digit       // 비밀번호 앞 2자리
+                        "pwd_2digit",  pwd2digit,       // 비밀번호 앞 2자리
+                        "channel_key",  portOneProperties.getChannelKey()
                 ))
                 .retrieve()
                 .bodyToMono(Map.class)
