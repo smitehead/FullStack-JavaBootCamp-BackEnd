@@ -1,14 +1,11 @@
-//카드 등록 요청
 package com.javajava.project.dto;
 
 import lombok.Getter;
 
 @Getter
 public class BillingKeyRegisterRequestDto {
-    //portone이 발급한 빌링키
-    private String customerUid;
-    //카드사 명
-    private String cardName;
-    //마스킹된 카드번호
-    private String cardNo;
+    private String cardNumber;  // 카드번호 (16자리, 하이픈 없이)
+    private String expiry;      // 유효기간 YYYY-MM 형식
+    private String birth;       // 생년월일 6자리
+    private String pwd2digit;   // 비밀번호 앞 2자리
 }

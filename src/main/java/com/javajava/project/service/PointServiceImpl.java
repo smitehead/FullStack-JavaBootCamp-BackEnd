@@ -30,16 +30,38 @@ public class PointServiceImpl implements PointService {
     @Override
     @Transactional
     public void registerBillingKey(Long memberNo, BillingKeyRegisterRequestDto dto) {
-        // 이미 카드가 등록된 경우 기존 카드 삭제 후 새 카드로 교체
+
+        // customer_uid: 회원당 고유 식별자 (고정값 사용 — 재등록 시 PortOne이 덮어씀)
+        String customerUid = "customer_" + memberNo;
+
+        // 1. PortOne 액세스 토큰 발급
+        String accessToken = portOneClient.getAccessToken();
+
+        // 2. PortOne API로 빌링키 발급 요청
+        //    카드 정보는 PortOne 서버로만 전송되고 우리 DB에는 저장하지 않음 (PCI DSS 준수)
+        Map<?, ?> result = portOneClient.issueBillingKey(
+            accessToken,
+            customerUid,
+            dto.getCardNumber(),
+            dto.getExpiry(),
+            dto.getBirth(),
+            dto.getPwd2digit()
+        );
+
+        // 3. 응답에서 카드 정보 추출 (마스킹된 값만 반환됨)
+        String cardName = (String) result.get("card_name");   // 예: 신한카드
+        String cardNo   = (String) result.get("card_number"); // 예: 4000-00**-****-0001
+
+        // 4. 기존 카드 있으면 삭제 후 새 카드로 교체
         billingKeyRepository.findByMemberNo(memberNo)
-                .ifPresent(billingKeyRepository::delete);
+            .ifPresent(billingKeyRepository::delete);
 
         BillingKey billingKey = BillingKey.builder()
-                .memberNo(memberNo)
-                .customerUid(dto.getCustomerUid())
-                .cardName(dto.getCardName())
-                .cardNo(dto.getCardNo())
-                .build();
+            .memberNo(memberNo)
+            .customerUid(customerUid)
+            .cardName(cardName)
+            .cardNo(cardNo)
+            .build();
 
         billingKeyRepository.save(billingKey);
     }

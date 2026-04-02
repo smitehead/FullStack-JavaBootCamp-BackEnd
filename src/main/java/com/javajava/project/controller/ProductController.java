@@ -1,7 +1,6 @@
 package com.javajava.project.controller;
 
 import com.javajava.project.dto.ProductRequestDto;
-import com.javajava.project.dto.ProductResponseDto;
 import com.javajava.project.dto.ProductDetailResponseDto;
 import com.javajava.project.dto.ProductListResponseDto;
 import com.javajava.project.service.ProductService;

@@ -88,4 +88,36 @@ public class PortOneClient {
                                         impUid, reason, e.getMessage());
                 }
         }
+
+        //API 방식 빌링키 발급
+        //고객 카드 정보를 직접 받아 portone 서버에 빌링키 발급 요청
+        //pg사 결제창 없이 서버간 통신으로 처리
+        public Map<?, ?> issueBillingKey(String accessToken, String customerUid,
+                                  String cardNumber, String expiry,
+                                  String birth, String pwd2digit) {
+            Map<?, ?> response = webClient().post()
+                .uri("/subscribe/customers/{customerUid}", customerUid)
+                .header("Authorization", accessToken)
+                .bodyValue(Map.of(
+                        "card_number", cardNumber,   // 카드번호 (하이픈 제거, 16자리)
+                        "expiry",      expiry,        // 유효기간 YYYY-MM 형식
+                        "birth",       birth,         // 생년월일 6자리 또는 사업자번호 10자리
+                        "pwd_2digit",  pwd2digit       // 비밀번호 앞 2자리
+                ))
+                .retrieve()
+                .bodyToMono(Map.class)
+                .block();
+                
+            log.info("[PortOne] issueBillingKey 응답: {}", response);
+
+            // PortOne 응답 코드 확인 (0이 아니면 실패)
+            Integer code = (Integer) response.get("code");
+            if (code != null && code != 0) {
+                String message = (String) response.get("message");
+                log.error("[PortOne] 빌링키 발급 실패 코드: {}, 메시지: {}", code, message);
+                throw new IllegalStateException("빌링키 발급 실패: " + message);
+            }
+
+            return (Map<?, ?>) response.get("response");
+        }
 }
