@@ -23,11 +23,11 @@ public class ProductController {
 
     private final ProductService productService;
 
-    @PostMapping(consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
+    @PostMapping(consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     public ResponseEntity<Long> registerProduct(
             @RequestPart("product") ProductRequestDto productDto,
             @RequestPart(value = "images", required = false) List<MultipartFile> images) throws IOException {
-        
+
         Long productNo = productService.save(productDto);
         if (images != null && !images.isEmpty()) {
             productService.saveImages(productNo, images);
@@ -35,7 +35,7 @@ public class ProductController {
         return ResponseEntity.ok(productNo);
     }
 
-    //상세 페이지 전용 데이터를 반환하도록 변경
+    // 상세 페이지 전용 데이터를 반환하도록 변경
     @GetMapping("/{id}")
     public ResponseEntity<ProductDetailResponseDto> getProductDetail(
             @PathVariable("id") Long productNo,
@@ -47,7 +47,7 @@ public class ProductController {
     // 상품 목록 API (프론트엔드 필터링 및 페이징 파라미터 수신)
     @GetMapping
     public ResponseEntity<Page<ProductListResponseDto>> getProductList(
-            @RequestParam(name = "page", defaultValue = "1") int page,      // 리액트는 1페이지부터 시작
+            @RequestParam(name = "page", defaultValue = "1") int page, // 리액트는 1페이지부터 시작
             @RequestParam(name = "size", defaultValue = "16") int size,
             @RequestParam(name = "large", required = false) Long large,
             @RequestParam(name = "medium", required = false) Long medium,
@@ -58,15 +58,14 @@ public class ProductController {
             @RequestParam(name = "delivery", required = false) Boolean delivery,
             @RequestParam(name = "face", required = false) Boolean face,
             @RequestParam(name = "sort", defaultValue = "latest") String sort,
-            Authentication authentication
-    ) {
+            Authentication authentication) {
         Long memberNo = getMemberNoOrNull(authentication);
         Page<ProductListResponseDto> productPage = productService.getProductList(
                 page, size, large, medium, small, minPrice, maxPrice, city, delivery, face, sort, memberNo);
         return ResponseEntity.ok(productPage);
     }
 
-    //입찰 기록 탭 구현
+    // 입찰 기록 탭 구현
     @GetMapping("/{id}/bids")
     public ResponseEntity<List<ProductDetailResponseDto.BidHistoryDto>> getProductBids(
             @PathVariable("id") Long productNo) {

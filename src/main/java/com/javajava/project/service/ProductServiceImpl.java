@@ -333,9 +333,32 @@ public class ProductServiceImpl implements ProductService {
         if (productNos.isEmpty()) return List.of();
         List<Product> products = productRepository.findAllById(productNos);
 
-        // 낙찰 여부 배치 조회 (어떤 상품에서 내가 낙찰자인지)
-        Set<Long> wonProductNos = Set.copyOf(
+        // 낙찰 여부 배치 조회
+        Set<Long> wonProductNos = new java.util.HashSet<>(
                 bidHistoryRepository.findWonProductNosInList(memberNo, productNos));
+
+        // 결제완료 또는 구매확정된 낙찰 상품은 구매내역으로 이동 → 입찰내역에서 제외
+        if (!wonProductNos.isEmpty()) {
+            List<BidHistory> winnerBids = wonProductNos.stream()
+                    .map(pNo -> bidHistoryRepository.findFirstByProductNoAndIsWinnerOrderByBidPriceDesc(pNo, 1).orElse(null))
+                    .filter(b -> b != null)
+                    .collect(Collectors.toList());
+            List<Long> winnerBidNos = winnerBids.stream().map(BidHistory::getBidNo).collect(Collectors.toList());
+            if (!winnerBidNos.isEmpty()) {
+                Set<Long> winnerBidNosPaid = auctionResultRepository.findByBidNos(winnerBidNos).stream()
+                        .filter(ar -> "결제완료".equals(ar.getStatus()) || "구매확정".equals(ar.getStatus()))
+                        .map(AuctionResult::getBidNo)
+                        .collect(Collectors.toSet());
+                Set<Long> paidProductNos = winnerBids.stream()
+                        .filter(b -> winnerBidNosPaid.contains(b.getBidNo()))
+                        .map(BidHistory::getProductNo)
+                        .collect(Collectors.toSet());
+                products = products.stream()
+                        .filter(p -> !paidProductNos.contains(p.getProductNo()))
+                        .collect(Collectors.toList());
+                wonProductNos.removeAll(paidProductNos);
+            }
+        }
 
         return toProductListDtosWithBidStatus(products, memberNo, wonProductNos);
     }
@@ -358,10 +381,10 @@ public class ProductServiceImpl implements ProductService {
         List<Long> bidNos = winnerBids.stream().map(BidHistory::getBidNo).collect(Collectors.toList());
         if (bidNos.isEmpty()) return List.of();
 
-        // AuctionResult 중 구매확정된 것만 필터
+        // AuctionResult 중 결제완료 또는 구매확정된 것 필터 (결제 완료 시 구매내역으로 이동)
         List<AuctionResult> results = auctionResultRepository.findByBidNos(bidNos);
         Set<Long> confirmedBidNos = results.stream()
-                .filter(ar -> "구매확정".equals(ar.getStatus()))
+                .filter(ar -> "결제완료".equals(ar.getStatus()) || "구매확정".equals(ar.getStatus()))
                 .map(AuctionResult::getBidNo)
                 .collect(Collectors.toSet());
 
