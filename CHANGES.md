@@ -2,6 +2,202 @@
 
 ---
 
+## 전체 흐름 정리 (2026-04-02 기준)
+
+### 백엔드 핵심 흐름
+
+#### 1. 로그인 → SSE 연결
+```
+POST /api/auth/login
+  → JWT 발급 + memberNo 반환
+  → 프론트 sessionStorage 저장
+
+GET /api/sse/subscribe?clientId={memberNo}
+  → SseService: emitter를 ConcurrentHashMap에 등록
+  → 이후 백엔드 이벤트 → emitter.send() 로 실시간 전송
+  → 이벤트 종류: notification / pointUpdate / priceUpdate / forceLogout
+```
+
+#### 2. 경매 입찰 흐름
+```
+POST /api/bids
+  → BidServiceImpl: 비관적 락 (memberNo 오름차순 순서 고정, 데드락 방지)
+  → 포인트 차감 / 이전 최고입찰자 환불
+  → SseService.broadcastPriceUpdate() → 상품 구독자 전체 SSE
+  → AutoBidService.triggerAutoBids() → 자동입찰 연쇄 처리
+```
+
+#### 3. 경매 종료 흐름 (AuctionScheduler — 30초 주기)
+```
+종료 시각 지난 ACTIVE 상품 조회
+  → 최고 입찰 존재: AuctionResult 생성, 상품 status=완료
+      → 낙찰자에게 알림 2개 (낙찰 축하 + 결제 요청)
+      → 판매자에게 알림 1개 (낙찰 완료)
+      → 유찰자 전원에게 알림 (다음 기회 안내)
+  → 입찰 없음: 상품 status=취소
+```
+
+#### 4. 낙찰 이후 거래 흐름
+```
+결제: POST /api/auction-results/{no}/pay
+  → 구매자 포인트 차감 + PointHistory(낙찰대금결제) 기록
+  → SSE pointUpdate → 구매자 포인트 실시간 갱신
+  → 판매자에게 알림 (결제 완료, 상품 준비 요청)
+
+구매확정: POST /api/auction-results/{no}/confirm
+  → 판매자 포인트 지급 + PointHistory(판매대금정산) 기록
+  → SSE pointUpdate → 판매자 포인트 실시간 갱신
+  → 판매자에게 알림 (정산 금액 포함)
+```
+
+#### 5. 알림 전달 흐름
+```
+NotificationService.sendAndSaveNotification(memberNo, type, content, linkUrl)
+  → NOTIFICATION 테이블 저장 (isRead=0)
+  → SseService.sendNotification(memberNo, notiDto)
+      → 해당 회원 emitter에 'notification' 이벤트 전송
+      → emitter 없으면 조용히 무시 (오프라인 회원)
+  → 프론트: setNotifications(prev => [newNoti, ...prev]) 즉시 반영
+```
+
+#### 6. 관리자 기능 흐름
+```
+관리자 로그인 → 프론트 fetchAdminData() (5개 API 병렬)
+  /admin/members, /admin/reports, /admin/members/manner-history
+  /admin/activity-logs, /admin/products
+
+관리자 액션 (정지/매너온도/포인트/권한/신고처리)
+  → PUT API 호출
+  → AdminServiceImpl/ReportServiceImpl: DB 업데이트
+  → ActivityLog 자동 기록 (admin, targetId, action, details)
+  → 대상 회원에게 알림 자동 발송 (SSE 실시간)
+  → 프론트 fetchAdminData() + refreshActivityLogs() 재호출
+```
+
+#### 7. 배너 관리 흐름
+```
+BannerScheduler (1분 주기)
+  → endAt이 지난 isActive=1 배너 → isActive=0 자동 처리
+
+프론트 배너 관리
+  → GET /api/banners/all (관리자, 활성/비활성 전체)
+  → GET /api/banners?type=hero (메인, 활성만)
+  → POST/PUT/DELETE/PATCH 토글
+```
+
+---
+
+## 날짜: 2026-04-02
+
+### [백엔드]
+
+---
+
+#### 31. 경매 관련 알림 자동 발송 구현 (오수환)
+
+##### 배경
+낙찰/유찰/결제완료/구매확정/경매취소 등 주요 경매 이벤트 발생 시 관련 회원에게 알림이 전송되지 않았음.
+
+##### 수정
+
+**`BidHistoryRepository.java`**
+- `findDistinctBiddersByProductNo()` — 특정 상품 전체 입찰자 목록 (취소 제외)
+- `findDistinctBiddersExcluding()` — 특정 상품 입찰자 목록 (낙찰자 제외, 유찰 알림용)
+
+**`AuctionScheduler.java`**
+- `NotificationService` 의존성 주입 추가
+- 낙찰자 → `"축하합니다! [상품명] 경매에 최종 낙찰되었습니다."` (type: bid)
+- 낙찰자 → `"[상품명]의 결제를 진행해 주세요. (24시간 내 미결제 시 취소 가능)"` (type: bid)
+- 판매자 → `"[상품명]이 최종 낙찰되었습니다."` (type: bid)
+- 유찰자 전원 → `"[상품명] 경매가 종료되었습니다. 다음 기회를 노려보세요!"` (type: bid)
+
+**`AuctionResultServiceImpl.java`**
+- `@Slf4j`, `NotificationService` 의존성 주입 추가
+- `processPayment()` → 판매자에게 결제완료 알림 (type: activity)
+- `confirmPurchase()` → 판매자에게 구매확정 + 포인트 정산액 알림 (type: activity)
+
+**`ProductServiceImpl.java`**
+- `@Slf4j`, `NotificationService` 의존성 주입 추가
+- `cancelAuctionByAdmin()` → 입찰자 전원에게 경매 취소 알림 (type: bid)
+
+##### 공통 패턴
+- 모든 알림 전송을 try-catch로 감싸 알림 실패가 트랜잭션 롤백을 유발하지 않도록 격리
+
+---
+
+#### 32. 영어 주석 한글화 (오수환)
+
+##### 수정
+- **`WishlistServiceImpl.java`**
+  - `// Removed from wishlist` → `// 위시리스트에서 제거됨`
+  - `// Added to wishlist` → `// 위시리스트에 추가됨`
+
+---
+
+## 날짜: 2026-03-31
+
+### [백엔드]
+
+---
+
+#### 30. SSE 안정화 — 좀비 emitter 및 재연결 루프 수정 (오수환)
+
+##### 문제
+- 프론트엔드 React StrictMode(개발 환경)가 useEffect를 두 번 실행하면서 같은 `clientId`로 SSE를 두 번 연결
+- 첫 번째 연결의 `onCompletion`이 두 번째 emitter까지 `remove(clientId)`로 삭제 → 알림 전송 시 emitter 없음
+- `subscribe` 시 기존 emitter에 `complete()` 호출 → 브라우저 자동 재연결 루프 발생
+
+##### 수정
+- **`SseService.java`**
+  - `onCompletion` / `onTimeout` / `onError` 콜백을 `remove(clientId)` → `remove(clientId, emitter)`로 변경
+    - 새 emitter가 등록된 후 기존 emitter의 cleanup이 새 것을 삭제하는 문제 방지
+  - `subscribe` 시 기존 emitter `complete()` 호출 제거 → 맵에서만 교체 (재연결 루프 방지)
+  - `sendPointUpdate`, `sendForceLogout`도 동일하게 `remove(clientId, emitter)` 적용
+  - 디버그용 `log.info` 전체 제거 및 Logger 의존성 제거
+
+---
+
+## 날짜: 2026-03-30
+
+### [백엔드]
+
+---
+
+#### 28. 자동입찰 기능 구현
+
+##### 신규 생성
+- **`AutoBid.java`** — 자동입찰 엔티티 (`AUTO_BID` 테이블, AUTO_BID_SEQ 시퀀스, isActive 플래그)
+- **`AutoBidRequestDto.java`** — 자동입찰 등록 요청 DTO (`productNo`, `maxPrice`)
+- **`AutoBidResponseDto.java`** — 자동입찰 응답 DTO
+- **`AutoBidRepository.java`** — 자동입찰 레포지터리
+  - `findActiveByProductNo()` — 상품의 활성 자동입찰 목록 (최대가 높은 순)
+  - `findByMemberNoAndProductNoAndIsActive()` — 특정 회원의 특정 상품 자동입찰 조회
+  - `existsByMemberNoAndProductNoAndIsActive()` — 자동입찰 존재 여부 확인
+- **`AutoBidService.java`** — 자동입찰 서비스 인터페이스
+  - `registerAutoBid()` — 자동입찰 등록 (이미 있으면 maxPrice 갱신)
+  - `cancelAutoBid()` — 자동입찰 취소
+  - `triggerAutoBids()` — 입찰 발생 시 자동입찰 트리거
+  - `getActiveAutoBid()` — 특정 회원의 특정 상품 활성 자동입찰 조회
+
+##### 수정
+- **`AuctionResultServiceImpl.java`** — `processPayment()` 구매자 포인트 차감 로직 추가
+  - 결제 시 구매자 포인트 잔액 검증 후 낙찰 금액 차감
+  - `PointHistory` 타입 `"낙찰대금결제"` 로 이력 기록
+  - 구매자 포인트 SSE 실시간 반영 (`sseService.sendPointUpdate()`)
+- **`ProductServiceImpl.java`**
+  - `getMyBiddingProducts()` — 결제완료/구매확정된 낙찰 상품은 입찰내역에서 제외 (구매내역으로 이동)
+  - `getMyPurchasedProducts()` — 구매확정뿐만 아니라 결제완료 상태도 포함하도록 조건 확장
+- **`SecurityConfig.java`** — CORS 허용 Origin에 EC2 서버 IP 추가 (`http://54.164.62.214`, `:3000`, `:5173`)
+
+---
+
+#### 29. ProductController 병합 충돌 해결
+
+##### 수정
+- **`ProductController.java`** — 이전 브랜치 병합 과정에서 발생한 충돌 해결
+
+---
+
 ## 날짜: 2026-03-27
 
 ### [백엔드]

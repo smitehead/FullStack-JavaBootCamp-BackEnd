@@ -58,7 +58,12 @@ public class AutoBidServiceImpl implements AutoBidService {
                 .filter(a -> !a.getMemberNo().equals(memberNo))
                 .findFirst()
                 .ifPresent(existing -> {
-                    if (existing.getMaxPrice() >= dto.getMaxPrice()) {
+                    if (existing.getMaxPrice() == dto.getMaxPrice()) {
+                        throw new IllegalStateException(
+                                "동일한 금액(" + existing.getMaxPrice() + "원)의 자동입찰이 선착순으로 이미 설정되어 있습니다. " +
+                                "자동입찰 한도를 " + (existing.getMaxPrice() + product.getMinBidUnit()) + "원 이상으로 설정해주세요.");
+                    }
+                    if (existing.getMaxPrice() > dto.getMaxPrice()) {
                         throw new IllegalStateException(
                                 "이미 더 높은 자동입찰(" + existing.getMaxPrice() + "원)이 설정되어 있습니다. " +
                                 "자동입찰 한도를 " + (existing.getMaxPrice() + product.getMinBidUnit()) + "원 이상으로 설정해주세요.");
@@ -216,12 +221,6 @@ public class AutoBidServiceImpl implements AutoBidService {
                     .build());
             try { sseService.sendPointUpdate(previousBidder.getMemberNo(), previousBidder.getPoints()); }
             catch (Exception e) { log.warn("[AutoBid] SSE 실패: {}", e.getMessage()); }
-            try {
-                notificationService.sendAndSaveNotification(
-                        previousBidder.getMemberNo(), "bid",
-                        "자동입찰 발생: [" + product.getTitle() + "]에 새로운 자동입찰이 등록되었습니다.",
-                        "/product/" + productNo);
-            } catch (Exception e) { log.warn("[AutoBid] 알림 실패: {}", e.getMessage()); }
         }
 
         // 승자 포인트 차감
