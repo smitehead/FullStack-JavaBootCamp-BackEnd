@@ -1,53 +1,54 @@
-name: CI/CD Pipeline # 액션의 이름 ff
-
+name: Backend CI/CD (Docker)
+#test
 on:
   push:
-    branches: [ "main" ] # main 브랜치에 코드 push가 발생하면 감지해서 실행
+    branches: [ "main" ]
 
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest # 깃허브가 제공하는 가상 컴퓨터에서 빌드 시작
-
+  deploy:
+    runs-on: ubuntu-latest
     steps:
-    # (1) 깃허브에 올린 최신 코드를 가져옵니다.
     - name: Checkout code
       uses: actions/checkout@v3
 
-    # (2) 스프링 부트 빌드를 위해 자바 환경을 세팅합니다.
     - name: Set up JDK 17
       uses: actions/setup-java@v3
       with:
         java-version: '17'
         distribution: 'temurin'
-    - name: .env create
-      run : |
-        "${{secrets.ENV}}" > .env
-        
-    # (3) 코드를 빌드해서 .jar 파일을 만듭니다. (자동 빌드 구간)
+
     - name: Build with Maven
       run: |
         chmod +x ./mvnw
         ./mvnw clean package -DskipTests
-    
 
-    # (4) 빌드된 결과물(.jar)을 내 EC2 서버로 안전하게 보냅니다.
-    - name: Deliver build file to EC2
-      run : |
-        echo "${{ secrets.EC2_SSH_KEY }}" > mykey.pem
-        chmod 600 mykey.pem
-        scp -o StrictHostKeyChecking=no -i mykey.pem target/*.jar ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/app/
+    # 🔥 새로 추가된 부분: 보낼 파일들만 모아두기
+    - name: Prepare Deployment Files
+      run: |
+        mkdir -p deploy
+        cp target/*.jar deploy/app.jar
+        cp Dockerfile deploy/
+        echo "${{ secrets.ENV_FILE }}" > deploy/.env
 
-    # (5) EC2에 접속해서 기존 서버를 끄고 새 서버를 켭니다. (자동 재실행 구간)
-    - name: Restart Server on EC2
+    - name: Deliver to EC2
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        source: "deploy/*"
+        target: "/home/ubuntu/app/backend"
+        strip_components: 1
+
+    # 🔥 새로 추가된 부분: 도커 컴포즈로 백엔드만 재빌드 및 실행
+    - name: Deploy with Docker Compose
       uses: appleboy/ssh-action@master
       with:
         host: ${{ secrets.EC2_HOST }}
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          
           cd /home/ubuntu/app
-          # 기존에 8080 포트에서 돌아가던 스프링 부트 종료
-          fuser -k 8080/tcp || true 
-          # 새로 온 파일로 백그라운드 실행
-          nohup java -jar *.jar > app.log 2>&1 &
+          sudo docker-compose stop backend
+          sudo docker-compose rm -f backend
+          sudo docker-compose up -d --build backend

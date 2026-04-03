@@ -35,7 +35,7 @@ public class AuctionNotificationListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleAuctionClosed(AuctionClosedEvent event) {
-        String productLink = "/product/" + event.productNo();
+        String productLink = "/products/" + event.productNo();
         String wonLink = "/won/" + event.productNo();
 
         // 낙찰자 알림

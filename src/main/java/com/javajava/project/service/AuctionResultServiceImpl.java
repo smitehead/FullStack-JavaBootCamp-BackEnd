@@ -131,7 +131,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
             notificationService.sendAndSaveNotification(
                     seller.getMemberNo(), "activity",
                     "구매자가 [" + product.getTitle() + "] 결제를 완료했습니다. 상품 준비를 시작해 주세요.",
-                    "/product/" + product.getProductNo());
+                    "/products/" + product.getProductNo());
         } catch (Exception e) {
             log.warn("[AuctionResult] 판매자 결제완료 알림 전송 실패: {}", e.getMessage());
         }
@@ -159,7 +159,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                     product.getSellerNo(), "activity",
                     "구매자가 [" + product.getTitle() + "] 구매를 확정하여 "
                             + String.format("%,d", bid.getBidPrice()) + "포인트가 정산되었습니다.",
-                    "/product/" + product.getProductNo());
+                    "/products/" + product.getProductNo());
         } catch (Exception e) {
             log.warn("[AuctionResult] 판매자 구매확정 알림 전송 실패: {}", e.getMessage());
         }
@@ -216,7 +216,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 notificationService.sendAndSaveNotification(
                         sellerForRefund.getMemberNo(), "activity",
                         "구매자가 [" + product.getTitle() + "] 거래를 취소하여 낙찰 대금이 회수되었습니다.",
-                        "/product/" + product.getProductNo());
+                        "/products/" + product.getProductNo());
             } catch (Exception e) {
                 log.warn("[AuctionResult] 판매자 거래취소 알림 전송 실패: {}", e.getMessage());
             }
