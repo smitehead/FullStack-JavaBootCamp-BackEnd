@@ -28,6 +28,7 @@ jobs:
         mkdir -p deploy
         cp target/*.jar deploy/app.jar
         cp Dockerfile deploy/
+        echo "${{ secrets.ENV_FILE }}" > deploy/.env
 
     - name: Deliver to EC2
       uses: appleboy/scp-action@master
