@@ -4,7 +4,10 @@ import jakarta.validation.constraints.*;
 import lombok.*;
 import java.time.LocalDate;
 
-@Getter @Setter
+import com.fasterxml.jackson.annotation.JsonFormat;
+
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -48,6 +51,7 @@ public class MemberRequestDto {
 
     // 생년월일: 만 14세 미만 가입 제한 검증은 서비스 레이어에서 수행
     @NotNull(message = "생년월일은 필수입니다.")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     private LocalDate birthDate;
 
     // 마케팅 수신 동의 (0: 미동의, 1: 동의) - 선택 항목이므로 null 허용
