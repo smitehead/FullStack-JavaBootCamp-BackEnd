@@ -21,8 +21,8 @@ public class AuctionResult {
     @Column(name = "BID_NO", nullable = false) //FK
     private Long bidNo;
 
-    @Column(name = "DELIVERY_EMD_NO")
-    private Long deliveryEmdNo;
+    @Column(name = "DELIVERY_ADDR_ROAD", length = 200)
+    private String deliveryAddrRoad;
 
     @Column(name = "DELIVERY_ADDR_DETAIL", length = 255)
     private String deliveryAddrDetail;

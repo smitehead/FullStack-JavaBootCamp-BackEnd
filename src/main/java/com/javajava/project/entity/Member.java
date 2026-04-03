@@ -34,11 +34,17 @@ public class Member {
     @Column(name = "PHONE_NUM", nullable = false, length = 15)
     private String phoneNum;
 
-    @Column(name = "EMD_NO", nullable = false)
-    private Long emdNo;
+    // 도로명 전체 주소
+    @Column(name = "ADDR_ROAD", length = 200)
+    private String addrRoad;
 
-    @Column(name = "ADDR_DETAIL", nullable = false, length = 255)
+    //상세주소
+    @Column(name = "ADDR_DETAIL", length = 255)
     private String addrDetail;
+
+    // 화면 표시용: "서울 강남구 역삼동"
+    @Column(name = "ADDR_SHORT", length = 50)
+    private String addrShort; 
 
     @Column(name = "BIRTH_DATE", nullable = false)
     private LocalDate birthDate;

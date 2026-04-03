@@ -77,7 +77,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                         .nickname(seller.getNickname())
                         .mannerTemp(seller.getMannerTemp())
                         .build())
-                .deliveryEmdNo(result.getDeliveryEmdNo())
+                // .deliveryEmdNo(result.getDeliveryEmdNo())
                 .deliveryAddrDetail(result.getDeliveryAddrDetail())
                 .build();
     }

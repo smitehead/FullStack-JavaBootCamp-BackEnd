@@ -45,8 +45,9 @@ class ProjectApplicationTests {
         // 1. 판매자 생성 (포인트 0)
         Member seller = memberRepository.save(Member.builder()
                 .userId("seller_tester").password("1234").nickname("판매왕")
-                .email("seller@test.com").phoneNum("010-1111-1111").emdNo(1L)
-                .addrDetail("상남동").birthDate(LocalDate.of(1990, 1, 1))
+                .email("seller@test.com").phoneNum("010-1111-1111").addrRoad("경남 창원시 성산구 상남로 123")
+                .addrDetail("상남동")
+                .addrShort("창원 성산구 상남동").birthDate(LocalDate.of(1990, 1, 1))
                 .points(0L).build());
 
         // 2. 상품 등록 (시작가: 50,000원 / 최소 입찰단위: 5,000원)
@@ -60,15 +61,17 @@ class ProjectApplicationTests {
         // 3. 입찰자 1 생성 (포인트: 100,000원)
         bidder1 = memberRepository.save(Member.builder()
                 .userId("bidder_01").password("1234").nickname("입찰매니아")
-                .email("bid1@test.com").phoneNum("010-2222-2222").emdNo(2L)
-                .addrDetail("중앙동").birthDate(LocalDate.of(1995, 5, 5))
+                .email("bid1@test.com").phoneNum("010-2222-2222").addrRoad("경남 창원시 성산구 상남로 123")
+        .addrDetail("상남동")
+        .addrShort("창원 성산구 상남동").birthDate(LocalDate.of(1995, 5, 5))
                 .points(100000L).build());
 
         // 4. 입찰자 2 생성 (포인트: 200,000원)
         bidder2 = memberRepository.save(Member.builder()
                 .userId("bidder_02").password("1234").nickname("낙찰희망자")
-                .email("bid2@test.com").phoneNum("010-3333-3333").emdNo(3L)
-                .addrDetail("용호동").birthDate(LocalDate.of(1992, 12, 12))
+                .email("bid2@test.com").phoneNum("010-3333-3333").addrRoad("경남 창원시 성산구 상남로 123")
+        .addrDetail("상남동")
+        .addrShort("창원 성산구 상남동").birthDate(LocalDate.of(1992, 12, 12))
                 .points(200000L).build());
     }
 

@@ -13,8 +13,8 @@ public class ProductRequestDto {
     private String title;
     private String description;
     private String tradeType;
-    private Long tradeEmdNo;
     private String tradeAddrDetail;
+    private String tradeAddrShort;
     private Long startPrice;
     private Long buyoutPrice;
     private Long minBidUnit;

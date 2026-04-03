@@ -48,8 +48,8 @@ public class MemberServiceImpl implements MemberService {
                 .nickname(dto.getNickname())
                 .email(dto.getEmail())
                 .phoneNum(dto.getPhoneNum())
-                .emdNo(dto.getEmdNo())
                 .addrDetail(dto.getAddrDetail())
+                .addrShort(dto.getAddrShort())
                 .birthDate(dto.getBirthDate())
                 .marketingAgree(dto.getMarketingAgree() != null ? dto.getMarketingAgree() : 0)
                 .build();

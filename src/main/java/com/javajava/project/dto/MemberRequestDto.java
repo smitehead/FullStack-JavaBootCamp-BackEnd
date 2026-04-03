@@ -35,13 +35,16 @@ public class MemberRequestDto {
     @Pattern(regexp = "^01[0-9]-\\d{3,4}-\\d{4}$", message = "올바른 휴대폰번호 형식이 아닙니다.")
     private String phoneNum;
 
-    // 읍면동 번호 (FK) - 주소 선택 시 DB에서 조회한 emdNo를 전달
-    @NotNull(message = "읍면동번호는 필수입니다.")
-    private Long emdNo;
+    @NotBlank(message = "주소는 필수입니다.")
+    @Size(max = 200)
+    private String addrRoad;
 
     @NotBlank(message = "상세주소는 필수입니다.")
     @Size(max = 255)
     private String addrDetail;
+
+    @Size(max = 50)
+    private String addrShort;
 
     // 생년월일: 만 14세 미만 가입 제한 검증은 서비스 레이어에서 수행
     @NotNull(message = "생년월일은 필수입니다.")

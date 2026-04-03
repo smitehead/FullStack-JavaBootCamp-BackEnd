@@ -34,8 +34,8 @@ public class Product {
     @Column(name = "TRADE_TYPE", nullable = false, length = 10)
     private String tradeType;
 
-    @Column(name = "TRADE_EMD_NO")
-    private Long tradeEmdNo;
+    @Column(name = "TRADE_ADDR_SHORT", length = 50)
+    private String tradeAddrShort;
 
     @Column(name = "TRADE_ADDR_DETAIL", length = 255)
     private String tradeAddrDetail;
