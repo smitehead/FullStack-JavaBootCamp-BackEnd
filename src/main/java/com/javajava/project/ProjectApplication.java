@@ -2,6 +2,7 @@ package com.javajava.project;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.io.BufferedReader;
@@ -9,6 +10,7 @@ import java.io.File;
 import java.io.FileReader;
 
 @SpringBootApplication
+@EnableConfigurationProperties
 @EnableScheduling
 public class ProjectApplication {
     public static void main(String[] args) throws Exception {
@@ -18,7 +20,9 @@ public class ProjectApplication {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     line = line.trim();
-                    if (line.isEmpty() || line.startsWith("#")) continue;
+
+                    if (line.isEmpty() || line.startsWith("#"))
+                        continue;
                     int idx = line.indexOf('=');
                     if (idx > 0) {
                         String key = line.substring(0, idx).trim();

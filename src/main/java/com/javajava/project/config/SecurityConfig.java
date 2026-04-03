@@ -55,8 +55,7 @@ public class SecurityConfig {
                 "http://localhost:3000",
                 "http://54.164.62.214:3000",
                 "http://54.164.62.214:5173",
-                "http://54.164.62.214"
-        ));
+                "http://54.164.62.214"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
@@ -69,42 +68,47 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // 1. CORS 설정
-            //    위의 corsConfigurationSource() 빈을 필터 체인에 연결.
-            //    React ↔ Spring Boot 간 다른 포트 통신 허용.
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // 1. CORS 설정
+                // 위의 corsConfigurationSource() 빈을 필터 체인에 연결.
+                // React ↔ Spring Boot 간 다른 포트 통신 허용.
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-            // 2. CSRF 비활성화
-            //    CSRF란 악성 사이트가 로그인한 사용자인 척 요청을 위조하는 공격.
-            //    쿠키는 브라우저가 자동으로 붙여서 위조 가능하지만,
-            //    JWT는 프론트가 직접 Authorization 헤더에 붙여야 해서 위조 불가.
-            //    따라서 JWT 방식에서는 CSRF 보호가 불필요해 비활성화.
-            .csrf(csrf -> csrf.disable())
+                // 2. CSRF 비활성화
+                // CSRF란 악성 사이트가 로그인한 사용자인 척 요청을 위조하는 공격.
+                // 쿠키는 브라우저가 자동으로 붙여서 위조 가능하지만,
+                // JWT는 프론트가 직접 Authorization 헤더에 붙여야 해서 위조 불가.
+                // 따라서 JWT 방식에서는 CSRF 보호가 불필요해 비활성화.
+                .csrf(csrf -> csrf.disable())
 
-            // 3. 세션 미사용 (STATELESS)
-            //    JWT 방식은 서버가 세션을 저장하지 않음.
-            //    로그인 상태를 서버가 기억하는 대신, 매 요청마다 토큰으로 인증.
-            //    서버를 여러 대 운영해도 세션 공유 문제가 없음.
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            )
+                // 3. 세션 미사용 (STATELESS)
+                // JWT 방식은 서버가 세션을 저장하지 않음.
+                // 로그인 상태를 서버가 기억하는 대신, 매 요청마다 토큰으로 인증.
+                // 서버를 여러 대 운영해도 세션 공유 문제가 없음.
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-            // 4. 요청 권한 설정
-            //    현재 개발 단계로 전체 허용.
-            //    관리자 기능 구현 시 아래처럼 세분화 예정:
-            //    .requestMatchers("/api/admin/**").hasRole("ADMIN")
-            //    → Member 엔티티에 role 필드 추가 + JWT 토큰에 role 포함 필요
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .anyRequest().permitAll()
-            )
+                // 4. 요청 권한 설정
+                // 현재 개발 단계로 전체 허용.
+                // 관리자 기능 구현 시 아래처럼 세분화 예정:
+                // .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                // → Member 엔티티에 role 필드 추가 + JWT 토큰에 role 포함 필요
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/members/**").permitAll()
+                        .requestMatchers("/api/products/**").permitAll()
+                        .requestMatchers("/api/sse/**").permitAll()
+                        .requestMatchers("/api/images/**").permitAll()
+                        .requestMatchers("/api/banners/**").permitAll()
+                        // 포인트 API는 인증 필요
+                        .requestMatchers("/api/points/**").authenticated()
+                        .anyRequest().permitAll())
 
-            // 5. JWT 필터 등록
-            //    Spring Security 기본 로그인 필터(UsernamePasswordAuthenticationFilter) 앞에 삽입.
-            //    요청이 들어오면 JWT 필터가 먼저 실행됨:
-            //      Authorization 헤더에서 "Bearer " 제거 → 토큰 추출 → 검증 → SecurityContext 등록
-            //    토큰 없으면 그냥 통과 (인증 안 된 상태로 진행, 권한 설정에서 걸림)
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                // 5. JWT 필터 등록
+                // Spring Security 기본 로그인 필터(UsernamePasswordAuthenticationFilter) 앞에 삽입.
+                // 요청이 들어오면 JWT 필터가 먼저 실행됨:
+                // Authorization 헤더에서 "Bearer " 제거 → 토큰 추출 → 검증 → SecurityContext 등록
+                // 토큰 없으면 그냥 통과 (인증 안 된 상태로 진행, 권한 설정에서 걸림)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

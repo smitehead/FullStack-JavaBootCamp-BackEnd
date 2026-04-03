@@ -2,6 +2,138 @@
 
 ---
 
+## 전체 흐름 정리 (2026-04-02 기준)
+
+### 백엔드 핵심 흐름
+
+#### 1. 로그인 → SSE 연결
+```
+POST /api/auth/login
+  → JWT 발급 + memberNo 반환
+  → 프론트 sessionStorage 저장
+
+GET /api/sse/subscribe?clientId={memberNo}
+  → SseService: emitter를 ConcurrentHashMap에 등록
+  → 이후 백엔드 이벤트 → emitter.send() 로 실시간 전송
+  → 이벤트 종류: notification / pointUpdate / priceUpdate / forceLogout
+```
+
+#### 2. 경매 입찰 흐름
+```
+POST /api/bids
+  → BidServiceImpl: 비관적 락 (memberNo 오름차순 순서 고정, 데드락 방지)
+  → 포인트 차감 / 이전 최고입찰자 환불
+  → SseService.broadcastPriceUpdate() → 상품 구독자 전체 SSE
+  → AutoBidService.triggerAutoBids() → 자동입찰 연쇄 처리
+```
+
+#### 3. 경매 종료 흐름 (AuctionScheduler — 30초 주기)
+```
+종료 시각 지난 ACTIVE 상품 조회
+  → 최고 입찰 존재: AuctionResult 생성, 상품 status=완료
+      → 낙찰자에게 알림 2개 (낙찰 축하 + 결제 요청)
+      → 판매자에게 알림 1개 (낙찰 완료)
+      → 유찰자 전원에게 알림 (다음 기회 안내)
+  → 입찰 없음: 상품 status=취소
+```
+
+#### 4. 낙찰 이후 거래 흐름
+```
+결제: POST /api/auction-results/{no}/pay
+  → 구매자 포인트 차감 + PointHistory(낙찰대금결제) 기록
+  → SSE pointUpdate → 구매자 포인트 실시간 갱신
+  → 판매자에게 알림 (결제 완료, 상품 준비 요청)
+
+구매확정: POST /api/auction-results/{no}/confirm
+  → 판매자 포인트 지급 + PointHistory(판매대금정산) 기록
+  → SSE pointUpdate → 판매자 포인트 실시간 갱신
+  → 판매자에게 알림 (정산 금액 포함)
+```
+
+#### 5. 알림 전달 흐름
+```
+NotificationService.sendAndSaveNotification(memberNo, type, content, linkUrl)
+  → NOTIFICATION 테이블 저장 (isRead=0)
+  → SseService.sendNotification(memberNo, notiDto)
+      → 해당 회원 emitter에 'notification' 이벤트 전송
+      → emitter 없으면 조용히 무시 (오프라인 회원)
+  → 프론트: setNotifications(prev => [newNoti, ...prev]) 즉시 반영
+```
+
+#### 6. 관리자 기능 흐름
+```
+관리자 로그인 → 프론트 fetchAdminData() (5개 API 병렬)
+  /admin/members, /admin/reports, /admin/members/manner-history
+  /admin/activity-logs, /admin/products
+
+관리자 액션 (정지/매너온도/포인트/권한/신고처리)
+  → PUT API 호출
+  → AdminServiceImpl/ReportServiceImpl: DB 업데이트
+  → ActivityLog 자동 기록 (admin, targetId, action, details)
+  → 대상 회원에게 알림 자동 발송 (SSE 실시간)
+  → 프론트 fetchAdminData() + refreshActivityLogs() 재호출
+```
+
+#### 7. 배너 관리 흐름
+```
+BannerScheduler (1분 주기)
+  → endAt이 지난 isActive=1 배너 → isActive=0 자동 처리
+
+프론트 배너 관리
+  → GET /api/banners/all (관리자, 활성/비활성 전체)
+  → GET /api/banners?type=hero (메인, 활성만)
+  → POST/PUT/DELETE/PATCH 토글
+```
+
+---
+
+## 날짜: 2026-04-02
+
+### [백엔드]
+
+---
+
+#### 31. 경매 관련 알림 자동 발송 구현 (오수환)
+
+##### 배경
+낙찰/유찰/결제완료/구매확정/경매취소 등 주요 경매 이벤트 발생 시 관련 회원에게 알림이 전송되지 않았음.
+
+##### 수정
+
+**`BidHistoryRepository.java`**
+- `findDistinctBiddersByProductNo()` — 특정 상품 전체 입찰자 목록 (취소 제외)
+- `findDistinctBiddersExcluding()` — 특정 상품 입찰자 목록 (낙찰자 제외, 유찰 알림용)
+
+**`AuctionScheduler.java`**
+- `NotificationService` 의존성 주입 추가
+- 낙찰자 → `"축하합니다! [상품명] 경매에 최종 낙찰되었습니다."` (type: bid)
+- 낙찰자 → `"[상품명]의 결제를 진행해 주세요. (24시간 내 미결제 시 취소 가능)"` (type: bid)
+- 판매자 → `"[상품명]이 최종 낙찰되었습니다."` (type: bid)
+- 유찰자 전원 → `"[상품명] 경매가 종료되었습니다. 다음 기회를 노려보세요!"` (type: bid)
+
+**`AuctionResultServiceImpl.java`**
+- `@Slf4j`, `NotificationService` 의존성 주입 추가
+- `processPayment()` → 판매자에게 결제완료 알림 (type: activity)
+- `confirmPurchase()` → 판매자에게 구매확정 + 포인트 정산액 알림 (type: activity)
+
+**`ProductServiceImpl.java`**
+- `@Slf4j`, `NotificationService` 의존성 주입 추가
+- `cancelAuctionByAdmin()` → 입찰자 전원에게 경매 취소 알림 (type: bid)
+
+##### 공통 패턴
+- 모든 알림 전송을 try-catch로 감싸 알림 실패가 트랜잭션 롤백을 유발하지 않도록 격리
+
+---
+
+#### 32. 영어 주석 한글화 (오수환)
+
+##### 수정
+- **`WishlistServiceImpl.java`**
+  - `// Removed from wishlist` → `// 위시리스트에서 제거됨`
+  - `// Added to wishlist` → `// 위시리스트에 추가됨`
+
+---
+
 ## 날짜: 2026-03-31
 
 ### [백엔드]
