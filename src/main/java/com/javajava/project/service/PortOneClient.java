@@ -39,7 +39,8 @@ public class PortOneClient {
 
         // <2> 빌링키 기반 자동결제 요청
         // 결제창 없이 서버에서 바로 결제 실행
-        public Map<?, ?> requestBillingCharge(String accessToken, String customerUid, String merchantUid, Long amount) {
+        public Map<?, ?> requestBillingCharge(String accessToken, String customerUid,
+                        String merchantUid, Long amount) {
                 Map<?, ?> response = webClient().post()
                                 .uri("/subscribe/payments/again")
                                 .header("Authorization", accessToken)
@@ -50,9 +51,22 @@ public class PortOneClient {
                                                 "name", "포인트 충전"))
                                 .retrieve()
                                 .bodyToMono(Map.class)
+
                                 .block();
 
-                return (Map<?, ?>) response.get("response");
+                log.info("[PortOne] requestBillingCharge 전체 응답: {}", response);
+
+                // PortOne 응답 코드 확인
+                Integer code = (Integer) response.get("code");
+                if (code != null && code != 0) {
+                        String message = (String) response.get("message");
+                        log.error("[PortOne] 결제 요청 실패 코드: {}, 메시지: {}", code, message);
+                        throw new IllegalStateException("결제 실패: " + message);
+                }
+
+                Map<?, ?> result = (Map<?, ?>) response.get("response");
+                log.info("[PortOne] requestBillingCharge result: {}", result);
+                return result;
         }
 
         // <3> 결제 단건 조회 - 서버 검증
@@ -89,40 +103,61 @@ public class PortOneClient {
                 }
         }
 
-        //API 방식 빌링키 발급
-        //고객 카드 정보를 직접 받아 portone 서버에 빌링키 발급 요청
-        //pg사 결제창 없이 서버간 통신으로 처리
+        // API 방식 빌링키 발급
+        // 고객 카드 정보를 직접 받아 portone 서버에 빌링키 발급 요청
+        // pg사 결제창 없이 서버간 통신으로 처리
         public Map<?, ?> issueBillingKey(String accessToken, String customerUid,
-                                  String cardNumber, String expiry,
-                                  String birth, String pwd2digit) {
-            
-            log.info("[PortOne] 빌링키 발급 요청 - customerUid: {}, channelKey: {}",
-                    customerUid, portOneProperties.getChannelKey());
-                    
-            Map<?, ?> response = webClient().post()
-                .uri("/subscribe/customers/{customerUid}", customerUid)
-                .header("Authorization", accessToken)
-                .bodyValue(Map.of(
-                        "card_number", cardNumber,   // 카드번호 (하이픈 제거, 16자리)
-                        "expiry",      expiry,        // 유효기간 YYYY-MM 형식
-                        "birth",       birth,         // 생년월일 6자리 또는 사업자번호 10자리
-                        "pwd_2digit",  pwd2digit,       // 비밀번호 앞 2자리
-                        "channel_key",  portOneProperties.getChannelKey()
-                ))
-                .retrieve()
-                .bodyToMono(Map.class)
-                .block();
-                
-            log.info("[PortOne] issueBillingKey 응답: {}", response);
+                        String cardNumber, String expiry,
+                        String birth, String pwd2digit) {
 
-            // PortOne 응답 코드 확인 (0이 아니면 실패)
-            Integer code = (Integer) response.get("code");
-            if (code != null && code != 0) {
-                String message = (String) response.get("message");
-                log.error("[PortOne] 빌링키 발급 실패 코드: {}, 메시지: {}", code, message);
-                throw new IllegalStateException("빌링키 발급 실패: " + message);
-            }
+                log.info("[PortOne] 빌링키 발급 요청 - customerUid: {}, channelKey: {}",
+                                customerUid, portOneProperties.getChannelKey());
 
-            return (Map<?, ?>) response.get("response");
+                Map<?, ?> response = webClient().post()
+                                .uri("/subscribe/customers/{customerUid}", customerUid)
+                                .header("Authorization", accessToken)
+                                .bodyValue(Map.of(
+                                                "card_number", cardNumber, // 카드번호 (하이픈 제거, 16자리)
+                                                "expiry", expiry, // 유효기간 YYYY-MM 형식
+                                                "birth", birth, // 생년월일 6자리 또는 사업자번호 10자리
+                                                "pwd_2digit", pwd2digit, // 비밀번호 앞 2자리
+                                                "channel_key", portOneProperties.getChannelKey()))
+                                .retrieve()
+                                .bodyToMono(Map.class)
+                                .block();
+
+                log.info("[PortOne] issueBillingKey 응답: {}", response);
+
+                // PortOne 응답 코드 확인 (0이 아니면 실패)
+                Integer code = (Integer) response.get("code");
+                if (code != null && code != 0) {
+                        String message = (String) response.get("message");
+                        log.error("[PortOne] 빌링키 발급 실패 코드: {}, 메시지: {}", code, message);
+                        throw new IllegalStateException("빌링키 발급 실패: " + message);
+                }
+
+                return (Map<?, ?>) response.get("response");
+        }
+
+        // merchantUid로 결제 단건 조회
+        // 보정 스케줄러에서 PENDING 건 확인용
+        public Map<?, ?> getPaymentByMerchantUid(String accessToken, String merchantUid) {
+                try {
+                        Map<?, ?> response = webClient().get()
+                                        .uri("/payments/find/{merchantUid}", merchantUid)
+                                        .header("Authorization", accessToken)
+                                        .retrieve()
+                                        .bodyToMono(Map.class)
+                                        .block();
+
+                        Integer code = (Integer) response.get("code");
+                        if (code != null && code != 0)
+                                return null;
+
+                        return (Map<?, ?>) response.get("response");
+                } catch (Exception e) {
+                        log.warn("[PortOne] merchantUid 조회 실패: {}", merchantUid);
+                        return null;
+                }
         }
 }
