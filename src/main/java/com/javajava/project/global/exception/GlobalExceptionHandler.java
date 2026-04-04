@@ -65,8 +65,12 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, String>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        String msg = ex.getMessage() != null && ex.getMessage().contains("UNIQUE")
+                ? "이미 사용 중인 아이디, 닉네임, 또는 이메일입니다."
+                : "데이터 저장 중 오류가 발생했습니다. 입력 내용을 확인해주세요.";
+        log.error("[409] DataIntegrityViolation: {}", ex.getMostSpecificCause().getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(Map.of("error", "이미 사용 중인 아이디, 닉네임, 또는 이메일입니다."));
+                .body(Map.of("error", msg));
     }
 
     /**
