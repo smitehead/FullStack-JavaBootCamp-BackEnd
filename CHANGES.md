@@ -2,6 +2,35 @@
 
 ---
 
+## 리뷰 기능 구현 + 매너온도 자동 계산 (2026-04-04)
+
+### 새로 생성된 파일
+- `domain/community/dto/ReviewRequestDto.java` — 리뷰 작성 요청 DTO (resultNo, rating 1~5, content)
+- `domain/community/dto/ReviewResponseDto.java` — 리뷰 응답 DTO (writerNickname 포함)
+- `domain/community/service/ReviewService.java` — 리뷰 CRUD + 매너온도 자동 계산
+- `domain/community/controller/ReviewController.java` — 리뷰 API 3개 엔드포인트
+
+### 수정된 파일
+- `domain/community/repository/ReviewRepository.java` — 평균 별점 쿼리 `findAverageRatingByTargetNo` 추가
+
+### API 엔드포인트
+- `POST /api/reviews` — 리뷰 작성 (구매확정 거래만, 중복 방지, 매너온도 자동 반영)
+- `GET /api/reviews/target/{memberNo}` — 특정 회원이 받은 리뷰 목록
+- `GET /api/reviews/my` — 내가 작성한 리뷰 목록
+
+### 매너온도 자동 계산
+#### 1. 리뷰 별점 기반 (ReviewService)
+- 공식: `36.5 + (평균별점 - 3.0) * weight`
+- weight: `min(리뷰수, 10) * 0.5` (최대 5.0)
+- 범위: 0 ~ 100
+- 별점 3점 = 변동 없음 / 5점 = 상승 / 1점 = 하락
+
+#### 2. 구매확정 시 소폭 상승 (AuctionResultServiceImpl)
+- `confirmPurchase()` 시 구매자 + 판매자 각각 +0.2
+- 상한 100 제한
+
+---
+
 ## 전체 흐름 정리 (2026-04-02 기준)
 
 ### 백엔드 핵심 흐름

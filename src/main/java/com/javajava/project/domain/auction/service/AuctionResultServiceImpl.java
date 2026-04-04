@@ -157,12 +157,22 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         result.setStatus("구매확정");
         result.setConfirmedAt(LocalDateTime.now());
 
+        // 입찰/상품 정보 조회
+        BidHistory bid = bidHistoryRepository.findById(result.getBidNo())
+                .orElseThrow(() -> new IllegalArgumentException("입찰 기록을 찾을 수 없습니다."));
+        Product product = productRepository.findById(bid.getProductNo())
+                .orElseThrow(() -> new IllegalArgumentException("상품 정보를 찾을 수 없습니다."));
+
+        // 구매확정 시 양쪽 매너온도 소폭 상승 (+0.2)
+        Member buyer = memberRepository.findById(memberNo)
+                .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
+        Member seller = memberRepository.findById(product.getSellerNo())
+                .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
+        buyer.setMannerTemp(Math.min(100, buyer.getMannerTemp() + 0.2));
+        seller.setMannerTemp(Math.min(100, seller.getMannerTemp() + 0.2));
+
         // 판매자 알림 — 구매 확정 (포인트 정산 안내)
         try {
-            BidHistory bid = bidHistoryRepository.findById(result.getBidNo())
-                    .orElseThrow(() -> new IllegalArgumentException("입찰 기록을 찾을 수 없습니다."));
-            Product product = productRepository.findById(bid.getProductNo())
-                    .orElseThrow(() -> new IllegalArgumentException("상품 정보를 찾을 수 없습니다."));
             notificationService.sendAndSaveNotification(
                     product.getSellerNo(), "activity",
                     "구매자가 [" + product.getTitle() + "] 구매를 확정하여 "
