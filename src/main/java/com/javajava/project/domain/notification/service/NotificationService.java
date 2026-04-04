@@ -3,6 +3,7 @@ package com.javajava.project.domain.notification.service;
 import com.javajava.project.domain.notification.dto.NotificationResponseDto;
 import com.javajava.project.domain.notification.entity.Notification;
 import com.javajava.project.domain.notification.repository.NotificationRepository;
+import com.javajava.project.global.sse.SseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

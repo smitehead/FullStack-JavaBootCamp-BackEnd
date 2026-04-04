@@ -7,7 +7,7 @@ import com.javajava.project.domain.point.entity.PointHistory;
 import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.domain.point.repository.PointChargeRepository;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
-import com.javajava.project.domain.notification.service.SseService;
+import com.javajava.project.global.sse.SseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;

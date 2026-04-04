@@ -5,7 +5,7 @@ import com.javajava.project.domain.member.dto.LoginRequestDto;
 import com.javajava.project.domain.member.dto.LoginResponseDto;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.member.repository.MemberRepository;
-import com.javajava.project.domain.notification.service.SseService;
+import com.javajava.project.global.sse.SseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;

@@ -1,4 +1,4 @@
-package com.javajava.project.domain.notification.service;
+package com.javajava.project.global.sse;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;

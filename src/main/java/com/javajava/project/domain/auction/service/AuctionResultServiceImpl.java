@@ -11,7 +11,7 @@ import com.javajava.project.domain.auction.repository.AuctionResultRepository;
 import com.javajava.project.domain.bid.repository.BidHistoryRepository;
 import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.domain.notification.service.NotificationService;
-import com.javajava.project.domain.notification.service.SseService;
+import com.javajava.project.global.sse.SseService;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
 import com.javajava.project.domain.product.repository.ProductImageRepository;
 import com.javajava.project.domain.product.repository.ProductRepository;
