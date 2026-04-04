@@ -31,8 +31,8 @@ public class Report {
     @Column(name = "TARGET_PRODUCT_NO")
     private Long targetProductNo; // 신고 대상 상품번호 (FK - Nullable)
 
-    @Column(name = "TYPE", nullable = false, length = 30)
-    private String type; // 신고 유형 (허위매물/사기/욕설 등)
+    @Column(name = "TYPE", nullable = false, length = 100)
+    private String type; // 신고 유형 (허위매물/사기/욕설 등) — 한글 포함 최대 100자
 
     @Column(name = "CONTENT", length = 2000)
     private String content; // 신고 내용
