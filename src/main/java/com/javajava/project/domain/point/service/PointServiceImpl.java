@@ -1,6 +1,5 @@
 package com.javajava.project.domain.point.service;
 
-import com.javajava.project.domain.admin.dto.WithdrawAdminResponseDto;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.point.dto.BankAccountDto;
 import com.javajava.project.domain.point.dto.BillingKeyRegisterRequestDto;
@@ -19,7 +18,7 @@ import com.javajava.project.domain.point.repository.BillingKeyRepository;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
 import com.javajava.project.domain.point.repository.PointWithdrawRepository;
 import com.javajava.project.domain.member.repository.MemberRepository;
-import com.javajava.project.domain.notification.service.SseService;
+import com.javajava.project.global.sse.SseService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
