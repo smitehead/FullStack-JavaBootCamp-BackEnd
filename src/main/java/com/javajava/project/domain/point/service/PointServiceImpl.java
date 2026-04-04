@@ -1,13 +1,26 @@
 package com.javajava.project.domain.point.service;
 
+import com.javajava.project.domain.admin.dto.WithdrawAdminResponseDto;
+import com.javajava.project.domain.member.entity.Member;
+import com.javajava.project.domain.point.dto.BankAccountDto;
 import com.javajava.project.domain.point.dto.BillingKeyRegisterRequestDto;
 import com.javajava.project.domain.point.dto.BillingKeyResponseDto;
 import com.javajava.project.domain.point.dto.ChargeRequestDto;
 import com.javajava.project.domain.point.dto.ChargeResponseDto;
 import com.javajava.project.domain.point.dto.PointHistoryResponseDto;
+import com.javajava.project.domain.point.dto.WithdrawRequestDto;
+import com.javajava.project.domain.point.dto.WithdrawResponseDto;
+import com.javajava.project.domain.point.entity.BankAccount;
 import com.javajava.project.domain.point.entity.BillingKey;
+import com.javajava.project.domain.point.entity.PointHistory;
+import com.javajava.project.domain.point.entity.PointWithdraw;
+import com.javajava.project.domain.point.repository.BankAccountRepository;
 import com.javajava.project.domain.point.repository.BillingKeyRepository;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
+import com.javajava.project.domain.point.repository.PointWithdrawRepository;
+import com.javajava.project.domain.member.repository.MemberRepository;
+import com.javajava.project.domain.notification.service.SseService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -17,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -28,6 +42,10 @@ public class PointServiceImpl implements PointService {
     private final PointHistoryRepository pointHistoryRepository;
     private final PortOneClient portOneClient;
     private final PointTransactionHelper txHelper;
+    private final BankAccountRepository bankAccountRepository;
+    private final PointWithdrawRepository pointWithdrawRepository;
+    private final MemberRepository memberRepository;
+    private final SseService sseService;
 
     // <카드 등록>
 
@@ -160,5 +178,99 @@ public class PointServiceImpl implements PointService {
         return pointHistoryRepository
                 .findByMemberNoOrderByCreatedAtDesc(memberNo, pageable)
                 .map(PointHistoryResponseDto::from);
+    }
+
+    // 계좌 관리
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BankAccountDto> getAccounts(Long memberNo) {
+        return bankAccountRepository
+                .findByMemberNoOrderByIsDefaultDescCreatedAtDesc(memberNo)
+                .stream().map(BankAccountDto::from).toList();
+    }
+
+    @Override
+    @Transactional
+    public void addAccount(Long memberNo, BankAccountDto dto) {
+        bankAccountRepository.save(BankAccount.builder()
+            .memberNo(memberNo)
+            .bankName(dto.getBankName())
+            .accountNumber(dto.getAccountNumber())
+            .accountHolder(dto.getAccountHolder())
+            .isDefault(0)
+            .build());
+    }
+
+    @Override
+    @Transactional
+    public void deleteAccount(Long memberNo, Long accountNo) {
+        bankAccountRepository.deleteByAccountNoAndMemberNo(accountNo, memberNo);
+}
+
+
+
+
+
+
+    // 출금 신청
+
+    @Override
+    @Transactional
+    public WithdrawResponseDto withdraw(Long memberNo, WithdrawRequestDto dto) {
+        if (dto.getAmount() == null || dto.getAmount() < 1000)
+        throw new IllegalArgumentException("최소 출금 금액은 1,000원입니다.");
+
+        // 비관적 락으로 포인트 차감 — Lost Update 방지
+        Member member = memberRepository.findByIdWithLock(memberNo)
+                .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+
+        if (member.getPoints() < dto.getAmount())
+            throw new IllegalArgumentException("포인트가 부족합니다.");
+
+        // 계좌 정보 결정 (저장된 계좌 선택 or 직접 입력)
+        String bankName, accountNumber, accountHolder;
+        if (dto.getAccountNo() != null) {
+            BankAccount account = bankAccountRepository.findById(dto.getAccountNo())
+                    .orElseThrow(() -> new IllegalArgumentException("계좌를 찾을 수 없습니다."));
+            bankName = account.getBankName();
+            accountNumber = account.getAccountNumber();
+            accountHolder = account.getAccountHolder();
+        } else {
+            bankName = dto.getBankName();
+            accountNumber = dto.getAccountNumber();
+            accountHolder = dto.getAccountHolder();
+        }
+
+        long newBalance = member.getPoints() - dto.getAmount();
+        member.setPoints(newBalance);
+
+        // 출금 신청 저장 (status = 신청)
+        pointWithdrawRepository.save(PointWithdraw.builder()
+            .memberNo(memberNo)
+            .amount(dto.getAmount())
+            .bankName(bankName)
+            .accountNumber(accountNumber)
+            .accountHolder(accountHolder)
+            .status("신청")
+            .build());
+
+        // 포인트 이력 저장
+        pointHistoryRepository.save(PointHistory.builder()
+            .memberNo(memberNo)
+            .type("출금")
+            .amount(-dto.getAmount())
+            .balance(newBalance)
+            .reason("포인트 출금 신청 (" + bankName + " " + accountNumber + ")")
+            .build());
+
+        // SSE 포인트 갱신
+        try { sseService.sendPointUpdate(memberNo, newBalance); }
+        catch (Exception e) { log.warn("[Withdraw] SSE 실패. memberNo={}", memberNo); }
+
+        return WithdrawResponseDto.builder()
+            .success(true).remainBalance(newBalance)
+            .message(dto.getAmount() + "원 출금 신청이 완료되었습니다.")
+            .build();
     }
 }
