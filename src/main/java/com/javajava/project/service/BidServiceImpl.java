@@ -18,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -195,7 +194,7 @@ public class BidServiceImpl implements BidService {
                     .bidPrice(bid.getBidPrice())
                     .bidTime(bid.getBidTime())
                     .build();
-        }).collect(Collectors.toList());
+        }).toList();
     }
 
     /**

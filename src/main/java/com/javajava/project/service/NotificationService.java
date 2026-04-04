@@ -12,7 +12,6 @@ import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -58,7 +57,7 @@ public class NotificationService {
         return notificationRepository.findByMemberNoOrderByCreatedAtDesc(memberNo)
                 .stream()
                 .map(NotificationResponseDto::from)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
@@ -69,7 +68,7 @@ public class NotificationService {
                 PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "createdAt"))
         ).stream()
                 .map(NotificationResponseDto::from)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**

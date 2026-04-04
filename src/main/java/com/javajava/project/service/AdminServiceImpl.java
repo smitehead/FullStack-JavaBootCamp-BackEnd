@@ -10,11 +10,15 @@ import com.javajava.project.repository.ActivityLogRepository;
 import com.javajava.project.repository.MannerHistoryRepository;
 import com.javajava.project.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,31 +33,34 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public List<ActivityLogResponseDto> getAllActivityLogs() {
-        List<ActivityLogResponseDto> list = activityLogRepository.findAll(
-                org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"))
+        List<ActivityLogResponseDto> list = activityLogRepository
+                .findAll(Sort.by(Sort.Direction.DESC, "createdAt"))
                 .stream()
                 .map(ActivityLogResponseDto::from)
-                .collect(Collectors.toList());
-
-        for (ActivityLogResponseDto dto : list) {
-            memberRepository.findById(dto.getAdminNo())
-                    .ifPresent(m -> dto.setAdminNickname(m.getNickname()));
-        }
+                .toList();
+        enrichWithAdminNicknames(list);
         return list;
     }
 
     @Override
     public List<ActivityLogResponseDto> getActivityLogsByTargetType(String targetType) {
-        List<ActivityLogResponseDto> list = activityLogRepository.findByTargetTypeOrderByCreatedAtDesc(targetType)
+        List<ActivityLogResponseDto> list = activityLogRepository
+                .findByTargetTypeOrderByCreatedAtDesc(targetType)
                 .stream()
                 .map(ActivityLogResponseDto::from)
-                .collect(Collectors.toList());
-
-        for (ActivityLogResponseDto dto : list) {
-            memberRepository.findById(dto.getAdminNo())
-                    .ifPresent(m -> dto.setAdminNickname(m.getNickname()));
-        }
+                .toList();
+        enrichWithAdminNicknames(list);
         return list;
+    }
+
+    private void enrichWithAdminNicknames(List<ActivityLogResponseDto> list) {
+        Set<Long> adminNos = list.stream()
+                .map(ActivityLogResponseDto::getAdminNo)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, String> nicknameMap = memberRepository.findAllById(adminNos).stream()
+                .collect(Collectors.toMap(Member::getMemberNo, Member::getNickname));
+        list.forEach(dto -> dto.setAdminNickname(nicknameMap.get(dto.getAdminNo())));
     }
 
     @Override
@@ -61,7 +68,7 @@ public class AdminServiceImpl implements AdminService {
         return memberRepository.findAllByOrderByJoinedAtDesc()
                 .stream()
                 .map(AdminMemberResponseDto::from)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -69,7 +76,7 @@ public class AdminServiceImpl implements AdminService {
         return memberRepository.searchByKeyword(keyword)
                 .stream()
                 .map(AdminMemberResponseDto::from)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -207,17 +214,8 @@ public class AdminServiceImpl implements AdminService {
         List<MannerHistoryResponseDto> list = mannerHistoryRepository.findAllByOrderByCreatedAtDesc()
                 .stream()
                 .map(MannerHistoryResponseDto::from)
-                .collect(Collectors.toList());
-
-        // 닉네임 세팅
-        for (MannerHistoryResponseDto dto : list) {
-            memberRepository.findById(dto.getMemberNo())
-                    .ifPresent(m -> dto.setMemberNickname(m.getNickname()));
-            if (dto.getAdminNo() != null) {
-                memberRepository.findById(dto.getAdminNo())
-                        .ifPresent(m -> dto.setAdminNickname(m.getNickname()));
-            }
-        }
+                .toList();
+        enrichWithMemberNicknames(list);
         return list;
     }
 
@@ -226,16 +224,25 @@ public class AdminServiceImpl implements AdminService {
         List<MannerHistoryResponseDto> list = mannerHistoryRepository.findByMemberNoOrderByCreatedAtDesc(memberNo)
                 .stream()
                 .map(MannerHistoryResponseDto::from)
-                .collect(Collectors.toList());
-
-        for (MannerHistoryResponseDto dto : list) {
-            memberRepository.findById(dto.getMemberNo())
-                    .ifPresent(m -> dto.setMemberNickname(m.getNickname()));
-            if (dto.getAdminNo() != null) {
-                memberRepository.findById(dto.getAdminNo())
-                        .ifPresent(m -> dto.setAdminNickname(m.getNickname()));
-            }
-        }
+                .toList();
+        enrichWithMemberNicknames(list);
         return list;
+    }
+
+    private void enrichWithMemberNicknames(List<MannerHistoryResponseDto> list) {
+        Set<Long> ids = list.stream()
+                .flatMap(dto -> {
+                    Set<Long> nos = new java.util.HashSet<>();
+                    if (dto.getMemberNo() != null) nos.add(dto.getMemberNo());
+                    if (dto.getAdminNo() != null) nos.add(dto.getAdminNo());
+                    return nos.stream();
+                })
+                .collect(Collectors.toSet());
+        Map<Long, String> nicknameMap = memberRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(Member::getMemberNo, Member::getNickname));
+        list.forEach(dto -> {
+            dto.setMemberNickname(nicknameMap.get(dto.getMemberNo()));
+            if (dto.getAdminNo() != null) dto.setAdminNickname(nicknameMap.get(dto.getAdminNo()));
+        });
     }
 }

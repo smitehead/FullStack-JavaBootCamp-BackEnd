@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -29,7 +28,7 @@ public class HeroBannerServiceImpl implements HeroBannerService {
                 : heroBannerRepository.findActiveBanners();
         return banners.stream()
                 .map(HeroBannerResponseDto::from)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
@@ -45,7 +44,7 @@ public class HeroBannerServiceImpl implements HeroBannerService {
         return heroBannerRepository.findAllByOrderBySortOrderAsc()
                 .stream()
                 .map(HeroBannerResponseDto::from)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override

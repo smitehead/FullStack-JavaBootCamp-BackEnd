@@ -111,7 +111,7 @@ public class ProductServiceImpl implements ProductService {
                 .status(product.getStatus())    // [수정] isActive → status
                 .mainImageUrl(imageUrl)
                 .build();
-        }).collect(Collectors.toList());
+        }).toList();
     }
 
     @Override
@@ -173,7 +173,7 @@ public class ProductServiceImpl implements ProductService {
         Page<Product> productPage = productRepository.findAll(spec, pageable);
         List<Long> productNos = productPage.getContent().stream()
                 .map(Product::getProductNo)
-                .collect(Collectors.toList());
+                .toList();
 
         // 메인 이미지 배치 조회 (상품 수 만큼 쿼리 → 1번 IN 쿼리)
         Map<Long, ProductImage> mainImageMap = productNos.isEmpty() ?
@@ -237,13 +237,13 @@ public class ProductServiceImpl implements ProductService {
                             .bidPrice(bid.getBidPrice())
                             .bidTime(bid.getBidTime())
                             .build();
-                }).collect(Collectors.toList());
+                }).toList();
 
         // 4. 이미지 정보 조회
         List<ProductImage> productImages = productImageRepository.findByProductNoOrderByIsMainDesc(productNo);
         List<String> imageUrls = productImages.stream()
                 .map(img -> "/api/images/" + img.getUuidName())
-                .collect(Collectors.toList());
+                .toList();
 
         // 5. 상세 데이터 조립 및 반환
         return ProductDetailResponseDto.builder()
@@ -303,7 +303,7 @@ public class ProductServiceImpl implements ProductService {
                     .bidPrice(bid.getBidPrice())
                     .bidTime(bid.getBidTime())
                     .build();
-        }).collect(Collectors.toList());
+        }).toList();
     }
 
     @Override
@@ -342,8 +342,8 @@ public class ProductServiceImpl implements ProductService {
             List<BidHistory> winnerBids = wonProductNos.stream()
                     .map(pNo -> bidHistoryRepository.findFirstByProductNoAndIsWinnerOrderByBidPriceDesc(pNo, 1).orElse(null))
                     .filter(b -> b != null)
-                    .collect(Collectors.toList());
-            List<Long> winnerBidNos = winnerBids.stream().map(BidHistory::getBidNo).collect(Collectors.toList());
+                    .toList();
+            List<Long> winnerBidNos = winnerBids.stream().map(BidHistory::getBidNo).toList();
             if (!winnerBidNos.isEmpty()) {
                 Set<Long> winnerBidNosPaid = auctionResultRepository.findByBidNos(winnerBidNos).stream()
                         .filter(ar -> "결제완료".equals(ar.getStatus()) || "구매확정".equals(ar.getStatus()))
@@ -355,7 +355,7 @@ public class ProductServiceImpl implements ProductService {
                         .collect(Collectors.toSet());
                 products = products.stream()
                         .filter(p -> !paidProductNos.contains(p.getProductNo()))
-                        .collect(Collectors.toList());
+                        .toList();
                 wonProductNos.removeAll(paidProductNos);
             }
         }
@@ -376,9 +376,9 @@ public class ProductServiceImpl implements ProductService {
         List<BidHistory> winnerBids = wonProductNos.stream()
                 .map(pNo -> bidHistoryRepository.findFirstByProductNoAndIsWinnerOrderByBidPriceDesc(pNo, 1).orElse(null))
                 .filter(b -> b != null)
-                .collect(Collectors.toList());
+                .toList();
 
-        List<Long> bidNos = winnerBids.stream().map(BidHistory::getBidNo).collect(Collectors.toList());
+        List<Long> bidNos = winnerBids.stream().map(BidHistory::getBidNo).toList();
         if (bidNos.isEmpty()) return List.of();
 
         // AuctionResult 중 결제완료 또는 구매확정된 것 필터 (결제 완료 시 구매내역으로 이동)
@@ -396,7 +396,7 @@ public class ProductServiceImpl implements ProductService {
 
         List<Product> confirmedProducts = products.stream()
                 .filter(p -> confirmedProductNos.contains(p.getProductNo()))
-                .collect(Collectors.toList());
+                .toList();
 
         return toProductListDtos(confirmedProducts, memberNo);
     }
@@ -429,10 +429,10 @@ public class ProductServiceImpl implements ProductService {
             List<Product> products, Long memberNo, Set<Long> wonProductNos) {
         products = products.stream()
                 .filter(p -> p.getIsDeleted() == 0)
-                .collect(Collectors.toList());
+                .toList();
         if (products.isEmpty()) return List.of();
 
-        List<Long> productNos = products.stream().map(Product::getProductNo).collect(Collectors.toList());
+        List<Long> productNos = products.stream().map(Product::getProductNo).toList();
 
         Map<Long, ProductImage> mainImageMap =
                 productImageRepository.findMainImagesByProductNos(productNos).stream()
@@ -476,18 +476,18 @@ public class ProductServiceImpl implements ProductService {
                     .isWishlisted(wishlistedNos.contains(product.getProductNo()))
                     .bidStatus(bidStatus)
                     .build();
-        }).collect(Collectors.toList());
+        }).toList();
     }
 
     @Override
     public List<AdminProductResponseDto> getAllProductsForAdmin() {
         List<Product> products = productRepository.findByIsDeletedOrderByCreatedAtDesc(0);
 
-        List<Long> productNos = products.stream().map(Product::getProductNo).collect(Collectors.toList());
+        List<Long> productNos = products.stream().map(Product::getProductNo).toList();
         if (productNos.isEmpty()) return List.of();
 
         // 판매자 닉네임 배치 조회
-        List<Long> sellerNos = products.stream().map(Product::getSellerNo).distinct().collect(Collectors.toList());
+        List<Long> sellerNos = products.stream().map(Product::getSellerNo).distinct().toList();
         Map<Long, String> sellerNicknameMap = memberRepository.findAllById(sellerNos).stream()
                 .collect(Collectors.toMap(Member::getMemberNo, Member::getNickname));
 
@@ -517,7 +517,7 @@ public class ProductServiceImpl implements ProductService {
                     .endTime(product.getEndTime())
                     .status(product.getStatus())
                     .build();
-        }).collect(Collectors.toList());
+        }).toList();
     }
 
     @Override
@@ -552,11 +552,11 @@ public class ProductServiceImpl implements ProductService {
         // 삭제된 상품 제외
         products = products.stream()
                 .filter(p -> p.getIsDeleted() == 0)
-                .collect(Collectors.toList());
+                .toList();
 
         if (products.isEmpty()) return List.of();
 
-        List<Long> productNos = products.stream().map(Product::getProductNo).collect(Collectors.toList());
+        List<Long> productNos = products.stream().map(Product::getProductNo).toList();
 
         // 메인 이미지 배치 조회
         Map<Long, ProductImage> mainImageMap =
@@ -592,6 +592,6 @@ public class ProductServiceImpl implements ProductService {
                     .images(imageUrls)
                     .isWishlisted(wishlistedNos.contains(product.getProductNo()))
                     .build();
-        }).collect(Collectors.toList());
+        }).toList();
     }
 }

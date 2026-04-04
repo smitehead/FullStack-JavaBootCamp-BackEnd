@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -129,7 +128,7 @@ public class AutoBidServiceImpl implements AutoBidService {
         if (triggerMemberNo != null) {
             autoBids = autoBids.stream()
                     .filter(a -> !a.getMemberNo().equals(triggerMemberNo))
-                    .collect(Collectors.toList());
+                    .toList();
         }
         if (autoBids.isEmpty()) return;
 

@@ -1,8 +1,8 @@
 package com.javajava.project.controller;
 
 import com.javajava.project.dto.MemberRequestDto;
+import com.javajava.project.dto.MemberResponseDto;
 import com.javajava.project.dto.SellerProfileResponseDto;
-import com.javajava.project.entity.Member;
 import com.javajava.project.service.MemberService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +32,7 @@ public class MemberController {
     // 회원 단건 조회
     // GET /api/members/{id}
     @GetMapping("/{id}")
-    public ResponseEntity<Member> getMemberInfo(@PathVariable("id") Long memberNo) {
+    public ResponseEntity<MemberResponseDto> getMemberInfo(@PathVariable("id") Long memberNo) {
         return ResponseEntity.ok(memberService.findOne(memberNo));
     }
 

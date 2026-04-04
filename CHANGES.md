@@ -900,3 +900,13 @@ Spring Boot 3.5.x (Spring Framework 6.x)는 `-parameters` 컴파일러 플래그
 
 - 비관적 락 순서(memberNo 오름차순) 적용으로 데드락 방지
 - 이미 취소된 거래 재시도 시 `IllegalStateException` 반환
+
+
+### 28. ec2로 변경 주소 변경
+
+export const api = axios.create({
+  baseURL: '/api', // 백엔드 URL을 상대경로로 변경!
+  withCredentials: true,
+});
+
+이렇게 상대 주소로 변경하였으며 localhost:8080으로 절대 경로로 등록되 있는걸 backend:8080 , frontend:8080으로 상대경로로 변경

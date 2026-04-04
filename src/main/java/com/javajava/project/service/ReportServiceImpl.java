@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -29,7 +28,7 @@ public class ReportServiceImpl implements ReportService {
                 reportRepository.findAllByOrderByCreatedAtDesc()
                         .stream()
                         .map(ReportResponseDto::from)
-                        .collect(Collectors.toList())
+                        .toList()
         );
     }
 
@@ -39,7 +38,7 @@ public class ReportServiceImpl implements ReportService {
                 reportRepository.findByStatusOrderByCreatedAtDesc(status)
                         .stream()
                         .map(ReportResponseDto::from)
-                        .collect(Collectors.toList())
+                        .toList()
         );
     }
 

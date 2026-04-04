@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * 관리자 전용 알림 관리 API
@@ -50,7 +49,7 @@ public class AdminNotificationController {
         List<Long> memberNos = memberRepository.findAll().stream()
                 .filter(m -> m.getIsActive() == 1)
                 .map(m -> m.getMemberNo())
-                .collect(Collectors.toList());
+                .toList();
 
         for (Long memberNo : memberNos) {
             notificationService.sendAndSaveNotification(memberNo, type, content, linkUrl);

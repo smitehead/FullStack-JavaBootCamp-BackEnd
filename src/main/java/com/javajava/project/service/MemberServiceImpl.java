@@ -1,6 +1,7 @@
 package com.javajava.project.service;
 
 import com.javajava.project.dto.MemberRequestDto;
+import com.javajava.project.dto.MemberResponseDto;
 import com.javajava.project.dto.ProductListResponseDto;
 import com.javajava.project.dto.SellerProfileResponseDto;
 import com.javajava.project.entity.Member;
@@ -71,8 +72,9 @@ public class MemberServiceImpl implements MemberService {
     }
 
     @Override
-    public Member findOne(Long memberNo) {
+    public MemberResponseDto findOne(Long memberNo) {
         return memberRepository.findById(memberNo)
+                .map(MemberResponseDto::from)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
     }
 
@@ -107,13 +109,13 @@ public class MemberServiceImpl implements MemberService {
         // 삭제되지 않은 판매 상품만 조회
         List<Product> products = productRepository.findBySellerNo(memberNo).stream()
                 .filter(p -> p.getIsDeleted() == 0)
-                .collect(Collectors.toList());
+                .toList();
 
         List<ProductListResponseDto> productDtos = List.of();
         if (!products.isEmpty()) {
             List<Long> productNos = products.stream()
                     .map(Product::getProductNo)
-                    .collect(Collectors.toList());
+                    .toList();
 
             // 메인 이미지 배치 조회
             Map<Long, ProductImage> mainImageMap =
@@ -143,7 +145,7 @@ public class MemberServiceImpl implements MemberService {
                         .images(imageUrls)
                         .isWishlisted(false)
                         .build();
-            }).collect(Collectors.toList());
+            }).toList();
         }
 
         return SellerProfileResponseDto.builder()
