@@ -100,7 +100,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/banners/**").permitAll()
                         // 포인트 API는 인증 필요
                         .requestMatchers("/api/points/**").authenticated()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").authenticated()
                         .anyRequest().permitAll())
 
                 // 5. JWT 필터 등록
