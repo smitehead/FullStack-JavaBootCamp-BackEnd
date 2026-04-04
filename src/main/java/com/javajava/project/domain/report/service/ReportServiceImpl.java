@@ -1,5 +1,6 @@
 package com.javajava.project.domain.report.service;
 
+import com.javajava.project.domain.report.dto.ReportRequestDto;
 import com.javajava.project.domain.report.dto.ReportResponseDto;
 import com.javajava.project.domain.admin.entity.ActivityLog;
 import com.javajava.project.domain.report.entity.Report;
@@ -22,6 +23,21 @@ public class ReportServiceImpl implements ReportService {
     private final MemberRepository memberRepository;
     private final ActivityLogRepository activityLogRepository;
     private final NotificationService notificationService;
+
+    @Override
+    @Transactional
+    public Long submitReport(ReportRequestDto dto) {
+        Report report = Report.builder()
+                .reporterNo(dto.getReporterNo())
+                .targetMemberNo(dto.getTargetMemberNo())
+                .targetProductNo(dto.getTargetProductNo())
+                .type(dto.getType())
+                .content(dto.getContent())
+                .build();
+
+        Report saved = reportRepository.save(report);
+        return saved.getReportNo();
+    }
 
     @Override
     public List<ReportResponseDto> getAllReports() {
