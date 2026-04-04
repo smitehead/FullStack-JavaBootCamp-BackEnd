@@ -1,14 +1,14 @@
 package com.javajava.project;
 
-import com.javajava.project.dto.BidRequestDto;
-import com.javajava.project.dto.ProductDetailResponseDto;
-import com.javajava.project.dto.ProductListResponseDto;
-import com.javajava.project.dto.ProductRequestDto;
-import com.javajava.project.dto.ProductResponseDto;
-import com.javajava.project.entity.Member;
-import com.javajava.project.repository.MemberRepository;
-import com.javajava.project.service.BidService;
-import com.javajava.project.service.ProductService;
+import com.javajava.project.domain.bid.dto.BidRequestDto;
+import com.javajava.project.domain.product.dto.ProductDetailResponseDto;
+import com.javajava.project.domain.product.dto.ProductListResponseDto;
+import com.javajava.project.domain.product.dto.ProductRequestDto;
+import com.javajava.project.domain.product.dto.ProductResponseDto;
+import com.javajava.project.domain.member.entity.Member;
+import com.javajava.project.domain.member.repository.MemberRepository;
+import com.javajava.project.domain.bid.service.BidService;
+import com.javajava.project.domain.product.service.ProductService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
