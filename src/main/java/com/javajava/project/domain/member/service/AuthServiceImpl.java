@@ -61,6 +61,7 @@ public class AuthServiceImpl implements AuthService {
                 .userId(member.getUserId())
                 .nickname(member.getNickname())
                 .isAdmin(member.getIsAdmin())
+                .addrShort(member.getAddrShort())
                 .build();
     }
 
