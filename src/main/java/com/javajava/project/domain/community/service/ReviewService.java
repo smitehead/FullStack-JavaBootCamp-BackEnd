@@ -65,10 +65,8 @@ public class ReviewService {
         Long targetNo = product.getSellerNo();
 
         // 5. 태그 → 콤마 구분 문자열 변환
-        log.info("[ReviewService] 수신된 태그: {}", dto.getTags());
         String tagsStr = (dto.getTags() != null && !dto.getTags().isEmpty())
                 ? String.join(",", dto.getTags()) : null;
-        log.info("[ReviewService] 변환된 태그 문자열: {}", tagsStr);
 
         // 6. 리뷰 저장
         Review review = Review.builder()
@@ -129,8 +127,8 @@ public class ReviewService {
      * 매너온도 자동 계산
      * 공식: 36.5 + (평균별점 - 3.0) * 리뷰수 보정
      * - 별점 3점 = 기본 온도 유지
-     * - 별점 5점 = 온도 상승, 별점 1점 = 온도 하락
-     * - 리뷰가 많을수록 반영 비중 증가 (최대 +-10도)
+     * - 별점 5점 = 온도 소폭 상승, 별점 1점 = 소폭 하락
+     * - 리뷰가 많을수록 반영 비중 증가 (최대 +-5도)
      */
     private void updateMannerTemp(Long targetNo) {
         Double avgRating = reviewRepository.findAverageRatingByTargetNo(targetNo);
@@ -138,8 +136,8 @@ public class ReviewService {
 
         long reviewCount = reviewRepository.findByTargetNoAndIsHidden(targetNo, 0).size();
 
-        // 보정 계수: 리뷰 수에 따라 0.5 ~ 5.0 범위 (리뷰 10개 이상이면 최대)
-        double weight = Math.min(reviewCount, 10) * 0.5;
+        // 보정 계수: 리뷰 수에 따라 0.05 ~ 1.5 범위 (리뷰 30개 이상이면 최대)
+        double weight = Math.min(reviewCount, 30) * 0.05;
         double delta = (avgRating - 3.0) * weight;
 
         // 매너온도 = 기본(36.5) + 변동분, 범위: 0 ~ 100
