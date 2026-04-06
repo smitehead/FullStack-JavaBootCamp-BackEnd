@@ -64,21 +64,28 @@ public class ReviewService {
                 .orElseThrow(() -> new IllegalArgumentException("상품 정보를 찾을 수 없습니다."));
         Long targetNo = product.getSellerNo();
 
-        // 5. 리뷰 저장
+        // 5. 태그 → 콤마 구분 문자열 변환
+        String tagsStr = (dto.getTags() != null && !dto.getTags().isEmpty())
+                ? String.join(",", dto.getTags()) : null;
+
+        // 6. 리뷰 저장
         Review review = Review.builder()
                 .resultNo(dto.getResultNo())
                 .writerNo(writerNo)
                 .targetNo(targetNo)
                 .rating(dto.getRating())
+                .tags(tagsStr)
                 .content(dto.getContent())
                 .isHidden(0)
                 .build();
         reviewRepository.save(review);
 
-        // 6. 매너온도 자동 계산 (평균 별점 기반)
-        updateMannerTemp(targetNo);
+        // 7. 매너온도 자동 계산 (별점이 있는 경우만)
+        if (dto.getRating() != null) {
+            updateMannerTemp(targetNo);
+        }
 
-        // 7. 판매자에게 알림
+        // 8. 판매자에게 알림
         Member writer = memberRepository.findById(writerNo)
                 .orElseThrow(() -> new IllegalArgumentException("작성자 정보를 찾을 수 없습니다."));
         try {
