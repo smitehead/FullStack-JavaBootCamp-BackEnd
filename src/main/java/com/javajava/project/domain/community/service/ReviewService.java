@@ -65,8 +65,10 @@ public class ReviewService {
         Long targetNo = product.getSellerNo();
 
         // 5. 태그 → 콤마 구분 문자열 변환
+        log.info("[ReviewService] 수신된 태그: {}", dto.getTags());
         String tagsStr = (dto.getTags() != null && !dto.getTags().isEmpty())
                 ? String.join(",", dto.getTags()) : null;
+        log.info("[ReviewService] 변환된 태그 문자열: {}", tagsStr);
 
         // 6. 리뷰 저장
         Review review = Review.builder()
