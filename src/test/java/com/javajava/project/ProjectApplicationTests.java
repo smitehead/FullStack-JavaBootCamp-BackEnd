@@ -87,7 +87,7 @@ class ProjectApplicationTests {
         // [1] 페이징 기반 상품 목록 조회
         sb.append("1. [활성 경매 목록 조회 (페이징 적용)]\n");
         sb.append("------------------------------------------------------------------\n");
-        Page<ProductListResponseDto> page = productService.getProductList(1, 16, null, null, null, null, null, null, null, null, "latest", null);
+        Page<ProductListResponseDto> page = productService.getProductList(1, 16, null, null, null, null, null, null, null, null, null, null, "latest", null);
         assertNotNull(page);
         page.getContent().forEach(p -> 
             sb.append(String.format("- [번호: %d] %-20s | 현재최고가: %10d원 | 위치: %s\n", 
