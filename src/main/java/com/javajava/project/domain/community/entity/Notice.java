@@ -19,19 +19,30 @@ public class Notice {
     private Long noticeNo;
 
     @Column(name = "ADMIN_NO", nullable = false)
-    private Long adminNo; // 작성 관리자 회원번호 (FK)
+    private Long adminNo;
+
+    @Column(name = "CATEGORY", nullable = false, length = 20)
+    private String category; // 업데이트, 이벤트, 점검, 정책
 
     @Column(name = "TITLE", nullable = false, length = 100)
     private String title;
 
+    @Column(name = "DESCRIPTION", length = 300)
+    private String description;
+
     @Lob
     @Column(name = "CONTENT", nullable = false)
     private String content;
+
+    @Column(name = "IS_IMPORTANT", nullable = false)
+    @Builder.Default
+    private Integer isImportant = 0; // 1이면 중요 공지
 
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(name = "IS_DELETED", nullable = false)
-    private Integer isDeleted = 0; // 1이면 삭제 처리 (목록 미노출)
+    @Builder.Default
+    private Integer isDeleted = 0;
 }

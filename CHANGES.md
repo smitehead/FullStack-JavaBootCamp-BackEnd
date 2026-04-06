@@ -2,6 +2,56 @@
 
 ---
 
+## 공지사항 CRUD API 구현 (2026-04-04)
+
+### 새로 생성된 파일
+- `domain/community/repository/NoticeRepository.java` — 공지사항 JPA Repository (카테고리 필터 + 검색 + 페이징)
+- `domain/community/dto/NoticeRequestDto.java` — 공지 등록/수정 요청 DTO
+- `domain/community/dto/NoticeResponseDto.java` — 공지 응답 DTO (프론트 Notice 타입 맞춤)
+- `domain/community/service/NoticeService.java` — 공지 Service 인터페이스
+- `domain/community/service/NoticeServiceImpl.java` — 공지 Service 구현체
+- `domain/community/controller/NoticeController.java` — 공지 API 6개 엔드포인트
+
+### 수정된 파일
+- `domain/community/entity/Notice.java` — category, description, isImportant 컬럼 추가
+
+### API 엔드포인트
+- `GET /api/notices` — 목록 조회 (category 필터 + keyword 검색 + 페이징, 중요 공지 우선 정렬)
+- `GET /api/notices/{noticeNo}` — 상세 조회 (삭제되지 않은 것만)
+- `GET /api/notices/all` — 관리자용 전체 목록 (삭제 포함)
+- `POST /api/notices` — 관리자 공지 등록
+- `PUT /api/notices/{noticeNo}` — 관리자 공지 수정
+- `DELETE /api/notices/{noticeNo}` — 관리자 공지 삭제 (소프트 삭제, IS_DELETED=1)
+
+### Notice 엔티티 추가 컬럼
+- `CATEGORY` (VARCHAR 20) — 업데이트/이벤트/점검/정책
+- `DESCRIPTION` (VARCHAR 300) — 짧은 설명
+- `IS_IMPORTANT` (NUMBER, 기본 0) — 중요 공지 여부
+
+---
+
+## 리뷰 기능 수정: 별점 + 태그 동시 지원 + 프론트 연동 (2026-04-06)
+
+### 백엔드 수정
+- `Review.java` — rating nullable로 변경, tags(VARCHAR 500, 콤마 구분) 추가
+- `ReviewRequestDto.java` — rating 선택적, tags(List<String>) 추가
+- `ReviewResponseDto.java` — tags 콤마 → 리스트 변환 로직 추가
+- `ReviewService.java` — 태그 콤마 변환 저장, 별점 없으면 매너온도 계산 스킵
+
+### 프론트엔드 수정
+- `types.ts` — Review 타입에 rating?, tags? 필드 추가
+- `ReviewCreate.tsx` — 별점 UI(1~5 클릭) 추가, Mock 제거 → POST /api/reviews 연동
+- `App.tsx` — `/review/:orderId` 라우트 추가
+- `WonProductDetail.tsx` — 리뷰 모달에 별점 UI 추가, Mock → POST /api/reviews 연동
+- `MyPage.tsx` — 리뷰 탭 MOCK_REVIEWS → GET /api/reviews/target/{memberNo} 연동, 태그 집계 API 기반
+
+### 동작 방식
+- 별점(선택) + 태그(선택, 중복) + 텍스트(선택) 중 하나 이상 입력
+- 별점 입력 시 매너온도 자동 반영, 미입력 시 스킵
+- 태그는 백엔드에서 콤마 구분 문자열로 저장
+
+---
+
 ## 리뷰 기능 구현 + 매너온도 자동 계산 (2026-04-04)
 
 ### 새로 생성된 파일

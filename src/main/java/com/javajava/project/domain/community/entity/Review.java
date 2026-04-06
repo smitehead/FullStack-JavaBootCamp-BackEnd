@@ -27,11 +27,14 @@ public class Review {
     @Column(name = "TARGET_NO", nullable = false)
     private Long targetNo; // 리뷰 대상 회원번호 (FK - MEMBER 참조)
 
-    @Column(name = "RATING", nullable = false)
-    private Integer rating; // 별점 (1~5점)
+    @Column(name = "RATING")
+    private Integer rating; // 별점 (1~5점, 선택)
+
+    @Column(name = "TAGS", length = 500)
+    private String tags; // 태그 (콤마 구분, 예: "응답이 빨라요,친절하고 매너가 좋아요")
 
     @Column(name = "CONTENT", length = 1000)
-    private String content; // 후기내용 (Nullable)
+    private String content; // 후기내용 (선택)
 
     @Column(name = "IS_HIDDEN", nullable = false)
     private Integer isHidden = 0; // 숨김여부 (1: 비공개)

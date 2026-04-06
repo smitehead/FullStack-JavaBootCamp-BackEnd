@@ -37,11 +37,10 @@ public class AuctionClosingService {
      */
     @Transactional
     public void processOne(Long productNo) {
-        // 트랜잭션 내에서 상품 재조회 (스케줄러에서 받은 엔티티는 다른 컨텍스트)
-        Product product = productRepository.findById(productNo)
+        // 비관적 락으로 상품 조회 (Watchdog+Scheduler 동시 접근 방지)
+        Product product = productRepository.findByIdWithLock(productNo)
                 .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다: " + productNo));
 
-        // 동시 실행 방어: 이미 처리된 상품이면 건너뜀
         if (product.getStatus() != 0) {
             log.info("[Scheduler] 상품 번호 {} 이미 처리됨, 건너뜁니다. (status={})", productNo, product.getStatus());
             return;
