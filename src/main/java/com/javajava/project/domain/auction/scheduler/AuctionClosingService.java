@@ -31,8 +31,9 @@ public class AuctionClosingService {
 
     /**
      * 상품 1개의 경매 종료 처리 (낙찰 또는 유찰).
+     * 
      * @Transactional — 이 메서드 단위로 트랜잭션이 열리고 닫힘.
-     * 실패 시 이 상품만 롤백되며 다른 상품에 영향 없음.
+     *                실패 시 이 상품만 롤백되며 다른 상품에 영향 없음.
      */
     @Transactional
     public void processOne(Long productNo) {
@@ -80,8 +81,7 @@ public class AuctionClosingService {
                     product.getTitle(),
                     product.getSellerNo(),
                     winningBid.getMemberNo(),
-                    winningBid.getBidNo()
-            ));
+                    winningBid.getBidNo()));
 
         } else {
             product.setStatus(2);
