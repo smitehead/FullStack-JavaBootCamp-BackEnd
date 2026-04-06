@@ -58,28 +58,34 @@ public class WithdrawAdminServiceImpl implements WithdrawAdminService {
         withdraw.setAdminNickname(adminNickname);
         withdraw.setProcessedAt(LocalDateTime.now());
 
-        if ("거절".equals(action)) {
-            withdraw.setRejectReason(rejectReason);
+        if ("완료".equals(action)) {
+        // 완료 처리 시 포인트 차감 + 이력 기록
+        Member member = memberRepository.findByIdWithLock(withdraw.getMemberNo())
+                .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
 
-            // 거절 시 포인트 환불 (비관적 락)
-            Member member = memberRepository.findByIdWithLock(withdraw.getMemberNo())
-                    .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
-            long refundedBalance = member.getPoints() + withdraw.getAmount();
-            member.setPoints(refundedBalance);
+        if (member.getPoints() < withdraw.getAmount())
+            throw new IllegalStateException("포인트가 부족합니다. 회원에게 확인이 필요합니다.");
 
-            pointHistoryRepository.save(PointHistory.builder()
-                    .memberNo(withdraw.getMemberNo())
-                    .type("출금거절환불")
-                    .amount(withdraw.getAmount())
-                    .balance(refundedBalance)
-                    .reason("출금 신청 거절로 인한 환불 (관리자: " + adminNickname + ")")
-                    .build());
+        long newBalance = member.getPoints() - withdraw.getAmount();
+        member.setPoints(newBalance);
 
-            try { sseService.sendPointUpdate(withdraw.getMemberNo(), refundedBalance); }
-            catch (Exception e) { log.warn("[WithdrawAdmin] SSE 실패"); }
-        }
+        pointHistoryRepository.save(PointHistory.builder()
+                .memberNo(withdraw.getMemberNo())
+                .type("출금")
+                .amount(-withdraw.getAmount())
+                .balance(newBalance)
+                .reason("포인트 출금 완료 (" + withdraw.getBankName() + " " + withdraw.getAccountNumber() + ")")
+                .build());
 
-        log.info("[WithdrawAdmin] 처리 완료. withdrawNo={}, action={}, admin={}",
-                withdrawNo, action, adminNickname);
+        try { sseService.sendPointUpdate(withdraw.getMemberNo(), newBalance); }
+        catch (Exception e) { log.warn("[WithdrawAdmin] SSE 실패"); }
+
+    } else if ("거절".equals(action)) {
+        withdraw.setRejectReason(rejectReason);
+        // 거절은 포인트 차감 안 했으므로 환불도 없음
+    }
+
+    log.info("[WithdrawAdmin] 처리 완료. withdrawNo={}, action={}, admin={}",
+            withdrawNo, action, adminNickname);
     }
 }

@@ -11,14 +11,12 @@ import com.javajava.project.domain.point.dto.WithdrawRequestDto;
 import com.javajava.project.domain.point.dto.WithdrawResponseDto;
 import com.javajava.project.domain.point.entity.BankAccount;
 import com.javajava.project.domain.point.entity.BillingKey;
-import com.javajava.project.domain.point.entity.PointHistory;
 import com.javajava.project.domain.point.entity.PointWithdraw;
 import com.javajava.project.domain.point.repository.BankAccountRepository;
 import com.javajava.project.domain.point.repository.BillingKeyRepository;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
 import com.javajava.project.domain.point.repository.PointWithdrawRepository;
 import com.javajava.project.domain.member.repository.MemberRepository;
-import com.javajava.project.global.sse.SseService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +42,6 @@ public class PointServiceImpl implements PointService {
     private final BankAccountRepository bankAccountRepository;
     private final PointWithdrawRepository pointWithdrawRepository;
     private final MemberRepository memberRepository;
-    private final SseService sseService;
 
     // <카드 등록>
 
@@ -220,18 +217,18 @@ public class PointServiceImpl implements PointService {
         if (dto.getAmount() == null || dto.getAmount() < 1000)
         throw new IllegalArgumentException("최소 출금 금액은 1,000원입니다.");
 
-        // 비관적 락으로 포인트 차감 — Lost Update 방지
+        // 비관적 락으로 현재 포인트 조회 (잔액 확인용, 차감 안 함)
         Member member = memberRepository.findByIdWithLock(memberNo)
-                .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+            .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
 
         if (member.getPoints() < dto.getAmount())
             throw new IllegalArgumentException("포인트가 부족합니다.");
 
-        // 계좌 정보 결정 (저장된 계좌 선택 or 직접 입력)
+        // 계좌 정보 결정
         String bankName, accountNumber, accountHolder;
         if (dto.getAccountNo() != null) {
             BankAccount account = bankAccountRepository.findById(dto.getAccountNo())
-                    .orElseThrow(() -> new IllegalArgumentException("계좌를 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("계좌를 찾을 수 없습니다."));
             bankName = account.getBankName();
             accountNumber = account.getAccountNumber();
             accountHolder = account.getAccountHolder();
@@ -241,10 +238,7 @@ public class PointServiceImpl implements PointService {
             accountHolder = dto.getAccountHolder();
         }
 
-        long newBalance = member.getPoints() - dto.getAmount();
-        member.setPoints(newBalance);
-
-        // 출금 신청 저장 (status = 신청)
+        // 포인트 차감 없이 출금 신청만 저장 (관리자 처리 후 차감)
         pointWithdrawRepository.save(PointWithdraw.builder()
             .memberNo(memberNo)
             .amount(dto.getAmount())
@@ -254,22 +248,13 @@ public class PointServiceImpl implements PointService {
             .status("신청")
             .build());
 
-        // 포인트 이력 저장
-        pointHistoryRepository.save(PointHistory.builder()
-            .memberNo(memberNo)
-            .type("출금")
-            .amount(-dto.getAmount())
-            .balance(newBalance)
-            .reason("포인트 출금 신청 (" + bankName + " " + accountNumber + ")")
-            .build());
-
-        // SSE 포인트 갱신
-        try { sseService.sendPointUpdate(memberNo, newBalance); }
-        catch (Exception e) { log.warn("[Withdraw] SSE 실패. memberNo={}", memberNo); }
+        log.info("[Withdraw] 출금 신청 접수. memberNo={}, amount={}", memberNo, dto.getAmount());
 
         return WithdrawResponseDto.builder()
-            .success(true).remainBalance(newBalance)
-            .message(dto.getAmount() + "원 출금 신청이 완료되었습니다.")
+            .success(true)
+            .remainBalance(member.getPoints())  // 현재 잔액 그대로 반환
+            .message(dto.getAmount() + "원 출금 신청이 접수되었습니다. 관리자 확인 후 처리됩니다.")
             .build();
+
     }
-}
+}   
