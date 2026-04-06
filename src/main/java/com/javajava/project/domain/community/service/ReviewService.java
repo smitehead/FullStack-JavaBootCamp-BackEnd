@@ -92,7 +92,7 @@ public class ReviewService {
             notificationService.sendAndSaveNotification(
                     targetNo, "activity",
                     writer.getNickname() + "님이 [" + product.getTitle() + "] 거래에 리뷰를 남겼습니다.",
-                    "/products/" + product.getProductNo());
+                    "/mypage?tab=reviews");
         } catch (Exception e) {
             log.warn("[ReviewService] 리뷰 알림 전송 실패: {}", e.getMessage());
         }
