@@ -22,16 +22,14 @@ public class FileStore {
     // 허용하는 이미지 MIME 타입 목록
     private static final Set<String> ALLOWED_MIME_TYPES = Set.of(
             "image/jpeg", "image/jpg", "image/png", "image/gif",
-            "image/webp", "image/bmp", "image/svg+xml"
-    );
+            "image/webp", "image/bmp", "image/svg+xml");
 
     // 허용하는 이미지 확장자 목록
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
-            "jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"
-    );
+            "jpg", "jpeg", "png", "gif", "webp", "bmp", "svg");
 
     // 최대 파일 크기: 10MB
-    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024L;
+    private static final long MAX_FILE_SIZE = 100 * 1024 * 1024L;
 
     @Value("${file.dir:uploads/}")
     private String fileDir;
@@ -165,6 +163,7 @@ public class FileStore {
 
     /**
      * 물리적 파일을 삭제합니다. (상품 삭제 등에 활용)
+     * 
      * @return 삭제 성공 여부
      */
     public boolean deleteFile(String uuidName) {
