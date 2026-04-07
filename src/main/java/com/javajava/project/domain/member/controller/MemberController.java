@@ -3,10 +3,15 @@ package com.javajava.project.domain.member.controller;
 import com.javajava.project.domain.member.dto.MemberRequestDto;
 import com.javajava.project.domain.member.dto.MemberResponseDto;
 import com.javajava.project.domain.member.dto.SellerProfileResponseDto;
+import com.javajava.project.domain.member.entity.BlockedUser;
+import com.javajava.project.domain.member.entity.BlockedUserId;
+import com.javajava.project.domain.member.repository.BlockedUserRepository;
 import com.javajava.project.domain.member.service.MemberService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -17,6 +22,44 @@ import java.util.Map;
 public class MemberController {
 
     private final MemberService memberService;
+    private final BlockedUserRepository blockedUserRepository;
+
+    private Long getCurrentMemberNo() {
+        return (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    }
+
+    /** 차단 */
+    @PostMapping("/me/blocked/{targetMemberNo}")
+    public ResponseEntity<Void> blockUser(@PathVariable Long targetMemberNo) {
+        Long memberNo = getCurrentMemberNo();
+        if (memberNo.equals(targetMemberNo))
+            throw new IllegalArgumentException("자기 자신을 차단할 수 없습니다.");
+
+        BlockedUserId id = new BlockedUserId(memberNo, targetMemberNo);
+        if (!blockedUserRepository.existsById(id)) {
+            blockedUserRepository.save(BlockedUser.builder().id(id).build());
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    /** 차단 해제 */
+    @DeleteMapping("/me/blocked/{targetMemberNo}")
+    @Transactional
+    public ResponseEntity<Void> unblockUser(@PathVariable Long targetMemberNo) {
+        Long memberNo = getCurrentMemberNo();
+        blockedUserRepository.deleteByIdMemberNoAndIdBlockedMemberNo(memberNo, targetMemberNo);
+        return ResponseEntity.ok().build();
+    }
+
+    /** 차단 여부 조회 */
+    @GetMapping("/me/blocked/{targetMemberNo}")
+    public ResponseEntity<Map<String, Boolean>> isBlocked(@PathVariable Long targetMemberNo) {
+        Long memberNo = getCurrentMemberNo();
+        boolean blocked = blockedUserRepository
+                .existsByIdMemberNoAndIdBlockedMemberNo(memberNo, targetMemberNo);
+        return ResponseEntity.ok(Map.of("blocked", blocked));
+    }
+
 
     /**
      * 회원가입
