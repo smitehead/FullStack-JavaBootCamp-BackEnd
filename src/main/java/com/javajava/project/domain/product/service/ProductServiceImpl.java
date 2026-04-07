@@ -117,7 +117,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public Page<ProductListResponseDto> getProductList(int page, int size, Long large, Long medium, Long small,
-                                                       Long minPrice, Long maxPrice, String city,
+                                                       Long minPrice, Long maxPrice, String city, String district, String neighborhood,
                                                        Boolean delivery, Boolean face, String sortOption, Long memberNo) {
 
         // 리액트는 1페이지부터 보내므로 백엔드용(0-index)으로 보정
@@ -159,8 +159,16 @@ public class ProductServiceImpl implements ProductService {
             if (minPrice != null) predicates.add(cb.greaterThanOrEqualTo(root.get("currentPrice"), minPrice));
             if (maxPrice != null) predicates.add(cb.lessThanOrEqualTo(root.get("currentPrice"), maxPrice));
 
-            // 지역 필터 (임시: EMD 테이블 JOIN 대신 주소 텍스트 검색)
-            if (city != null && !city.isEmpty()) predicates.add(cb.like(root.get("tradeAddrDetail"), "%" + city + "%"));
+            // 지역 필터 (3단계: 시/도, 시/군/구, 읍/면/동)
+            if (city != null && !city.trim().isEmpty()) {
+                predicates.add(cb.like(root.get("tradeAddrShort"), "%" + city + "%"));
+            }
+            if (district != null && !district.trim().isEmpty()) {
+                predicates.add(cb.like(root.get("tradeAddrShort"), "%" + district + "%"));
+            }
+            if (neighborhood != null && !neighborhood.trim().isEmpty()) {
+                predicates.add(cb.like(root.get("tradeAddrShort"), "%" + neighborhood + "%"));
+            }
 
             // 거래 방식 필터 (택배, 대면)
             if (Boolean.TRUE.equals(delivery) && Boolean.TRUE.equals(face)) predicates.add(cb.in(root.get("tradeType")).value(Arrays.asList("택배거래", "직거래", "혼합")));

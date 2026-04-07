@@ -15,7 +15,7 @@ public interface ProductService {
 
     // 상품 목록 동적 필터링 및 페이징
     Page<ProductListResponseDto> getProductList(int page, int size, Long large, Long medium, Long small,
-                                                Long minPrice, Long maxPrice, String city,
+                                                Long minPrice, Long maxPrice, String city, String district, String neighborhood,
                                                 Boolean delivery, Boolean face, String sort, Long memberNo);
 
     // 상세 조회 메서드 추가 (기존 findById와 별개로 상세 페이지 전용)
