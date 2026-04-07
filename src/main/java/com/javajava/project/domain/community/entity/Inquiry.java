@@ -55,4 +55,10 @@ public class Inquiry {
     @Builder.Default
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "ADMIN_NO")
+    private Long adminNo;
+
+    @Column(name = "ADMIN_NICKNAME", length = 15)
+    private String adminNickname;
 }
