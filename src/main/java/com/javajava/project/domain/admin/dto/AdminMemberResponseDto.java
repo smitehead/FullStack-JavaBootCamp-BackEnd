@@ -22,6 +22,7 @@ public class AdminMemberResponseDto {
     private LocalDateTime suspendUntil;
     private String suspendReason;
     private Integer isPermanentSuspended;
+    private String profileImgUrl;
 
     public static AdminMemberResponseDto from(Member m) {
         AdminMemberResponseDto dto = new AdminMemberResponseDto();
@@ -39,6 +40,7 @@ public class AdminMemberResponseDto {
         dto.suspendUntil = m.getSuspendUntil();
         dto.suspendReason = m.getSuspendReason();
         dto.isPermanentSuspended = m.getIsPermanentSuspended();
+        dto.profileImgUrl = m.getProfileImgUrl();
         return dto;
     }
 }
