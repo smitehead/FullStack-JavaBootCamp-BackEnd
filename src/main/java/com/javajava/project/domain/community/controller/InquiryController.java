@@ -1,3 +1,15 @@
+package com.javajava.project.domain.community.controller;
+
+import com.javajava.project.domain.community.dto.InquiryRequestDto;
+import com.javajava.project.domain.community.dto.InquiryResponseDto;
+import com.javajava.project.domain.community.service.InquiryService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.*;
+
 @RestController
 @RequestMapping("/api/inquiries")
 @RequiredArgsConstructor

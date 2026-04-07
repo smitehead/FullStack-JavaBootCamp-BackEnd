@@ -1,3 +1,9 @@
+package com.javajava.project.domain.community.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.Getter;
+
 @Getter
 public class InquiryRequestDto {
     @NotBlank private String type;

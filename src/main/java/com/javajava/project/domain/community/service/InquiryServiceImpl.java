@@ -1,4 +1,22 @@
-package com.javajava.project.domain.cs.service;
+package com.javajava.project.domain.community.service;
+
+import com.javajava.project.domain.community.dto.InquiryAnswerDto;
+import com.javajava.project.domain.community.dto.InquiryRequestDto;
+import com.javajava.project.domain.community.dto.InquiryResponseDto;
+import com.javajava.project.domain.community.entity.Inquiry;
+import com.javajava.project.domain.community.repository.InquiryRepository;
+import com.javajava.project.domain.member.entity.Member;
+import com.javajava.project.domain.member.repository.MemberRepository;
+import com.javajava.project.domain.notification.service.NotificationService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 @Slf4j
 @Service

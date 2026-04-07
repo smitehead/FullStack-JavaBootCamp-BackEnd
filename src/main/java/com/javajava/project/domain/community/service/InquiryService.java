@@ -1,3 +1,10 @@
+package com.javajava.project.domain.community.service;
+
+import com.javajava.project.domain.community.dto.InquiryAnswerDto;
+import com.javajava.project.domain.community.dto.InquiryRequestDto;
+import com.javajava.project.domain.community.dto.InquiryResponseDto;
+import org.springframework.data.domain.Page;
+
 public interface InquiryService {
     Long create(Long memberNo, InquiryRequestDto dto);
     Page<InquiryResponseDto> getMyInquiries(Long memberNo, int page, int size);

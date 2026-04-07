@@ -1,6 +1,6 @@
-package com.javajava.project.repository;
+package com.javajava.project.domain.community.repository;
 
-import com.javajava.project.entity.Inquiry;
+import com.javajava.project.domain.community.entity.Inquiry;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

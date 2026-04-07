@@ -1,3 +1,11 @@
+package com.javajava.project.domain.community.dto;
+
+import com.javajava.project.domain.community.entity.Inquiry;
+import lombok.Builder;
+import lombok.Getter;
+
+import java.time.LocalDateTime;
+
 @Getter @Builder
 public class InquiryResponseDto {
     private Long inquiryNo;
@@ -14,7 +22,7 @@ public class InquiryResponseDto {
     private Long adminNo;
     private String adminNickname;
 
-    public static InquiryResponseDto from(CsInquiry i, String nickname) {
+    public static InquiryResponseDto from(Inquiry i, String nickname) {
         return InquiryResponseDto.builder()
                 .inquiryNo(i.getInquiryNo())
                 .memberNo(i.getMemberNo())
