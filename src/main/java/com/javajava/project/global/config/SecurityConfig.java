@@ -98,6 +98,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/sse/**").permitAll()
                         .requestMatchers("/api/images/**").permitAll()
                         .requestMatchers("/api/banners/**").permitAll()
+                        .requestMatchers("/api/inquiries/**").authenticated()
+                        .requestMatchers("/api/admin/inquiries/**").authenticated()
                         // 포인트 API는 인증 필요
                         .requestMatchers("/api/points/**").authenticated()
                         .requestMatchers("/api/admin/**").authenticated()

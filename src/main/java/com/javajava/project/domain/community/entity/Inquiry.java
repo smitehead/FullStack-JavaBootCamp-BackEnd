@@ -28,7 +28,7 @@ public class Inquiry {
     @Column(name = "BUG_TYPE", length = 50)
     private String bugType;
 
-    @Column(name = "TITLE", nullable = false, length = 100)
+    @Column(name = "TITLE", nullable = false, length = 200)
     private String title;
 
     @Lob // 내용이 길 수 있으므로 오라클의 CLOB 타입에 대응
@@ -55,4 +55,10 @@ public class Inquiry {
     @Builder.Default
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "ADMIN_NO")
+    private Long adminNo;
+
+    @Column(name = "ADMIN_NICKNAME", length = 15)
+    private String adminNickname;
 }
