@@ -369,7 +369,18 @@ public class ProductServiceImpl implements ProductService {
             }
         }
 
-        return toProductListDtosWithBidStatus(products, memberNo, wonProductNos);
+        // 현재 최고입찰자 배치 조회 (active 경매에서 내가 최고입찰자인지 판별)
+        List<Long> activeProductNos = products.stream()
+                .filter(p -> !p.getEndTime().isBefore(java.time.LocalDateTime.now()) && p.getStatus() == 0)
+                .map(Product::getProductNo)
+                .toList();
+        java.util.Map<Long, Long> topBidderMap = new java.util.HashMap<>();
+        if (!activeProductNos.isEmpty()) {
+            bidHistoryRepository.findTopBidderByProductNos(activeProductNos)
+                    .forEach(row -> topBidderMap.putIfAbsent((Long) row[0], (Long) row[1]));
+        }
+
+        return toProductListDtosWithBidStatus(products, memberNo, wonProductNos, topBidderMap);
     }
 
     @Override
@@ -435,7 +446,8 @@ public class ProductServiceImpl implements ProductService {
      * Product 엔티티 리스트를 ProductListResponseDto 리스트로 변환 (입찰 상태 포함)
      */
     private List<ProductListResponseDto> toProductListDtosWithBidStatus(
-            List<Product> products, Long memberNo, Set<Long> wonProductNos) {
+            List<Product> products, Long memberNo, Set<Long> wonProductNos,
+            java.util.Map<Long, Long> topBidderMap) {
         products = products.stream()
                 .filter(p -> p.getIsDeleted() == 0)
                 .toList();
@@ -463,10 +475,11 @@ public class ProductServiceImpl implements ProductService {
 
             boolean isFinished = product.getEndTime().isBefore(LocalDateTime.now()) || product.getStatus() != 0;
 
-            // 입찰 상태 결정: 경매중 / 낙찰 / 낙찰실패
+            // 입찰 상태 결정: 상위입찰자 / 추월당함 / 낙찰 / 낙찰실패
             String bidStatus;
             if (!isFinished) {
-                bidStatus = "bidding";    // 경매중
+                Long topBidder = topBidderMap.get(product.getProductNo());
+                bidStatus = (topBidder != null && topBidder.equals(memberNo)) ? "bidding" : "outbid";
             } else if (wonProductNos.contains(product.getProductNo())) {
                 bidStatus = "won";        // 낙찰
             } else {

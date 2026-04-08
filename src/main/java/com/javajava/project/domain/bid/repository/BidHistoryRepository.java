@@ -57,4 +57,11 @@ public interface BidHistoryRepository extends JpaRepository<BidHistory, Long> {
     // 특정 상품의 고유 입찰자 중 특정 회원 제외 (낙찰 실패자 알림용)
     @Query("SELECT DISTINCT b.memberNo FROM BidHistory b WHERE b.productNo = :productNo AND b.isCancelled = 0 AND b.memberNo <> :excludeMemberNo")
     List<Long> findDistinctBiddersExcluding(@Param("productNo") Long productNo, @Param("excludeMemberNo") Long excludeMemberNo);
+
+    // 마이페이지: 여러 상품의 현재 최고입찰자(memberNo) 배치 조회 (초기 bidStatus 판별용)
+    @Query("SELECT b.productNo, b.memberNo FROM BidHistory b " +
+           "WHERE b.productNo IN :productNos AND b.isCancelled = 0 " +
+           "AND b.bidPrice = (SELECT MAX(b2.bidPrice) FROM BidHistory b2 " +
+           "                  WHERE b2.productNo = b.productNo AND b2.isCancelled = 0)")
+    List<Object[]> findTopBidderByProductNos(@Param("productNos") List<Long> productNos);
 }
