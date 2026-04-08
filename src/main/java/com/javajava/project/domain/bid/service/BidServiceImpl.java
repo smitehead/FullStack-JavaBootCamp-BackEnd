@@ -167,7 +167,7 @@ public class BidServiceImpl implements BidService {
 
         // 10. 전체 클라이언트 가격 브로드캐스트 (격리)
         try {
-            sseService.broadcastPriceUpdate(product.getProductNo(), bidDto.getBidPrice());
+            sseService.broadcastPriceUpdate(product.getProductNo(), bidDto.getBidPrice(), bidDto.getMemberNo());
         } catch (Exception e) {
             log.warn("[BidService] 브로드캐스트 실패: {}", e.getMessage()); }
 

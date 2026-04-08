@@ -93,8 +93,8 @@ public class SseService {
     /**
      * 모든 연결된 클라이언트에게 실시간 입찰가 갱신 브로드캐스트
      */
-    public void broadcastPriceUpdate(Long productNo, Long currentPrice) {
-        Map<String, Object> data = Map.of("productNo", productNo, "currentPrice", currentPrice);
+    public void broadcastPriceUpdate(Long productNo, Long currentPrice, Long bidderNo) {
+        Map<String, Object> data = Map.of("productNo", productNo, "currentPrice", currentPrice, "bidderNo", bidderNo);
         List<String> deadClients = new ArrayList<>();
 
         emitterMap.forEach((clientId, emitter) -> {
