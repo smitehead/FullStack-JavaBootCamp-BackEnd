@@ -1,6 +1,7 @@
 name: Backend CI/CD (Docker)
 #test12
 on:
+  workflow_dispatch:
   push:
     branches: [ "main" ]
 
