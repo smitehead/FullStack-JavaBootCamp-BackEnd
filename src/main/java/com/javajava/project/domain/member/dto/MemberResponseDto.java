@@ -31,10 +31,10 @@ public class MemberResponseDto {
     private String suspendReason;
     private Integer isPermanentSuspended;
     private Integer notifyOn;
-    private Integer notiAuctionEnd;
-    private Integer notiNewBid;
-    private Integer notiChat;
-    private Integer notiMarketing;
+    private Integer notifyAuctionEnd;
+    private Integer notifyNewBid;
+    private Integer notifyChat;
+    private Integer notifyMarketing;
     private Integer marketingAgree;
 
     public static MemberResponseDto from(Member m) {
@@ -59,10 +59,10 @@ public class MemberResponseDto {
                 .suspendReason(m.getSuspendReason())
                 .isPermanentSuspended(m.getIsPermanentSuspended())
                 .notifyOn(m.getNotifyOn())
-                .notiAuctionEnd(m.getNotiAuctionEnd())
-                .notiNewBid(m.getNotiNewBid())
-                .notiChat(m.getNotiChat())
-                .notiMarketing(m.getNotiMarketing())
+                .notifyAuctionEnd(m.getNotifyAuctionEnd())
+                .notifyNewBid(m.getNotifyNewBid())
+                .notifyChat(m.getNotifyChat())
+                .notifyMarketing(m.getNotifyMarketing())
                 .marketingAgree(m.getMarketingAgree())
                 .build();
     }
