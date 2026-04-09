@@ -90,6 +90,14 @@ public class Member {
     @Column(name = "IS_PERMANENT_SUSPENDED")
     private Integer isPermanentSuspended;
 
+    // 탈퇴 사유
+    @Column(name = "WITHDRAW_REASON", length = 500)
+    private String withdrawReason;
+
+    // 탈퇴 일시
+    @Column(name = "WITHDRAWN_AT")
+    private LocalDateTime withdrawnAt;
+
     // 알림 수신 전체 ON/OFF
     @Builder.Default
     @Column(name = "NOTIFY_ON", nullable = false)
@@ -98,22 +106,22 @@ public class Member {
     //경매 종료 알림. 0=꺼짐, 1=켜짐
     @Builder.Default
     @Column(name = "NOTI_AUCTION_END")
-    private Integer notiAuctionEnd = 1;
+    private Integer notifyAuctionEnd = 1;
 
     // 새 입찰 알림. 0=꺼짐, 1=켜짐
     @Builder.Default
     @Column(name = "NOTI_NEW_BID")
-    private Integer notiNewBid = 1;
+    private Integer notifyNewBid = 1;
 
     // 채팅 알림. 0=꺼짐, 1=켜짐
     @Builder.Default
     @Column(name = "NOTI_CHAT")
-    private Integer notiChat = 1;
+    private Integer notifyChat = 1;
 
     // 마케팅 알림. 0=꺼짐, 1=켜짐
     @Builder.Default
     @Column(name = "NOTI_MARKETING")
-    private Integer notiMarketing = 0;
+    private Integer notifyMarketing = 0;
 
     @Builder.Default
     @Column(name = "MARKETING_AGREE", nullable = false)

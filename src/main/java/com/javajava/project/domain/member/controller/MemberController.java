@@ -1,8 +1,6 @@
 package com.javajava.project.domain.member.controller;
 
-import com.javajava.project.domain.member.dto.MemberRequestDto;
-import com.javajava.project.domain.member.dto.MemberResponseDto;
-import com.javajava.project.domain.member.dto.SellerProfileResponseDto;
+import com.javajava.project.domain.member.dto.*;
 import com.javajava.project.domain.member.entity.BlockedUser;
 import com.javajava.project.domain.member.entity.BlockedUserId;
 import com.javajava.project.domain.member.repository.BlockedUserRepository;
@@ -11,9 +9,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -42,21 +40,12 @@ public class MemberController {
         return ResponseEntity.ok().build();
     }
 
-    /** 차단 해제 */
-    @DeleteMapping("/me/blocked/{targetMemberNo}")
-    @Transactional
-    public ResponseEntity<Void> unblockUser(@PathVariable Long targetMemberNo) {
-        Long memberNo = getCurrentMemberNo();
-        blockedUserRepository.deleteByIdMemberNoAndIdBlockedMemberNo(memberNo, targetMemberNo);
-        return ResponseEntity.ok().build();
-    }
 
     /** 차단 여부 조회 */
     @GetMapping("/me/blocked/{targetMemberNo}")
     public ResponseEntity<Map<String, Boolean>> isBlocked(@PathVariable Long targetMemberNo) {
         Long memberNo = getCurrentMemberNo();
-        boolean blocked = blockedUserRepository
-                .existsByIdMemberNoAndIdBlockedMemberNo(memberNo, targetMemberNo);
+        boolean blocked = blockedUserRepository.existsById(new BlockedUserId(memberNo, targetMemberNo));
         return ResponseEntity.ok(Map.of("blocked", blocked));
     }
 
@@ -124,4 +113,62 @@ public class MemberController {
         memberService.updateProfileImage(memberNo, body.get("url"));
         return ResponseEntity.ok().build();
     }
+
+    /** 내 프로필 조회 */
+    @GetMapping("/me")
+    public ResponseEntity<MemberProfileResponseDto> getProfile() {
+        return ResponseEntity.ok(memberService.getProfile(getCurrentMemberNo()));
+    }
+
+    /** 프로필 수정 */
+    @PutMapping("/me/profile")
+    public ResponseEntity<Void> updateProfile(@Valid @RequestBody MemberProfileUpdateDto dto) {
+        memberService.updateProfile(getCurrentMemberNo(), dto);
+        return ResponseEntity.ok().build();
+    }
+
+    /** 이메일 수정 */
+    @PutMapping("/me/email")
+    public ResponseEntity<Void> updateEmail(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        memberService.updateEmail(getCurrentMemberNo(), email);
+        return ResponseEntity.ok().build();
+    }
+
+    /** 비밀번호 변경 */
+    @PutMapping("/me/password")
+    public ResponseEntity<Void> changePassword(@Valid @RequestBody PasswordChangeDto dto) {
+        memberService.changePassword(getCurrentMemberNo(), dto);
+        return ResponseEntity.ok().build();
+    }
+
+    /** 알림 설정 변경 */
+    @PutMapping("/me/notification")
+    public ResponseEntity<Void> updateNotification(@RequestBody NotificationSettingDto dto) {
+        memberService.updateNotificationSetting(getCurrentMemberNo(), dto);
+        return ResponseEntity.ok().build();
+    }
+
+    /** 회원 탈퇴 */
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> withdraw(@Valid @RequestBody WithdrawMemberDto dto) {
+        Long memberNo = getCurrentMemberNo();
+        memberService.withdraw(memberNo, dto);
+        // 탈퇴 후 토큰 무효화 응답
+        return ResponseEntity.ok().build();
+    }
+
+    /** 차단 사용자 목록 */
+    @GetMapping("/me/blocked")
+    public ResponseEntity<List<BlockedUserResponseDto>> getBlockedUsers() {
+        return ResponseEntity.ok(memberService.getBlockedUsers(getCurrentMemberNo()));
+    }
+
+    /** 차단 해제 */
+    @DeleteMapping("/me/blocked/{targetMemberNo}")
+    public ResponseEntity<Void> unblockUser(@PathVariable Long targetMemberNo) {
+        memberService.unblockUser(getCurrentMemberNo(), targetMemberNo);
+        return ResponseEntity.ok().build();
+    }
+
 }

@@ -35,4 +35,6 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
     // Watchdog 서버 재시작 복구용: 아직 종료 안 된 경매 중 상품 조회
     List<Product> findByStatusAndEndTimeAfter(Integer status, LocalDateTime now);
+
+    long countBySellerNoAndStatusAndIsDeleted(Long sellerNo, Integer status, Integer isDeleted);
 }
