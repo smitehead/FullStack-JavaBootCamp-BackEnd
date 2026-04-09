@@ -20,4 +20,7 @@ public interface WishlistRepository extends JpaRepository<Wishlist, Long> {
     // 마이페이지: 특정 회원이 찜한 모든 상품 번호 조회
     @Query("SELECT w.productNo FROM Wishlist w WHERE w.memberNo = :memberNo")
     List<Long> findProductNosByMemberNo(@Param("memberNo") Long memberNo);
+
+    // 상품의 총 찜 수 조회
+    long countByProductNo(Long productNo);
 }

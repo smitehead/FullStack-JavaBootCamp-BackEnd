@@ -268,6 +268,7 @@ public class ProductServiceImpl implements ProductService {
                 .participantCount(bidHistoryRepository.countDistinctParticipants(product.getProductNo()))
                 .images(imageUrls)
                 .isWishlisted(currentMemberNo != null ? wishlistRepository.existsByMemberNoAndProductNo(currentMemberNo, product.getProductNo()) : false)
+                .wishlistCount(wishlistRepository.countByProductNo(product.getProductNo()))
                 .seller(ProductDetailResponseDto.SellerInfoDto.builder()
                         .sellerNo(seller.getMemberNo())
                         .nickname(seller.getNickname())

@@ -22,6 +22,7 @@ public class ProductDetailResponseDto {
 
     private List<String> images;
     private Boolean isWishlisted;
+    private Long wishlistCount;
 
     private SellerInfoDto seller;
     private List<BidHistoryDto> bidHistory;
