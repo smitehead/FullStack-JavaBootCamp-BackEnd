@@ -18,9 +18,6 @@ public class NoticeRequestDto {
     @Size(max = 100, message = "제목은 100자 이하여야 합니다.")
     private String title;
 
-    @Size(max = 300, message = "설명은 300자 이하여야 합니다.")
-    private String description;
-
     @NotBlank(message = "내용은 필수입니다.")
     private String content;
 

@@ -49,7 +49,6 @@ public class NoticeServiceImpl implements NoticeService {
                 .adminNo(adminNo)
                 .category(dto.getCategory())
                 .title(dto.getTitle())
-                .description(dto.getDescription())
                 .content(dto.getContent())
                 .isImportant(Boolean.TRUE.equals(dto.getIsImportant()) ? 1 : 0)
                 .build();
@@ -63,7 +62,6 @@ public class NoticeServiceImpl implements NoticeService {
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 공지사항입니다."));
         notice.setCategory(dto.getCategory());
         notice.setTitle(dto.getTitle());
-        notice.setDescription(dto.getDescription());
         notice.setContent(dto.getContent());
         notice.setIsImportant(Boolean.TRUE.equals(dto.getIsImportant()) ? 1 : 0);
     }

@@ -27,9 +27,6 @@ public class Notice {
     @Column(name = "TITLE", nullable = false, length = 100)
     private String title;
 
-    @Column(name = "DESCRIPTION", length = 300)
-    private String description;
-
     @Lob
     @Column(name = "CONTENT", nullable = false)
     private String content;
