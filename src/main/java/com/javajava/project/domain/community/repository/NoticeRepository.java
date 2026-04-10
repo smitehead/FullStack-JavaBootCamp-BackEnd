@@ -15,7 +15,7 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
     // 일반 유저용: 삭제되지 않은 공지 목록 (카테고리 필터 + 검색)
     @Query("SELECT n FROM Notice n WHERE n.isDeleted = 0 " +
             "AND (:category IS NULL OR n.category = :category) " +
-            "AND (:keyword IS NULL OR n.title LIKE %:keyword% OR n.description LIKE %:keyword%) " +
+            "AND (:keyword IS NULL OR n.title LIKE %:keyword%) " +
             "ORDER BY n.isImportant DESC, n.createdAt DESC")
     Page<Notice> findActiveNotices(@Param("category") String category,
                                    @Param("keyword") String keyword,
