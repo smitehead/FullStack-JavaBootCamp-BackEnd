@@ -15,6 +15,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.javajava.project.domain.admin.entity.ActivityLog;
+import com.javajava.project.domain.admin.repository.ActivityLogRepository;
 
 import java.time.LocalDateTime;
 
@@ -27,6 +29,7 @@ public class InquiryServiceImpl implements InquiryService {
     private final InquiryRepository inquiryRepository;
     private final MemberRepository memberRepository;
     private final NotificationService notificationService;
+    private final ActivityLogRepository activityLogRepository;
 
     @Override
     @Transactional
@@ -100,7 +103,16 @@ public class InquiryServiceImpl implements InquiryService {
             log.warn("[Inquiry] 알림 전송 실패. inquiryNo={}", inquiryNo);
         }
 
-        log.info("[Inquiry] 답변 등록. inquiryNo={}, adminNo={}", inquiryNo, adminNo);
+        // 관리자 활동 로그 기록
+        activityLogRepository.save(ActivityLog.builder()
+                .adminNo(adminNo)
+                .action("1:1 문의 답변 등록")
+                .targetId(inquiryNo)
+                .targetType("inquiry")
+                .details("문의 제목: " + inquiry.getTitle())
+                .build());
+
+        log.info("[Inquiry] 답변 등록 및 로그 기록. inquiryNo={}, adminNo={}", inquiryNo, adminNo);
     }
 
     @Override
