@@ -73,19 +73,13 @@ public class ReviewService {
                 .resultNo(dto.getResultNo())
                 .writerNo(writerNo)
                 .targetNo(targetNo)
-                .rating(dto.getRating())
                 .tags(tagsStr)
                 .content(dto.getContent())
                 .isHidden(0)
                 .build();
         reviewRepository.save(review);
 
-        // 7. 매너온도 자동 계산 (별점이 있는 경우만)
-        if (dto.getRating() != null) {
-            updateMannerTemp(targetNo);
-        }
-
-        // 8. 판매자에게 알림
+        // 7. 판매자에게 알림
         Member writer = memberRepository.findById(writerNo)
                 .orElseThrow(() -> new IllegalArgumentException("작성자 정보를 찾을 수 없습니다."));
         try {
@@ -123,28 +117,4 @@ public class ReviewService {
                 .toList();
     }
 
-    /**
-     * 매너온도 자동 계산
-     * 공식: 36.5 + (평균별점 - 3.0) * 리뷰수 보정
-     * - 별점 3점 = 기본 온도 유지
-     * - 별점 5점 = 온도 소폭 상승, 별점 1점 = 소폭 하락
-     * - 리뷰가 많을수록 반영 비중 증가 (최대 +-5도)
-     */
-    private void updateMannerTemp(Long targetNo) {
-        Double avgRating = reviewRepository.findAverageRatingByTargetNo(targetNo);
-        if (avgRating == null) return;
-
-        long reviewCount = reviewRepository.findByTargetNoAndIsHidden(targetNo, 0).size();
-
-        // 보정 계수: 리뷰 수에 따라 0.05 ~ 1.5 범위 (리뷰 30개 이상이면 최대)
-        double weight = Math.min(reviewCount, 30) * 0.05;
-        double delta = (avgRating - 3.0) * weight;
-
-        // 매너온도 = 기본(36.5) + 변동분, 범위: 0 ~ 100
-        double newTemp = Math.max(0, Math.min(100, 36.5 + delta));
-
-        Member target = memberRepository.findById(targetNo)
-                .orElseThrow(() -> new IllegalArgumentException("대상 회원 정보를 찾을 수 없습니다."));
-        target.setMannerTemp(newTemp);
-    }
 }

@@ -27,9 +27,6 @@ public class Review {
     @Column(name = "TARGET_NO", nullable = false)
     private Long targetNo; // 리뷰 대상 회원번호 (FK - MEMBER 참조)
 
-    @Column(name = "RATING")
-    private Integer rating; // 별점 (1~5점, 선택)
-
     @Column(name = "TAGS", length = 500)
     private String tags; // 태그 (콤마 구분, 예: "응답이 빨라요,친절하고 매너가 좋아요")
 

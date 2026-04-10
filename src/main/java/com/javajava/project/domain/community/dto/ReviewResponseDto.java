@@ -18,7 +18,6 @@ public class ReviewResponseDto {
     private Long writerNo;
     private String writerNickname;
     private Long targetNo;
-    private Integer rating;
     private List<String> tags;
     private String content;
     private LocalDateTime createdAt;
@@ -34,7 +33,6 @@ public class ReviewResponseDto {
                 .writerNo(review.getWriterNo())
                 .writerNickname(writerNickname)
                 .targetNo(review.getTargetNo())
-                .rating(review.getRating())
                 .tags(tagList)
                 .content(review.getContent())
                 .createdAt(review.getCreatedAt())

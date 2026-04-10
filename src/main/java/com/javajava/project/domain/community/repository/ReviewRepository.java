@@ -2,8 +2,6 @@ package com.javajava.project.domain.community.repository;
 
 import com.javajava.project.domain.community.entity.Review;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,7 +20,4 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     // 회원의 공개 리뷰만 조회
     List<Review> findByTargetNoAndIsHidden(Long targetNo, Integer isHidden);
 
-    // 특정 회원이 받은 공개 리뷰 평균 별점
-    @Query("SELECT AVG(r.rating) FROM Review r WHERE r.targetNo = :targetNo AND r.isHidden = 0")
-    Double findAverageRatingByTargetNo(@Param("targetNo") Long targetNo);
 }
