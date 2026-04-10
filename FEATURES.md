@@ -494,13 +494,3 @@ ALTER TABLE NOTICE DROP COLUMN DESCRIPTION;
 | ReviewCreate.tsx | ⚠️ 데드코드 | 라우트만 등록, 실제 사용 안 함 (WonProductDetail 모달로 대체) |
 
 ---
-
-## DB 적용 필요 쿼리
-
-```sql
--- 별점 컬럼 제거
-ALTER TABLE REVIEW DROP COLUMN RATING;
-
--- 공지 요약설명 컬럼 제거
-ALTER TABLE NOTICE DROP COLUMN DESCRIPTION;
-```
