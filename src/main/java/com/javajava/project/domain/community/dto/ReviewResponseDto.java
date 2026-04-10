@@ -18,11 +18,13 @@ public class ReviewResponseDto {
     private Long writerNo;
     private String writerNickname;
     private Long targetNo;
+    private Long productNo;
+    private String productTitle;
     private List<String> tags;
     private String content;
     private LocalDateTime createdAt;
 
-    public static ReviewResponseDto from(Review review, String writerNickname) {
+    public static ReviewResponseDto from(Review review, String writerNickname, Long productNo, String productTitle) {
         List<String> tagList = (review.getTags() != null && !review.getTags().isBlank())
                 ? Arrays.asList(review.getTags().split(","))
                 : Collections.emptyList();
@@ -33,6 +35,8 @@ public class ReviewResponseDto {
                 .writerNo(review.getWriterNo())
                 .writerNickname(writerNickname)
                 .targetNo(review.getTargetNo())
+                .productNo(productNo)
+                .productTitle(productTitle)
                 .tags(tagList)
                 .content(review.getContent())
                 .createdAt(review.getCreatedAt())

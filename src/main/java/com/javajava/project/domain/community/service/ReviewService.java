@@ -91,7 +91,7 @@ public class ReviewService {
             log.warn("[ReviewService] 리뷰 알림 전송 실패: {}", e.getMessage());
         }
 
-        return ReviewResponseDto.from(review, writer.getNickname());
+        return ReviewResponseDto.from(review, writer.getNickname(), product.getProductNo(), product.getTitle());
     }
 
     /**
@@ -102,7 +102,22 @@ public class ReviewService {
                 .map(review -> {
                     String nickname = memberRepository.findById(review.getWriterNo())
                             .map(Member::getNickname).orElse("탈퇴회원");
-                    return ReviewResponseDto.from(review, nickname);
+                    Long productNo = null;
+                    String productTitle = null;
+                    try {
+                        AuctionResult result = auctionResultRepository.findById(review.getResultNo()).orElse(null);
+                        if (result != null) {
+                            BidHistory bid = bidHistoryRepository.findById(result.getBidNo()).orElse(null);
+                            if (bid != null) {
+                                Product product = productRepository.findById(bid.getProductNo()).orElse(null);
+                                if (product != null) {
+                                    productNo = product.getProductNo();
+                                    productTitle = product.getTitle();
+                                }
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                    return ReviewResponseDto.from(review, nickname, productNo, productTitle);
                 }).toList();
     }
 
@@ -113,8 +128,24 @@ public class ReviewService {
         Member writer = memberRepository.findById(writerNo)
                 .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
         return reviewRepository.findByWriterNo(writerNo).stream()
-                .map(review -> ReviewResponseDto.from(review, writer.getNickname()))
-                .toList();
+                .map(review -> {
+                    Long productNo = null;
+                    String productTitle = null;
+                    try {
+                        AuctionResult result = auctionResultRepository.findById(review.getResultNo()).orElse(null);
+                        if (result != null) {
+                            BidHistory bid = bidHistoryRepository.findById(result.getBidNo()).orElse(null);
+                            if (bid != null) {
+                                Product product = productRepository.findById(bid.getProductNo()).orElse(null);
+                                if (product != null) {
+                                    productNo = product.getProductNo();
+                                    productTitle = product.getTitle();
+                                }
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                    return ReviewResponseDto.from(review, writer.getNickname(), productNo, productTitle);
+                }).toList();
     }
 
 }
