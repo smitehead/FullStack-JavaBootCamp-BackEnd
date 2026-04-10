@@ -109,8 +109,8 @@ public class MemberServiceImpl implements MemberService {
         Member member = memberRepository.findById(memberNo)
                 .orElseThrow(() -> new IllegalArgumentException("판매자를 찾을 수 없습니다."));
 
-        // 삭제되지 않은 판매 상품만 조회
-        List<Product> products = productRepository.findBySellerNo(memberNo).stream()
+        // 삭제되지 않은 판매 상품만 조회 (최신순)
+        List<Product> products = productRepository.findBySellerNoOrderByProductNoDesc(memberNo).stream()
                 .filter(p -> p.getIsDeleted() == 0)
                 .toList();
 

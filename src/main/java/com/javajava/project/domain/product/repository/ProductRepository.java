@@ -22,7 +22,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     @Query("SELECT p FROM Product p WHERE p.productNo = :productNo")
     Optional<Product> findByIdWithLock(@Param("productNo") Long productNo);
 
-    List<Product> findBySellerNo(Long sellerNo);
+    List<Product> findBySellerNoOrderByProductNoDesc(Long sellerNo);
 
     // 진행 중(status=0)이고 삭제되지 않은 상품 조회 (정렬 지원)
     List<Product> findByStatusAndIsDeleted(Integer status, Integer isDeleted, Sort sort);

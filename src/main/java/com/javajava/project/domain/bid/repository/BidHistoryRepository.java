@@ -35,11 +35,14 @@ public interface BidHistoryRepository extends JpaRepository<BidHistory, Long> {
     List<Object[]> countDistinctParticipantsByProductNos(@Param("productNos") List<Long> productNos);
 
     // 마이페이지: 특정 회원이 입찰한 고유 상품 번호 목록
-    @Query("SELECT DISTINCT b.productNo FROM BidHistory b WHERE b.memberNo = :memberNo AND b.isCancelled = 0")
+    @Query("SELECT b.productNo FROM BidHistory b " +
+           "WHERE b.memberNo = :memberNo AND b.isCancelled = 0 " +
+           "GROUP BY b.productNo " +
+           "ORDER BY MAX(b.bidTime) DESC")
     List<Long> findDistinctProductNosByMemberNo(@Param("memberNo") Long memberNo);
 
     // 마이페이지: 특정 회원이 낙찰받은 상품 번호 목록
-    @Query("SELECT b.productNo FROM BidHistory b WHERE b.memberNo = :memberNo AND b.isWinner = 1")
+    @Query("SELECT b.productNo FROM BidHistory b WHERE b.memberNo = :memberNo AND b.isWinner = 1 ORDER BY b.bidTime DESC")
     List<Long> findWonProductNosByMemberNo(@Param("memberNo") Long memberNo);
 
     // 특정 회원의 특정 상품들에 대한 낙찰 여부 배치 조회

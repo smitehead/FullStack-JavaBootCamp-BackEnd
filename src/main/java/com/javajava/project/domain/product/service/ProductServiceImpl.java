@@ -12,6 +12,8 @@ import com.javajava.project.domain.bid.repository.BidHistoryRepository;
 import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.domain.product.repository.ProductRepository;
 import com.javajava.project.domain.product.entity.ProductImage;
+import com.javajava.project.domain.product.entity.Category;
+import com.javajava.project.domain.product.repository.CategoryRepository;
 import com.javajava.project.domain.product.repository.ProductImageRepository;
 import com.javajava.project.domain.wishlist.repository.WishlistRepository;
 import com.javajava.project.domain.auction.repository.AuctionResultRepository;
@@ -36,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -55,6 +58,7 @@ public class ProductServiceImpl implements ProductService {
     private final FileStore fileStore;
     private final NotificationService notificationService;
     private final AuctionExpiryWatchdog auctionExpiryWatchdog;
+    private final CategoryRepository categoryRepository;
 
     @Override
     @Transactional
@@ -151,17 +155,36 @@ public class ProductServiceImpl implements ProductService {
             // 종료된 경매 제외: endTime이 현재 시각보다 미래인 것만 조회
             predicates.add(cb.greaterThan(root.get("endTime"), LocalDateTime.now()));
 
-            // 카테고리 필터 (임시: 실제로는 Category 테이블 JOIN 필요)
-            if (small != null) predicates.add(cb.equal(root.get("categoryNo"), small));
-            else if (medium != null) predicates.add(cb.equal(root.get("categoryNo"), medium));
+            // 카테고리 필터 (계층 필터링 지원)
+            if (small != null) {
+                // 소분류가 지정된 경우 정확히 해당 카테고리만 조회
+                predicates.add(cb.equal(root.get("categoryNo"), small));
+            } else if (medium != null) {
+                // 중분류가 지정된 경우 해당 중분류 ID + 하위 모든 소분류 ID 포함 검색
+                List<Long> categoryIds = new ArrayList<>();
+                categoryIds.add(medium);
+                categoryRepository.findByParentNo(medium).forEach(c -> categoryIds.add(c.getCategoryNo()));
+                predicates.add(root.get("categoryNo").in(categoryIds));
+            } else if (large != null) {
+                // 대분류가 지정된 경우 해당 대분류 ID + 하위 모든 단계의 카테고리 ID 포함 검색
+                List<Long> categoryIds = new ArrayList<>();
+                categoryIds.add(large);
+                List<Category> mediums = categoryRepository.findByParentNo(large);
+                for (Category m : mediums) {
+                    categoryIds.add(m.getCategoryNo());
+                    categoryRepository.findByParentNo(m.getCategoryNo()).forEach(s -> categoryIds.add(s.getCategoryNo()));
+                }
+                predicates.add(root.get("categoryNo").in(categoryIds));
+            }
 
             // 가격 필터
             if (minPrice != null) predicates.add(cb.greaterThanOrEqualTo(root.get("currentPrice"), minPrice));
             if (maxPrice != null) predicates.add(cb.lessThanOrEqualTo(root.get("currentPrice"), maxPrice));
 
             // 지역 필터 (3단계: 시/도, 시/군/구, 읍/면/동)
+            // tradeAddrShort는 "서울 강남구 역삼동" 형식으로 저장되어 있음
             if (city != null && !city.trim().isEmpty()) {
-                predicates.add(cb.like(root.get("tradeAddrShort"), "%" + city + "%"));
+                predicates.add(cb.like(root.get("tradeAddrShort"), city + "%"));
             }
             if (district != null && !district.trim().isEmpty()) {
                 predicates.add(cb.like(root.get("tradeAddrShort"), "%" + district + "%"));
@@ -333,7 +356,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public List<ProductListResponseDto> getMySellingProducts(Long memberNo) {
-        List<Product> products = productRepository.findBySellerNo(memberNo);
+        List<Product> products = productRepository.findBySellerNoOrderByProductNoDesc(memberNo);
         return toProductListDtos(products, memberNo);
     }
 
@@ -341,7 +364,15 @@ public class ProductServiceImpl implements ProductService {
     public List<ProductListResponseDto> getMyBiddingProducts(Long memberNo) {
         List<Long> productNos = bidHistoryRepository.findDistinctProductNosByMemberNo(memberNo);
         if (productNos.isEmpty()) return List.of();
-        List<Product> products = productRepository.findAllById(productNos);
+        
+        // findAllById는 순서를 보장하지 않으므로, productNos 순서대로 재정렬 필요
+        List<Product> fetchedProducts = productRepository.findAllById(productNos);
+        Map<Long, Product> productMap = fetchedProducts.stream()
+                .collect(Collectors.toMap(Product::getProductNo, Function.identity()));
+        List<Product> products = productNos.stream()
+                .map(productMap::get)
+                .filter(Objects::nonNull)
+                .toList();
 
         // 낙찰 여부 배치 조회
         Set<Long> wonProductNos = new java.util.HashSet<>(
@@ -391,7 +422,13 @@ public class ProductServiceImpl implements ProductService {
         if (wonProductNos.isEmpty()) return List.of();
 
         // 2. 해당 상품들의 낙찰 입찰번호를 찾고, AuctionResult에서 구매확정된 것만 필터
-        List<Product> products = productRepository.findAllById(wonProductNos);
+        List<Product> fetchedProducts = productRepository.findAllById(wonProductNos);
+        Map<Long, Product> productMap = fetchedProducts.stream()
+                .collect(Collectors.toMap(Product::getProductNo, Function.identity()));
+        List<Product> products = wonProductNos.stream()
+                .map(productMap::get)
+                .filter(Objects::nonNull)
+                .toList();
 
         // 낙찰된 bid 조회
         List<BidHistory> winnerBids = wonProductNos.stream()
@@ -426,7 +463,15 @@ public class ProductServiceImpl implements ProductService {
     public List<ProductListResponseDto> getMyWishlistProducts(Long memberNo) {
         List<Long> productNos = wishlistRepository.findProductNosByMemberNo(memberNo);
         if (productNos.isEmpty()) return List.of();
-        List<Product> products = productRepository.findAllById(productNos);
+        
+        List<Product> fetchedProducts = productRepository.findAllById(productNos);
+        Map<Long, Product> productMap = fetchedProducts.stream()
+                .collect(Collectors.toMap(Product::getProductNo, Function.identity()));
+        List<Product> products = productNos.stream()
+                .map(productMap::get)
+                .filter(Objects::nonNull)
+                .toList();
+        
         return toProductListDtos(products, memberNo);
     }
 

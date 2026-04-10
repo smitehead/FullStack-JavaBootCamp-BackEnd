@@ -6,10 +6,13 @@ import com.javajava.project.domain.member.dto.MannerHistoryResponseDto;
 import com.javajava.project.domain.admin.entity.ActivityLog;
 import com.javajava.project.domain.member.entity.MannerHistory;
 import com.javajava.project.domain.member.entity.Member;
+import com.javajava.project.domain.point.entity.PointHistory;
 import com.javajava.project.domain.admin.repository.ActivityLogRepository;
 import com.javajava.project.domain.member.repository.MannerHistoryRepository;
 import com.javajava.project.domain.member.repository.MemberRepository;
+import com.javajava.project.domain.point.repository.PointHistoryRepository;
 import com.javajava.project.domain.notification.service.NotificationService;
+import com.javajava.project.global.sse.SseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -31,6 +34,8 @@ public class AdminServiceImpl implements AdminService {
     private final MannerHistoryRepository mannerHistoryRepository;
     private final ActivityLogRepository activityLogRepository;
     private final NotificationService notificationService;
+    private final PointHistoryRepository pointHistoryRepository;
+    private final SseService sseService;
 
     @Override
     public List<ActivityLogResponseDto> getAllActivityLogs() {
@@ -175,12 +180,32 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public void updatePoints(Long memberNo, Long pointAmount, Long adminNo) {
-        Member member = memberRepository.findById(memberNo)
+        // 비관적 락을 사용하여 회원 정보 조회
+        Member member = memberRepository.findByIdWithLock(memberNo)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
-        member.setPoints(member.getPoints() + pointAmount);
+        long previousPoints = member.getPoints();
+        long newBalance = previousPoints + pointAmount;
+        member.setPoints(newBalance);
 
-        // 활동 로그
+        // 포인트 이력(PointHistory) 기록
+        String type = pointAmount >= 0 ? "관리자추가" : "관리자회수";
+        pointHistoryRepository.save(PointHistory.builder()
+                .memberNo(memberNo)
+                .type(type)
+                .amount(pointAmount)
+                .balance(newBalance)
+                .reason("관리자에 의한 포인트 조정 (" + (pointAmount >= 0 ? "+" : "") + pointAmount + "P)")
+                .build());
+
+        // 실시간 포인트 반영 (SSE)
+        try {
+            sseService.sendPointUpdate(memberNo, newBalance);
+        } catch (Exception e) {
+            // SSE 오류가 전체 트랜잭션에 영향을 주지 않도록 예외 처리
+        }
+
+        // 활동 로그 기록
         String sign = pointAmount >= 0 ? "+" : "";
         activityLogRepository.save(ActivityLog.builder()
                 .adminNo(adminNo)
