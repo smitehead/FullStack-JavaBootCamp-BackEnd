@@ -4,7 +4,8 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.List;
 
-@Getter @Setter
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -17,6 +18,7 @@ public class ProductDetailResponseDto {
     private Long startPrice;
     private Long currentPrice;
     private Long minBidUnit;
+    private LocalDateTime createdAt;
     private LocalDateTime endTime;
     private Long buyoutPrice;
     private Long participantCount;
@@ -29,7 +31,9 @@ public class ProductDetailResponseDto {
     private SellerInfoDto seller;
     private List<BidHistoryDto> bidHistory;
 
-    @Getter @Setter @Builder
+    @Getter
+    @Setter
+    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class CategoryDto {
@@ -38,7 +42,9 @@ public class ProductDetailResponseDto {
         private Integer depth;
     }
 
-    @Getter @Setter @Builder
+    @Getter
+    @Setter
+    @Builder
     public static class SellerInfoDto {
         private Long sellerNo;
         private String nickname;
@@ -46,7 +52,9 @@ public class ProductDetailResponseDto {
         private String profileImgUrl;
     }
 
-    @Getter @Setter @Builder
+    @Getter
+    @Setter
+    @Builder
     public static class BidHistoryDto {
         private String bidderNickname;
         private Long bidPrice;
