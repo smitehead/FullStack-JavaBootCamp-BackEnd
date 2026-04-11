@@ -1,7 +1,8 @@
-package com.javajava.project.domain.community.entity;
+package com.javajava.project.domain.product.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "QNA")
@@ -9,7 +10,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Qna {
+public class ProductQna {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "qna_seq")
@@ -17,18 +18,25 @@ public class Qna {
     @Column(name = "PRDT_QNA_NO")
     private Long prdtQnaNo;
 
-    /**
-     * 입찰번호 (FK - BID_HISTORY 참조)
-     * 입찰자가 남긴 문의일 경우만 값이 있고, 일반 문의는 NULL
-     */
     @Column(name = "BID_NO")
     private Long bidNo;
 
-    // 문의 대상 상품번호 (FK - PRODUCT 참조)
     @Column(name = "PRODUCT_NO", nullable = false)
     private Long productNo;
 
-    // 문의 내용
+    @Column(name = "MEMBER_NO", nullable = false)
+    private Long memberNo;
+
     @Column(name = "CONTENT", length = 500)
     private String content;
+
+    @Column(name = "ANSWER", length = 1000)
+    private String answer;
+
+    @Column(name = "ANSWERED_AT")
+    private LocalDateTime answeredAt;
+
+    @Builder.Default
+    @Column(name = "CREATED_AT", nullable = false, updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
 }
