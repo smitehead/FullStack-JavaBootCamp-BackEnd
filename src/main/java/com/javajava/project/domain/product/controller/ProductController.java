@@ -59,10 +59,11 @@ public class ProductController {
             @RequestParam(name = "delivery", required = false) Boolean delivery,
             @RequestParam(name = "face", required = false) Boolean face,
             @RequestParam(name = "sort", defaultValue = "latest") String sort,
+            @RequestParam(name = "keyword", required = false) String keyword,
             Authentication authentication) {
         Long memberNo = getMemberNoOrNull(authentication);
         Page<ProductListResponseDto> productPage = productService.getProductList(
-                page, size, large, medium, small, minPrice, maxPrice, city, district, neighborhood, delivery, face, sort, memberNo);
+                page, size, large, medium, small, minPrice, maxPrice, city, district, neighborhood, delivery, face, sort, keyword, memberNo);
         return ResponseEntity.ok(productPage);
     }
 

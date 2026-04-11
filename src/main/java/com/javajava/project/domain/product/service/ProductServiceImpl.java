@@ -125,7 +125,7 @@ public class ProductServiceImpl implements ProductService {
         @Override
         public Page<ProductListResponseDto> getProductList(int page, int size, Long large, Long medium, Long small,
                         Long minPrice, Long maxPrice, String city, String district, String neighborhood,
-                        Boolean delivery, Boolean face, String sortOption, Long memberNo) {
+                        Boolean delivery, Boolean face, String sortOption, String keyword, Long memberNo) {
 
                 // 리액트는 1페이지부터 보내므로 백엔드용(0-index)으로 보정
                 int pageNumber = page > 0 ? page - 1 : 0;
@@ -157,6 +157,13 @@ public class ProductServiceImpl implements ProductService {
 
                         // 종료된 경매 제외: endTime이 현재 시각보다 미래인 것만 조회
                         predicates.add(cb.greaterThan(root.get("endTime"), LocalDateTime.now()));
+
+                        // 키워드 검색 (제목 LIKE 검색) - 대소문자 무시
+                        if (keyword != null && !keyword.trim().isEmpty()) {
+                                predicates.add(cb.like(
+                                                cb.lower(root.get("title")),
+                                                "%" + keyword.trim().toLowerCase() + "%"));
+                        }
 
                         // 카테고리 필터 (패딩 기반 계층 구조 최적화)
                         if (small != null) {
