@@ -37,4 +37,6 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     List<Product> findByStatusAndEndTimeAfter(Integer status, LocalDateTime now);
 
     long countBySellerNoAndStatusAndIsDeleted(Long sellerNo, Integer status, Integer isDeleted);
+
+    long countBySellerNoAndIsDeleted(Long sellerNo, Integer isDeleted);
 }

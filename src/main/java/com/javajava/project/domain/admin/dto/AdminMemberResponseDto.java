@@ -2,10 +2,13 @@ package com.javajava.project.domain.admin.dto;
 
 import com.javajava.project.domain.member.entity.Member;
 import lombok.Getter;
+import lombok.Setter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-@Getter
+@Getter @Setter
+@NoArgsConstructor
 public class AdminMemberResponseDto {
 
     private Long memberNo;
@@ -23,6 +26,7 @@ public class AdminMemberResponseDto {
     private String suspendReason;
     private Integer isPermanentSuspended;
     private String profileImgUrl;
+    private Long postCount;
 
     public static AdminMemberResponseDto from(Member m) {
         AdminMemberResponseDto dto = new AdminMemberResponseDto();
@@ -41,6 +45,7 @@ public class AdminMemberResponseDto {
         dto.suspendReason = m.getSuspendReason();
         dto.isPermanentSuspended = m.getIsPermanentSuspended();
         dto.profileImgUrl = m.getProfileImgUrl();
+        // postCount는 별도 서비스에서 세팅
         return dto;
     }
 }

@@ -11,6 +11,7 @@ import com.javajava.project.domain.admin.repository.ActivityLogRepository;
 import com.javajava.project.domain.member.repository.MannerHistoryRepository;
 import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
+import com.javajava.project.domain.product.repository.ProductRepository;
 import com.javajava.project.domain.notification.service.NotificationService;
 import com.javajava.project.global.sse.SseService;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ public class AdminServiceImpl implements AdminService {
     private final NotificationService notificationService;
     private final PointHistoryRepository pointHistoryRepository;
     private final SseService sseService;
+    private final ProductRepository productRepository;
 
     @Override
     public List<ActivityLogResponseDto> getAllActivityLogs() {
@@ -73,7 +75,11 @@ public class AdminServiceImpl implements AdminService {
     public List<AdminMemberResponseDto> getAllMembers() {
         return memberRepository.findAllByOrderByJoinedAtDesc()
                 .stream()
-                .map(AdminMemberResponseDto::from)
+                .map(m -> {
+                    AdminMemberResponseDto dto = AdminMemberResponseDto.from(m);
+                    dto.setPostCount(productRepository.countBySellerNoAndIsDeleted(m.getMemberNo(), 0));
+                    return dto;
+                })
                 .toList();
     }
 
@@ -81,7 +87,11 @@ public class AdminServiceImpl implements AdminService {
     public List<AdminMemberResponseDto> searchMembers(String keyword) {
         return memberRepository.searchByKeyword(keyword)
                 .stream()
-                .map(AdminMemberResponseDto::from)
+                .map(m -> {
+                    AdminMemberResponseDto dto = AdminMemberResponseDto.from(m);
+                    dto.setPostCount(productRepository.countBySellerNoAndIsDeleted(m.getMemberNo(), 0));
+                    return dto;
+                })
                 .toList();
     }
 
