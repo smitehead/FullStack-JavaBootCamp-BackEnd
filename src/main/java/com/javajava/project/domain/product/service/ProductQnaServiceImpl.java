@@ -2,10 +2,13 @@ package com.javajava.project.domain.product.service;
 
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.member.repository.MemberRepository;
+import com.javajava.project.domain.notification.service.NotificationService;
 import com.javajava.project.domain.product.dto.ProductQnaRequestDto;
 import com.javajava.project.domain.product.dto.ProductQnaResponseDto;
+import com.javajava.project.domain.product.entity.Product;
 import com.javajava.project.domain.product.entity.ProductQna;
 import com.javajava.project.domain.product.repository.ProductQnaRepository;
+import com.javajava.project.domain.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +23,9 @@ import java.util.stream.Collectors;
 public class ProductQnaServiceImpl implements ProductQnaService {
 
     private final ProductQnaRepository productQnaRepository;
+    private final ProductRepository productRepository;
     private final MemberRepository memberRepository;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -42,12 +47,28 @@ public class ProductQnaServiceImpl implements ProductQnaService {
         if (dto.getContent() == null || dto.getContent().isBlank()) {
             throw new IllegalArgumentException("문의 내용을 입력해주세요.");
         }
+
+        Product product = productRepository.findById(productNo)
+                .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다."));
+
         ProductQna qna = ProductQna.builder()
                 .productNo(productNo)
                 .memberNo(memberNo)
                 .content(dto.getContent().trim())
                 .build();
-        return productQnaRepository.save(qna).getPrdtQnaNo();
+        productQnaRepository.save(qna);
+
+        // 판매자에게 알림 전송
+        String writerNickname = memberRepository.findById(memberNo)
+                .map(Member::getNickname).orElse("누군가");
+        notificationService.sendAndSaveNotification(
+                product.getSellerNo(),
+                "QNA",
+                "[" + product.getTitle() + "] " + writerNickname + "님이 상품문의를 남겼습니다.",
+                "/products/" + productNo
+        );
+
+        return qna.getPrdtQnaNo();
     }
 
     @Override
@@ -70,10 +91,21 @@ public class ProductQnaServiceImpl implements ProductQnaService {
         if (answer == null || answer.isBlank()) {
             throw new IllegalArgumentException("답변 내용을 입력해주세요.");
         }
+
         ProductQna qna = productQnaRepository.findById(qnaNo)
                 .orElseThrow(() -> new IllegalArgumentException("문의를 찾을 수 없습니다."));
         qna.setAnswer(answer.trim());
         qna.setAnsweredAt(LocalDateTime.now());
+
+        // 문의 작성자에게 알림 전송
+        Product product = productRepository.findById(qna.getProductNo())
+                .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다."));
+        notificationService.sendAndSaveNotification(
+                qna.getMemberNo(),
+                "QNA_ANSWER",
+                "[" + product.getTitle() + "] 판매자가 상품문의에 답변을 남겼습니다.",
+                "/products/" + qna.getProductNo()
+        );
     }
 
     @Override
