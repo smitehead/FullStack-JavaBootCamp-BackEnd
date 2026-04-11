@@ -3,6 +3,7 @@ package com.javajava.project.domain.member.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import jakarta.mail.MessagingException;
@@ -26,6 +27,7 @@ public class EmailService {
     /**
      * 6자리 인증번호 생성 후 이메일 발송
      */
+    @Async
     public void sendVerificationCode(String email) throws MessagingException {
         String code = String.format("%06d", new Random().nextInt(1000000));
         codeStore.put(email, new CodeEntry(code, LocalDateTime.now().plusMinutes(EXPIRE_MINUTES)));
