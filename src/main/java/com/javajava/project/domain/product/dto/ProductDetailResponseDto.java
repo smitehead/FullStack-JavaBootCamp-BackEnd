@@ -18,6 +18,7 @@ public class ProductDetailResponseDto {
     private Long currentPrice;
     private Long minBidUnit;
     private LocalDateTime endTime;
+    private Long buyoutPrice;
     private Long participantCount;
 
     private List<String> images;

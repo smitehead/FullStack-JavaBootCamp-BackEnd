@@ -312,6 +312,7 @@ public class ProductServiceImpl implements ProductService {
                 .currentPrice(product.getCurrentPrice())
                 .minBidUnit(product.getMinBidUnit())
                 .endTime(product.getEndTime())
+                .buyoutPrice(product.getBuyoutPrice())
                 .participantCount(bidHistoryRepository.countDistinctParticipants(product.getProductNo()))
                 .images(imageUrls)
                 .categoryPath(categoryPath)
