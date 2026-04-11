@@ -11,6 +11,9 @@ public interface ReportService {
     // 신고 제출 (일반 사용자) — 이미지 첨부 포함
     Long submitReport(ReportRequestDto dto, List<MultipartFile> images);
 
+    // 신고 단건 조회 (이미지 포함)
+    ReportResponseDto getReportDetail(Long reportNo);
+
     // 전체 신고 목록
     List<ReportResponseDto> getAllReports();
 

@@ -37,6 +37,15 @@ public class AdminReportController {
     }
 
     /**
+     * 신고 단건 조회 (이미지 포함)
+     * GET /api/admin/reports/{reportNo}
+     */
+    @GetMapping("/{reportNo}")
+    public ResponseEntity<ReportResponseDto> getReportDetail(@PathVariable("reportNo") Long reportNo) {
+        return ResponseEntity.ok(reportService.getReportDetail(reportNo));
+    }
+
+    /**
      * 신고 처리
      * PUT /api/admin/reports/{reportNo}/resolve
      */

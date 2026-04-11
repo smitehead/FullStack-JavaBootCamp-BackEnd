@@ -65,6 +65,25 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
+    public ReportResponseDto getReportDetail(Long reportNo) {
+        Report report = reportRepository.findById(reportNo)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 신고입니다."));
+        ReportResponseDto dto = ReportResponseDto.from(report);
+        memberRepository.findById(dto.getReporterNo())
+                .ifPresent(m -> dto.setReporterNickname(m.getNickname()));
+        if (dto.getTargetMemberNo() != null) {
+            memberRepository.findById(dto.getTargetMemberNo())
+                    .ifPresent(m -> dto.setTargetMemberNickname(m.getNickname()));
+        }
+        List<String> urls = reportImageRepository.findByReportNo(reportNo)
+                .stream()
+                .map(img -> "/api/images/" + img.getUuidName())
+                .toList();
+        dto.setImageUrls(urls);
+        return dto;
+    }
+
+    @Override
     public List<ReportResponseDto> getAllReports() {
         return enrichWithNicknames(
                 reportRepository.findAllByOrderByCreatedAtDesc()
