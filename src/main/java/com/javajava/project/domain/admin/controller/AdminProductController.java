@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/products")
@@ -26,6 +27,15 @@ public class AdminProductController {
     @GetMapping
     public ResponseEntity<List<AdminProductResponseDto>> getAllProducts() {
         return ResponseEntity.ok(productService.getAllProductsForAdmin());
+    }
+
+    /**
+     * 관리자 대시보드: 대분류별 상품 건수
+     * GET /api/admin/products/category-stats
+     */
+    @GetMapping("/category-stats")
+    public ResponseEntity<List<Map<String, Object>>> getCategoryStats() {
+        return ResponseEntity.ok(productService.getCategoryStats());
     }
 
     /**

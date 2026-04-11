@@ -7,6 +7,7 @@ import com.javajava.project.domain.product.dto.ProductDetailResponseDto; // 추�
 import com.javajava.project.domain.product.dto.ProductListResponseDto;
 import org.springframework.data.domain.Page;
 import java.util.List;
+import java.util.Map;
 
 public interface ProductService {
     Long save(ProductRequestDto productDto);
@@ -48,4 +49,7 @@ public interface ProductService {
 
     // 관리자: 경매 강제 종료
     void cancelAuctionByAdmin(Long productNo);
+
+    // 관리자 대시보드: 대분류별 상품 건수
+    List<Map<String, Object>> getCategoryStats();
 }

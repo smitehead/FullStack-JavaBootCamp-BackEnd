@@ -36,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -664,6 +665,17 @@ public class ProductServiceImpl implements ProductService {
                 } catch (Exception e) {
                         log.warn("[ProductService] 경매 취소 알림 전송 실패: {}", e.getMessage());
                 }
+        }
+
+        @Override
+        public List<Map<String, Object>> getCategoryStats() {
+                List<Object[]> rows = productRepository.countProductsByRootCategory();
+                return rows.stream().map(row -> {
+                        Map<String, Object> map = new HashMap<>();
+                        map.put("name", row[0]);
+                        map.put("count", row[1]);
+                        return map;
+                }).toList();
         }
 
         /**

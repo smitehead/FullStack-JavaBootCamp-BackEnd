@@ -39,4 +39,27 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     long countBySellerNoAndStatusAndIsDeleted(Long sellerNo, Integer status, Integer isDeleted);
 
     long countBySellerNoAndIsDeleted(Long sellerNo, Integer isDeleted);
+
+    // 관리자 대시보드: 대분류별 상품 건수 집계 (depth 1/2/3 모두 대응)
+    @Query(value = """
+            SELECT
+                CASE
+                    WHEN c.DEPTH = 1 THEN c.NAME
+                    WHEN c.DEPTH = 2 THEN c2.NAME
+                    WHEN c.DEPTH = 3 THEN c3.NAME
+                END AS name,
+                COUNT(p.PRODUCT_NO) AS cnt
+            FROM PRODUCT p
+            JOIN CATEGORY c ON p.CATEGORY_NO = c.CATEGORY_NO
+            LEFT JOIN CATEGORY c2 ON c.PARENT_NO = c2.CATEGORY_NO
+            LEFT JOIN CATEGORY c3 ON c2.PARENT_NO = c3.CATEGORY_NO
+            WHERE p.IS_DELETED = 0
+            GROUP BY
+                CASE
+                    WHEN c.DEPTH = 1 THEN c.NAME
+                    WHEN c.DEPTH = 2 THEN c2.NAME
+                    WHEN c.DEPTH = 3 THEN c3.NAME
+                END
+            """, nativeQuery = true)
+    List<Object[]> countProductsByRootCategory();
 }
