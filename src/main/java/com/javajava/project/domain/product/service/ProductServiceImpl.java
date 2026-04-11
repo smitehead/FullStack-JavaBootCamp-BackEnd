@@ -155,26 +155,32 @@ public class ProductServiceImpl implements ProductService {
             // 종료된 경매 제외: endTime이 현재 시각보다 미래인 것만 조회
             predicates.add(cb.greaterThan(root.get("endTime"), LocalDateTime.now()));
 
-            // 카테고리 필터 (계층 필터링 지원)
+            // 카테고리 필터 (패딩 기반 계층 구조 최적화)
             if (small != null) {
                 // 소분류가 지정된 경우 정확히 해당 카테고리만 조회
                 predicates.add(cb.equal(root.get("categoryNo"), small));
             } else if (medium != null) {
-                // 중분류가 지정된 경우 해당 중분류 ID + 하위 모든 소분류 ID 포함 검색
-                List<Long> categoryIds = new ArrayList<>();
-                categoryIds.add(medium);
-                categoryRepository.findByParentNo(medium).forEach(c -> categoryIds.add(c.getCategoryNo()));
-                predicates.add(root.get("categoryNo").in(categoryIds));
+                // 중분류(M) 검색 시: M 본인 및 하위 소분류(M*100 ~ M*100+99) 포함
+                predicates.add(cb.or(
+                    cb.equal(root.get("categoryNo"), medium),
+                    cb.and(
+                        cb.greaterThanOrEqualTo(root.get("categoryNo"), medium * 100L),
+                        cb.lessThan(root.get("categoryNo"), (medium + 1) * 100L)
+                    )
+                ));
             } else if (large != null) {
-                // 대분류가 지정된 경우 해당 대분류 ID + 하위 모든 단계의 카테고리 ID 포함 검색
-                List<Long> categoryIds = new ArrayList<>();
-                categoryIds.add(large);
-                List<Category> mediums = categoryRepository.findByParentNo(large);
-                for (Category m : mediums) {
-                    categoryIds.add(m.getCategoryNo());
-                    categoryRepository.findByParentNo(m.getCategoryNo()).forEach(s -> categoryIds.add(s.getCategoryNo()));
-                }
-                predicates.add(root.get("categoryNo").in(categoryIds));
+                // 대분류(L) 검색 시: L 본인, 하위 중분류(Lxx), 하위 소분류(Lxxxx) 모두 포함
+                predicates.add(cb.or(
+                    cb.equal(root.get("categoryNo"), large),
+                    cb.and(
+                        cb.greaterThanOrEqualTo(root.get("categoryNo"), large * 100L),
+                        cb.lessThan(root.get("categoryNo"), (large + 1) * 100L)
+                    ),
+                    cb.and(
+                        cb.greaterThanOrEqualTo(root.get("categoryNo"), large * 10000L),
+                        cb.lessThan(root.get("categoryNo"), (large + 1) * 10000L)
+                    )
+                ));
             }
 
             // 가격 필터
@@ -277,7 +283,25 @@ public class ProductServiceImpl implements ProductService {
                 .map(img -> "/api/images/" + img.getUuidName())
                 .toList();
 
-        // 5. 상세 데이터 조립 및 반환
+        // 5. 카테고리 계층 정보(Breadcrumb) 조회
+        List<ProductDetailResponseDto.CategoryDto> categoryPath = new ArrayList<>();
+        Long currentCatNo = product.getCategoryNo();
+        while (currentCatNo != null) {
+            final Long searchNo = currentCatNo;
+            Category cat = categoryRepository.findById(searchNo).orElse(null);
+            if (cat != null) {
+                categoryPath.add(0, ProductDetailResponseDto.CategoryDto.builder()
+                        .id(cat.getCategoryNo())
+                        .name(cat.getName())
+                        .depth(cat.getDepth())
+                        .build());
+                currentCatNo = cat.getParentNo();
+            } else {
+                break;
+            }
+        }
+
+        // 6. 상세 데이터 조립 및 반환
         return ProductDetailResponseDto.builder()
                 .productNo(product.getProductNo())
                 .title(product.getTitle())
@@ -290,6 +314,7 @@ public class ProductServiceImpl implements ProductService {
                 .endTime(product.getEndTime())
                 .participantCount(bidHistoryRepository.countDistinctParticipants(product.getProductNo()))
                 .images(imageUrls)
+                .categoryPath(categoryPath)
                 .isWishlisted(currentMemberNo != null ? wishlistRepository.existsByMemberNoAndProductNo(currentMemberNo, product.getProductNo()) : false)
                 .wishlistCount(wishlistRepository.countByProductNo(product.getProductNo()))
                 .seller(ProductDetailResponseDto.SellerInfoDto.builder()
@@ -337,12 +362,6 @@ public class ProductServiceImpl implements ProductService {
                     .bidTime(bid.getBidTime())
                     .build();
         }).toList();
-    }
-
-    @Override
-    public List<ProductResponseDto> findByCategory(Long categoryNo) {
-        // 카테고리 기능은 현재 전체 조회로 대체 (추후 구현 가능)
-        return findAllActive("latest");
     }
 
     @Override

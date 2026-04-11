@@ -24,8 +24,18 @@ public class ProductDetailResponseDto {
     private Boolean isWishlisted;
     private Long wishlistCount;
 
+    private List<CategoryDto> categoryPath;
     private SellerInfoDto seller;
     private List<BidHistoryDto> bidHistory;
+
+    @Getter @Setter @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CategoryDto {
+        private Long id;
+        private String name;
+        private Integer depth;
+    }
 
     @Getter @Setter @Builder
     public static class SellerInfoDto {

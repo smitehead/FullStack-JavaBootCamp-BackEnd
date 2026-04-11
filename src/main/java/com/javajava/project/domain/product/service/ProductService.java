@@ -26,8 +26,6 @@ public interface ProductService {
 
     ProductResponseDto findById(Long productNo);
 
-    List<ProductResponseDto> findByCategory(Long categoryNo);
-
     void saveImages(Long productNo, List<org.springframework.web.multipart.MultipartFile> images) throws java.io.IOException;
 
     // 마이페이지: 내가 등록한 상품 목록
