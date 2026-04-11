@@ -50,7 +50,8 @@ public class InquiryServiceImpl implements InquiryService {
         // 첨부 이미지 저장
         if (images != null) {
             for (MultipartFile file : images) {
-                if (file == null || file.isEmpty()) continue;
+                if (file == null || file.isEmpty())
+                    continue;
                 try {
                     FileStore.StoredImage stored = fileStore.storeImageFile(file);
                     inquiryImageRepository.save(InquiryImage.builder()
@@ -60,7 +61,8 @@ public class InquiryServiceImpl implements InquiryService {
                             .imagePath(stored.imagePath())
                             .build());
                 } catch (Exception e) {
-                    log.warn("[Inquiry] 이미지 저장 실패. inquiryNo={}, file={}", inquiry.getInquiryNo(), file.getOriginalFilename(), e);
+                    log.warn("[Inquiry] 이미지 저장 실패. inquiryNo={}, file={}", inquiry.getInquiryNo(),
+                            file.getOriginalFilename(), e);
                 }
             }
         }
@@ -125,13 +127,21 @@ public class InquiryServiceImpl implements InquiryService {
                     inquiry.getMemberNo(),
                     "activity",
                     "문의하신 '" + inquiry.getTitle() + "'에 답변이 등록되었습니다.",
-                    "/inquiry/" + inquiryNo
-            );
+                    "/inquiry/" + inquiryNo);
         } catch (Exception e) {
             log.warn("[Inquiry] 알림 전송 실패. inquiryNo={}", inquiryNo);
         }
 
-        log.info("[Inquiry] 답변 등록. inquiryNo={}, adminNo={}", inquiryNo, adminNo);
+        // 관리자 활동 로그 기록
+        activityLogRepository.save(ActivityLog.builder()
+                .adminNo(adminNo)
+                .action("1:1 문의 답변 등록")
+                .targetId(inquiryNo)
+                .targetType("inquiry")
+                .details("문의 제목: " + inquiry.getTitle())
+                .build());
+
+        log.info("[Inquiry] 답변 등록 및 로그 기록. inquiryNo={}, adminNo={}", inquiryNo, adminNo);
     }
 
     @Override
