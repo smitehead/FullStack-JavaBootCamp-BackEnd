@@ -4,38 +4,63 @@ import com.javajava.project.domain.report.dto.ReportRequestDto;
 import com.javajava.project.domain.report.dto.ReportResponseDto;
 import com.javajava.project.domain.admin.entity.ActivityLog;
 import com.javajava.project.domain.report.entity.Report;
+import com.javajava.project.domain.report.entity.ReportImage;
 import com.javajava.project.domain.admin.repository.ActivityLogRepository;
 import com.javajava.project.domain.member.repository.MemberRepository;
+import com.javajava.project.domain.report.repository.ReportImageRepository;
 import com.javajava.project.domain.report.repository.ReportRepository;
 import com.javajava.project.domain.notification.service.NotificationService;
+import com.javajava.project.global.util.FileStore;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ReportServiceImpl implements ReportService {
 
     private final ReportRepository reportRepository;
+    private final ReportImageRepository reportImageRepository;
     private final MemberRepository memberRepository;
     private final ActivityLogRepository activityLogRepository;
     private final NotificationService notificationService;
+    private final FileStore fileStore;
 
     @Override
     @Transactional
-    public Long submitReport(ReportRequestDto dto) {
-        Report report = Report.builder()
+    public Long submitReport(ReportRequestDto dto, List<MultipartFile> images) {
+        Report saved = reportRepository.save(Report.builder()
                 .reporterNo(dto.getReporterNo())
                 .targetMemberNo(dto.getTargetMemberNo())
                 .targetProductNo(dto.getTargetProductNo())
                 .type(dto.getType())
                 .content(dto.getContent())
-                .build();
+                .build());
 
-        Report saved = reportRepository.save(report);
+        // 첨부 이미지 저장
+        if (images != null) {
+            for (MultipartFile file : images) {
+                if (file == null || file.isEmpty()) continue;
+                try {
+                    FileStore.StoredImage stored = fileStore.storeImageFile(file);
+                    reportImageRepository.save(ReportImage.builder()
+                            .reportNo(saved.getReportNo())
+                            .originalName(stored.originalName())
+                            .uuidName(stored.uuidName())
+                            .imagePath(stored.imagePath())
+                            .build());
+                } catch (Exception e) {
+                    log.warn("[Report] 이미지 저장 실패. reportNo={}, file={}", saved.getReportNo(), file.getOriginalFilename(), e);
+                }
+            }
+        }
+
         return saved.getReportNo();
     }
 
@@ -99,7 +124,7 @@ public class ReportServiceImpl implements ReportService {
     }
 
     /**
-     * 신고 응답 DTO에 신고자/피신고자 닉네임 세팅
+     * 신고 응답 DTO에 신고자/피신고자 닉네임 + 첨부 이미지 URL 세팅
      */
     private List<ReportResponseDto> enrichWithNicknames(List<ReportResponseDto> list) {
         for (ReportResponseDto dto : list) {
@@ -109,6 +134,12 @@ public class ReportServiceImpl implements ReportService {
                 memberRepository.findById(dto.getTargetMemberNo())
                         .ifPresent(m -> dto.setTargetMemberNickname(m.getNickname()));
             }
+            // 첨부 이미지 URL 세팅
+            List<String> urls = reportImageRepository.findByReportNo(dto.getReportNo())
+                    .stream()
+                    .map(img -> "/api/images/" + img.getUuidName())
+                    .toList();
+            dto.setImageUrls(urls);
         }
         return list;
     }

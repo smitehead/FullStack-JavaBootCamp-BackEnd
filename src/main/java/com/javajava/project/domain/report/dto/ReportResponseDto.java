@@ -4,6 +4,7 @@ import com.javajava.project.domain.report.entity.Report;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 public class ReportResponseDto {
@@ -19,6 +20,7 @@ public class ReportResponseDto {
     private String status;         // 접수/처리중/완료/반려
     private String penaltyMsg;     // 제재 내용
     private LocalDateTime createdAt;
+    private List<String> imageUrls; // 첨부 이미지 URL 목록
 
     public static ReportResponseDto from(Report r) {
         ReportResponseDto dto = new ReportResponseDto();
@@ -41,5 +43,9 @@ public class ReportResponseDto {
 
     public void setTargetMemberNickname(String nickname) {
         this.targetMemberNickname = nickname;
+    }
+
+    public void setImageUrls(List<String> imageUrls) {
+        this.imageUrls = imageUrls;
     }
 }

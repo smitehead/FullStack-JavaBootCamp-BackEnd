@@ -4,10 +4,13 @@ import com.javajava.project.domain.community.dto.InquiryAnswerDto;
 import com.javajava.project.domain.community.dto.InquiryRequestDto;
 import com.javajava.project.domain.community.dto.InquiryResponseDto;
 import com.javajava.project.domain.community.entity.Inquiry;
+import com.javajava.project.domain.community.entity.InquiryImage;
+import com.javajava.project.domain.community.repository.InquiryImageRepository;
 import com.javajava.project.domain.community.repository.InquiryRepository;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.domain.notification.service.NotificationService;
+import com.javajava.project.global.util.FileStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -15,8 +18,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -25,12 +30,14 @@ import java.time.LocalDateTime;
 public class InquiryServiceImpl implements InquiryService {
 
     private final InquiryRepository inquiryRepository;
+    private final InquiryImageRepository inquiryImageRepository;
     private final MemberRepository memberRepository;
     private final NotificationService notificationService;
+    private final FileStore fileStore;
 
     @Override
     @Transactional
-    public Long create(Long memberNo, InquiryRequestDto dto) {
+    public Long create(Long memberNo, InquiryRequestDto dto, List<MultipartFile> images) {
         Inquiry inquiry = Inquiry.builder()
                 .memberNo(memberNo)
                 .type(dto.getType())
@@ -39,6 +46,25 @@ public class InquiryServiceImpl implements InquiryService {
                 .content(dto.getContent())
                 .build();
         inquiryRepository.save(inquiry);
+
+        // 첨부 이미지 저장
+        if (images != null) {
+            for (MultipartFile file : images) {
+                if (file == null || file.isEmpty()) continue;
+                try {
+                    FileStore.StoredImage stored = fileStore.storeImageFile(file);
+                    inquiryImageRepository.save(InquiryImage.builder()
+                            .inquiryNo(inquiry.getInquiryNo())
+                            .originalName(stored.originalName())
+                            .uuidName(stored.uuidName())
+                            .imagePath(stored.imagePath())
+                            .build());
+                } catch (Exception e) {
+                    log.warn("[Inquiry] 이미지 저장 실패. inquiryNo={}, file={}", inquiry.getInquiryNo(), file.getOriginalFilename(), e);
+                }
+            }
+        }
+
         return inquiry.getInquiryNo();
     }
 
@@ -46,21 +72,18 @@ public class InquiryServiceImpl implements InquiryService {
     public Page<InquiryResponseDto> getMyInquiries(Long memberNo, int page, int size) {
         Pageable pageable = PageRequest.of(page - 1, size);
         return inquiryRepository.findByMemberNoOrderByCreatedAtDesc(memberNo, pageable)
-                .map(i -> {
-                    String nick = memberRepository.findById(i.getMemberNo())
-                            .map(Member::getNickname).orElse("알 수 없음");
-                    return InquiryResponseDto.from(i, nick);
-                });
+                .map(i -> enrichWithImages(InquiryResponseDto.from(i,
+                        memberRepository.findById(i.getMemberNo())
+                                .map(Member::getNickname).orElse("알 수 없음"))));
     }
 
     @Override
     public InquiryResponseDto getDetail(Long inquiryNo, Long memberNo) {
         Inquiry inquiry = inquiryRepository.findById(inquiryNo)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 문의입니다."));
-        // 본인 문의 또는 관리자만 조회 가능 — 컨트롤러에서 별도 처리 가능
         String nick = memberRepository.findById(inquiry.getMemberNo())
                 .map(Member::getNickname).orElse("알 수 없음");
-        return InquiryResponseDto.from(inquiry, nick);
+        return enrichWithImages(InquiryResponseDto.from(inquiry, nick));
     }
 
     @Override
@@ -69,11 +92,19 @@ public class InquiryServiceImpl implements InquiryService {
         Page<Inquiry> result = (status == null)
                 ? inquiryRepository.findAllByOrderByCreatedAtDesc(pageable)
                 : inquiryRepository.findByStatusOrderByCreatedAtDesc(status, pageable);
-        return result.map(i -> {
-            String nick = memberRepository.findById(i.getMemberNo())
-                    .map(Member::getNickname).orElse("알 수 없음");
-            return InquiryResponseDto.from(i, nick);
-        });
+        return result.map(i -> enrichWithImages(InquiryResponseDto.from(i,
+                memberRepository.findById(i.getMemberNo())
+                        .map(Member::getNickname).orElse("알 수 없음"))));
+    }
+
+    /** 문의 응답 DTO에 첨부 이미지 URL 세팅 */
+    private InquiryResponseDto enrichWithImages(InquiryResponseDto dto) {
+        List<String> urls = inquiryImageRepository.findByInquiryNo(dto.getInquiryNo())
+                .stream()
+                .map(img -> "/api/images/" + img.getUuidName())
+                .toList();
+        dto.setImageUrls(urls);
+        return dto;
     }
 
     @Override

@@ -128,6 +128,38 @@ public class FileStore {
     }
 
     /**
+     * 이미지 파일 저장 후 메타데이터 반환 (신고/문의 이미지 등 범용 용도)
+     * originalName, uuidName, imagePath 를 담은 record 를 반환한다.
+     */
+    public StoredImage storeImageFile(MultipartFile multipartFile) throws IOException {
+        if (multipartFile == null || multipartFile.isEmpty()) {
+            throw new IllegalArgumentException("파일이 비어있습니다.");
+        }
+        if (multipartFile.getSize() > MAX_FILE_SIZE) {
+            throw new IllegalArgumentException("파일 크기는 10MB를 초과할 수 없습니다.");
+        }
+        String contentType = multipartFile.getContentType();
+        if (contentType == null || !ALLOWED_MIME_TYPES.contains(contentType.toLowerCase())) {
+            throw new IllegalArgumentException("허용되지 않는 파일 형식입니다. 이미지 파일만 업로드 가능합니다.");
+        }
+        String ext = extractExt(multipartFile.getOriginalFilename());
+        if (!ALLOWED_EXTENSIONS.contains(ext.toLowerCase())) {
+            throw new IllegalArgumentException("허용되지 않는 파일 확장자입니다: " + ext);
+        }
+        String uuidName = UUID.randomUUID().toString() + "." + ext.toLowerCase();
+        File dir = new File(getUploadDir());
+        if (!dir.exists()) dir.mkdirs();
+        File targetFile = new File(dir, uuidName);
+        multipartFile.transferTo(targetFile);
+        String originalName = multipartFile.getOriginalFilename() != null
+                ? multipartFile.getOriginalFilename() : "unknown";
+        return new StoredImage(originalName, uuidName, targetFile.getAbsolutePath());
+    }
+
+    /** storeImageFile 반환 타입 */
+    public record StoredImage(String originalName, String uuidName, String imagePath) {}
+
+    /**
      * 범용 이미지 파일 저장 (배너, 프로필 등 상품 외 용도)
      * ProductImage 엔티티 생성 없이 파일만 저장하고 UUID 파일명 반환
      */

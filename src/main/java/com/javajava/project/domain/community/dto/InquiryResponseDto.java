@@ -3,10 +3,12 @@ package com.javajava.project.domain.community.dto;
 import com.javajava.project.domain.community.entity.Inquiry;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
-@Getter @Builder
+@Getter @Setter @Builder
 public class InquiryResponseDto {
     private Long inquiryNo;
     private Long memberNo;
@@ -21,6 +23,7 @@ public class InquiryResponseDto {
     private LocalDateTime createdAt;
     private Long adminNo;
     private String adminNickname;
+    private List<String> imageUrls; // 첨부 이미지 URL 목록
 
     public static InquiryResponseDto from(Inquiry i, String nickname) {
         return InquiryResponseDto.builder()
