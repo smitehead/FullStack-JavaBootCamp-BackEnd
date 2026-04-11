@@ -1,5 +1,7 @@
 package com.javajava.project.domain.community.service;
 
+import com.javajava.project.domain.admin.entity.ActivityLog;
+import com.javajava.project.domain.admin.repository.ActivityLogRepository;
 import com.javajava.project.domain.community.dto.InquiryAnswerDto;
 import com.javajava.project.domain.community.dto.InquiryRequestDto;
 import com.javajava.project.domain.community.dto.InquiryResponseDto;
@@ -32,6 +34,7 @@ public class InquiryServiceImpl implements InquiryService {
     private final InquiryRepository inquiryRepository;
     private final InquiryImageRepository inquiryImageRepository;
     private final MemberRepository memberRepository;
+    private final ActivityLogRepository activityLogRepository;
     private final NotificationService notificationService;
     private final FileStore fileStore;
 
@@ -50,8 +53,7 @@ public class InquiryServiceImpl implements InquiryService {
         // 첨부 이미지 저장
         if (images != null) {
             for (MultipartFile file : images) {
-                if (file == null || file.isEmpty())
-                    continue;
+                if (file == null || file.isEmpty()) continue;
                 try {
                     FileStore.StoredImage stored = fileStore.storeImageFile(file);
                     inquiryImageRepository.save(InquiryImage.builder()
@@ -61,8 +63,7 @@ public class InquiryServiceImpl implements InquiryService {
                             .imagePath(stored.imagePath())
                             .build());
                 } catch (Exception e) {
-                    log.warn("[Inquiry] 이미지 저장 실패. inquiryNo={}, file={}", inquiry.getInquiryNo(),
-                            file.getOriginalFilename(), e);
+                    log.warn("[Inquiry] 이미지 저장 실패. inquiryNo={}, file={}", inquiry.getInquiryNo(), file.getOriginalFilename(), e);
                 }
             }
         }
