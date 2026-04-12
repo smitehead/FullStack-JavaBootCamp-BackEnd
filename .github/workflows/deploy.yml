@@ -52,4 +52,5 @@ jobs:
           cd /home/ubuntu/app
           sudo docker compose stop backend
           sudo docker compose rm -f backend
+          sudo docker rmi -f app-backend:latest || true
           sudo docker compose up -d --build backend
