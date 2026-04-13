@@ -125,17 +125,25 @@ public class ChatController {
      */
     @MessageMapping("/chat/message")
     public void handleMessage(ChatMessageRequest request) {
-        log.info("[STOMP] 메시지 수신 - roomId: {}, senderId: {}, uuid: {}",
-                request.getRoomId(), request.getSenderId(), request.getClientUuid());
+        log.info("[STOMP] 메시지 수신 시작 - roomId: {}, senderId: {}, uuid: {}, content: {}",
+                request.getRoomId(), request.getSenderId(), request.getClientUuid(), request.getContent());
 
-        // 1. DB 저장 (Save-then-Broadcast)
-        ChatMessageDto savedMessage = chatService.saveMessage(request);
+        try {
+            // 1. DB 저장 (Save-then-Broadcast)
+            ChatMessageDto savedMessage = chatService.saveMessage(request);
+            log.info("[STOMP] 메시지 DB 저장 성공 - msgNo: {}", savedMessage.getMsgNo());
 
-        // 2. 해당 채팅방 구독자에게 브로드캐스트
-        messagingTemplate.convertAndSend(
-                "/sub/chat/room/" + request.getRoomId(),
-                savedMessage
-        );
+            // 2. 해당 채팅방 구독자에게 브로드캐스트
+            messagingTemplate.convertAndSend(
+                    "/sub/chat/room/" + request.getRoomId(),
+                    savedMessage
+            );
+            log.info("[STOMP] 메시지 브로드캐스트 완료 - roomId: {}", request.getRoomId());
+            
+        } catch (Exception e) {
+            log.error("[STOMP] 메시지 처리 중 오류 발생: {}", e.getMessage(), e);
+            // 에러 상황을 클라이언트에게 별도로 알리고 싶다면 여기서 특정 에러 토픽으로 발송 가능
+        }
     }
 
     /**
