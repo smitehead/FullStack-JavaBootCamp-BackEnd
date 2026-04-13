@@ -64,5 +64,26 @@ public class EmailService {
         return true;
     }
 
+    /**
+     * 임시 비밀번호 이메일 발송
+     */
+    @Async
+    public void sendTempPassword(String email, String tempPassword) throws MessagingException {
+        MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
+        helper.setTo(email);
+        helper.setSubject("[JAVAJAVA] 임시 비밀번호 안내");
+        helper.setText(
+            "<div style='font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;border:1px solid #eee;border-radius:12px'>"
+            + "<h2 style='color:#FF5A5A;margin-bottom:8px'>JAVAJAVA</h2>"
+            + "<p style='color:#333;font-size:15px'>임시 비밀번호가 발급되었습니다.</p>"
+            + "<div style='font-size:24px;font-weight:bold;letter-spacing:4px;color:#111;margin:24px 0'>" + tempPassword + "</div>"
+            + "<p style='color:#999;font-size:12px'>로그인 후 반드시 비밀번호를 변경해주세요.</p>"
+            + "</div>",
+            true
+        );
+        mailSender.send(message);
+    }
+
     private record CodeEntry(String code, LocalDateTime expireAt) {}
 }

@@ -76,4 +76,38 @@ public class AuthController {
         boolean verified = emailService.verifyCode(email, code);
         return ResponseEntity.ok(Map.of("verified", verified));
     }
+
+    /**
+     * 아이디 찾기
+     * POST /api/auth/find-id
+     * 요청: { "email": "user@example.com" }
+     * 응답: { "userId": "testuser" }
+     */
+    @PostMapping("/find-id")
+    public ResponseEntity<Map<String, String>> findId(@RequestBody Map<String, String> body) {
+        String userId = authService.findIdByEmail(body.get("email"));
+        return ResponseEntity.ok(Map.of("userId", userId));
+    }
+
+    /**
+     * 비밀번호 재설정용 인증번호 발송 (아이디+이메일 일치 여부 검증 포함)
+     * POST /api/auth/send-reset-code
+     * 요청: { "userId": "testuser", "email": "user@example.com" }
+     */
+    @PostMapping("/send-reset-code")
+    public ResponseEntity<Void> sendResetCode(@RequestBody Map<String, String> body) throws MessagingException {
+        authService.sendResetCode(body.get("userId"), body.get("email"));
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 임시 비밀번호 발급 및 이메일 발송
+     * POST /api/auth/reset-pw
+     * 요청: { "userId": "testuser", "email": "user@example.com" }
+     */
+    @PostMapping("/reset-pw")
+    public ResponseEntity<Void> resetPassword(@RequestBody Map<String, String> body) throws MessagingException {
+        authService.resetPassword(body.get("userId"), body.get("email"));
+        return ResponseEntity.ok().build();
+    }
 }

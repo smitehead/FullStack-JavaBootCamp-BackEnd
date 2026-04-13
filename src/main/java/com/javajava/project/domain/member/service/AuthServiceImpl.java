@@ -6,10 +6,13 @@ import com.javajava.project.domain.member.dto.LoginResponseDto;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.global.sse.SseService;
+import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +23,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final SseService sseService;
+    private final EmailService emailService;
 
     @Override
     @Transactional
@@ -68,7 +72,35 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void logout(Long memberNo) {
-        // 로그아웃 시 DB의 currentToken을 제거하여 해당 토큰 즉시 무효화
         memberRepository.findById(memberNo).ifPresent(m -> m.setCurrentToken(null));
+    }
+
+    @Override
+    public String findIdByEmail(String email) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("일치하는 이메일 정보가 없습니다."));
+        if (member.getIsActive() == 0) {
+            throw new IllegalArgumentException("탈퇴한 계정입니다.");
+        }
+        return member.getUserId();
+    }
+
+    @Override
+    public void sendResetCode(String userId, String email) throws MessagingException {
+        memberRepository.findByUserIdAndEmail(userId, email)
+                .filter(m -> m.getIsActive() == 1)
+                .orElseThrow(() -> new IllegalArgumentException("아이디와 이메일이 일치하는 회원이 없습니다."));
+        emailService.sendVerificationCode(email);
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(String userId, String email) throws MessagingException {
+        Member member = memberRepository.findByUserIdAndEmail(userId, email)
+                .filter(m -> m.getIsActive() == 1)
+                .orElseThrow(() -> new IllegalArgumentException("아이디와 이메일이 일치하는 회원이 없습니다."));
+        String tempPassword = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        member.setPassword(passwordEncoder.encode(tempPassword));
+        emailService.sendTempPassword(email, tempPassword);
     }
 }
