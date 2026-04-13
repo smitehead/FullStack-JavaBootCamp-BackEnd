@@ -122,4 +122,15 @@ public class SseService {
             sendSafe(clientId, emitter, SseEmitter.event().name("priceUpdate").data(data))
         );
     }
+
+    /**
+     * 판매자 경매 취소 브로드캐스트.
+     * 해당 경매를 보고 있는 모든 클라이언트에게 취소 이벤트 전송.
+     */
+    public void broadcastAuctionCancelled(Long productNo) {
+        Map<String, Object> data = Map.of("productNo", productNo);
+        emitterMap.forEach((clientId, emitter) ->
+            sendSafe(clientId, emitter, SseEmitter.event().name("auctionCancelled").data(data))
+        );
+    }
 }
