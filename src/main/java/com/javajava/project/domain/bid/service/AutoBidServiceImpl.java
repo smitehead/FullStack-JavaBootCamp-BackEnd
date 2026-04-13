@@ -7,6 +7,7 @@ import com.javajava.project.domain.bid.entity.BidHistory;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.point.entity.PointHistory;
 import com.javajava.project.domain.product.entity.Product;
+import com.javajava.project.domain.auction.scheduler.AuctionClosingService;
 import com.javajava.project.domain.bid.repository.AutoBidRepository;
 import com.javajava.project.domain.bid.repository.BidHistoryRepository;
 import com.javajava.project.domain.member.repository.MemberRepository;
@@ -36,6 +37,7 @@ public class AutoBidServiceImpl implements AutoBidService {
     private final PointHistoryRepository pointHistoryRepository;
     private final SseService sseService;
     private final NotificationService notificationService;
+    private final AuctionClosingService auctionClosingService;
 
     @Override
     @Transactional
@@ -236,11 +238,17 @@ public class AutoBidServiceImpl implements AutoBidService {
         try { sseService.sendPointUpdate(winnerNo, winnerMember.getPoints()); }
         catch (Exception e) { log.warn("[AutoBid] SSE 실패: {}", e.getMessage()); }
 
+        // 즉시구매가 도달 여부 확인 — 도달 시 buyoutPrice에 맞춰 cap
+        boolean buyoutTriggered = product.getBuyoutPrice() != null && finalPrice >= product.getBuyoutPrice();
+        if (buyoutTriggered) {
+            finalPrice = product.getBuyoutPrice();
+        }
+
         // 상품 갱신
         product.setCurrentPrice(finalPrice);
         product.setBidCount(product.getBidCount() + 1);
 
-        bidHistoryRepository.save(BidHistory.builder()
+        BidHistory savedBid = bidHistoryRepository.save(BidHistory.builder()
                 .productNo(productNo)
                 .memberNo(winnerNo)
                 .bidPrice(finalPrice)
@@ -249,6 +257,15 @@ public class AutoBidServiceImpl implements AutoBidService {
                 .isCancelled(0)
                 .isWinner(0)
                 .build());
+
+        if (buyoutTriggered) {
+            // 경매 즉시 종료 (동일 트랜잭션 합류)
+            auctionClosingService.closeDueToBuyout(product, savedBid);
+            try { sseService.broadcastBuyoutEnded(productNo, finalPrice, winnerNo); }
+            catch (Exception e) { log.warn("[AutoBid] buyout SSE 실패: {}", e.getMessage()); }
+            log.info("[AutoBid] 즉시구매가 도달 종료: productNo={}, winner={}, price={}", productNo, winnerNo, finalPrice);
+            return;
+        }
 
         try { sseService.broadcastPriceUpdate(productNo, finalPrice, winnerNo); }
         catch (Exception e) { log.warn("[AutoBid] 브로드캐스트 실패: {}", e.getMessage()); }

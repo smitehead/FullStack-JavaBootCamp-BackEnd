@@ -1,6 +1,7 @@
 package com.javajava.project.domain.bid.controller;
 
 import com.javajava.project.domain.bid.dto.BidRequestDto;
+import com.javajava.project.domain.bid.dto.BuyoutRequestDto;
 import com.javajava.project.domain.product.dto.ProductDetailResponseDto;
 import com.javajava.project.domain.bid.service.BidService;
 import lombok.RequiredArgsConstructor;
@@ -38,7 +39,22 @@ public class BidController {
     }
 
     /**
-     * 2. 특정 상품의 입찰 기록 조회
+     * 2. 즉시구매
+     * POST /api/bids/buyout
+     */
+    @PostMapping("/buyout")
+    public ResponseEntity<String> buyout(@RequestBody BuyoutRequestDto dto,
+                                         Authentication authentication) {
+        Long memberNo = (Long) authentication.getPrincipal();
+        String result = bidService.processBuyout(dto.getProductNo(), memberNo);
+        if ("SUCCESS".equals(result)) {
+            return ResponseEntity.ok("즉시 구매가 완료되었습니다.");
+        }
+        return ResponseEntity.badRequest().body(result);
+    }
+
+    /**
+     * 3. 특정 상품의 입찰 기록 조회
      * - 상세 페이지의 '입찰 기록' 탭을 클릭했을 때 호출됩니다.
      * - 닉네임이 포함된 최적화된 리스트를 반환
      */

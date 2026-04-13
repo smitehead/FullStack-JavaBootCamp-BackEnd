@@ -87,4 +87,48 @@ public class AuctionClosingService {
             log.info("[Scheduler] 상품 번호 {} 유찰 처리 (입찰자 없음)", productNo);
         }
     }
+
+    /**
+     * 즉시구매 또는 입찰가 도달로 인한 경매 즉시 종료.
+     * 이미 비관적 락이 걸린 Product/BidHistory 엔티티를 받아 처리하며,
+     * 호출자 트랜잭션에 합류(REQUIRED) → 한 트랜잭션으로 원자적 처리.
+     *
+     * <p>멱등성 이중 보호:
+     * <ul>
+     *   <li>product.status != 0 → 이미 종료됨</li>
+     *   <li>AuctionResult 중복 체크 → Scheduler·직접입찰 동시 실행 방어</li>
+     * </ul>
+     */
+    @Transactional
+    public void closeDueToBuyout(Product product, BidHistory winningBid) {
+        if (product.getStatus() != 0) {
+            log.info("[Buyout] 상품 {} 이미 종료됨 — 건너뜀", product.getProductNo());
+            return;
+        }
+        boolean resultExists = auctionResultRepository.findFirstByBidNo(winningBid.getBidNo()).isPresent();
+        if (resultExists) {
+            log.warn("[Buyout] 상품 {} 낙찰 결과 이미 존재 — 중복 건너뜀", product.getProductNo());
+            return;
+        }
+
+        winningBid.setIsWinner(1);
+        product.setStatus(1);
+        product.setWinnerNo(winningBid.getMemberNo());
+
+        auctionResultRepository.save(AuctionResult.builder()
+                .bidNo(winningBid.getBidNo())
+                .status("배송대기")
+                .build());
+
+        log.info("[Buyout] 즉시구매 경매 종료: productNo={}, winner={}, price={}",
+                product.getProductNo(), winningBid.getMemberNo(), winningBid.getBidPrice());
+
+        // 트랜잭션 커밋 후 알림 발송 (AFTER_COMMIT 리스너가 수신)
+        eventPublisher.publishEvent(new AuctionClosedEvent(
+                product.getProductNo(),
+                product.getTitle(),
+                product.getSellerNo(),
+                winningBid.getMemberNo(),
+                winningBid.getBidNo()));
+    }
 }

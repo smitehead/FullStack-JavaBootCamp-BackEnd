@@ -2,6 +2,10 @@ package com.javajava.project.domain.bid.service;
 
 import com.javajava.project.domain.bid.dto.BidRequestDto;
 import com.javajava.project.domain.product.dto.ProductDetailResponseDto;
+import com.javajava.project.domain.auction.entity.AuctionResult;
+import com.javajava.project.domain.auction.repository.AuctionResultRepository;
+import com.javajava.project.domain.auction.scheduler.AuctionClosingService;
+import com.javajava.project.domain.auction.scheduler.AuctionClosedEvent;
 import com.javajava.project.domain.bid.entity.BidHistory;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.point.entity.PointHistory;
@@ -14,6 +18,7 @@ import com.javajava.project.global.sse.SseService;
 import com.javajava.project.domain.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,9 +36,12 @@ public class BidServiceImpl implements BidService {
     private final MemberRepository memberRepository;
     private final BidHistoryRepository bidHistoryRepository;
     private final PointHistoryRepository pointHistoryRepository;
+    private final AuctionResultRepository auctionResultRepository;
     private final SseService sseService;
     private final NotificationService notificationService;
     private final AutoBidService autoBidService;
+    private final AuctionClosingService auctionClosingService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 입찰 프로세스 실행 (검증 + 포인트 환불/차감 + 상품 갱신 + 입찰 기록)
@@ -113,14 +121,16 @@ public class BidServiceImpl implements BidService {
             try {
                 sseService.sendPointUpdate(prevMemberNo, prevPoints);
             } catch (Exception e) {
-                log.warn("[BidService] SSE 전송 실패: {}", e.getMessage()); }
+                log.warn("[BidService] SSE 전송 실패: {}", e.getMessage());
+            }
 
             try {
                 String msg = String.format("상위 입찰 발생: %s에 더 높은 입찰가가 등록되었습니다.", product.getTitle());
                 notificationService.sendAndSaveNotification(
                         prevMemberNo, "bid", msg, "/products/" + product.getProductNo());
             } catch (Exception e) {
-                log.warn("[BidService] 알림 전송 실패: {}", e.getMessage()); }
+                log.warn("[BidService] 알림 전송 실패: {}", e.getMessage());
+            }
         }
 
         // 7. 현재 입찰자 포인트 차감
@@ -163,19 +173,171 @@ public class BidServiceImpl implements BidService {
             notificationService.sendAndSaveNotification(
                     product.getSellerNo(), "bid", msgToSeller, "/products/" + product.getProductNo());
         } catch (Exception e) {
-            log.warn("[BidService] 알림 전송 실패: {}", e.getMessage()); }
+            log.warn("[BidService] 알림 전송 실패: {}", e.getMessage());
+        }
 
-        // 10. 전체 클라이언트 가격 브로드캐스트 (격리)
+        // 10. 즉시구매가 도달 여부 확인 (입찰가 >= 즉시구매가 → 경매 즉시 종료)
+        boolean buyoutTriggered = product.getBuyoutPrice() != null
+                && bidDto.getBidPrice() >= product.getBuyoutPrice();
+
+        if (buyoutTriggered) {
+            // 경매 즉시 종료 (비관적 락 유지, 동일 트랜잭션)
+            auctionClosingService.closeDueToBuyout(product, newBid);
+            // 경매 종료 SSE 브로드캐스트
+            try {
+                sseService.broadcastBuyoutEnded(product.getProductNo(), bidDto.getBidPrice(), bidDto.getMemberNo());
+            } catch (Exception e) {
+                log.warn("[BidService] buyout SSE 브로드캐스트 실패: {}", e.getMessage());
+            }
+            log.info("[BidService] 입찰가 도달로 즉시구매 종료: productNo={}, price={}", product.getProductNo(),
+                    bidDto.getBidPrice());
+            return "SUCCESS";
+        }
+
+        // 11. 전체 클라이언트 가격 브로드캐스트 (격리)
         try {
             sseService.broadcastPriceUpdate(product.getProductNo(), bidDto.getBidPrice(), bidDto.getMemberNo());
         } catch (Exception e) {
-            log.warn("[BidService] 브로드캐스트 실패: {}", e.getMessage()); }
+            log.warn("[BidService] 브로드캐스트 실패: {}", e.getMessage());
+        }
 
-        // 11. 자동입찰 트리거 (방금 입찰한 사람 제외하고 자동입찰자가 있으면 즉시 응찰)
+        // 12. 자동입찰 트리거 (방금 입찰한 사람 제외하고 자동입찰자가 있으면 즉시 응찰)
         try {
             autoBidService.triggerAutoBids(product.getProductNo(), bidDto.getBidPrice(), bidDto.getMemberNo());
         } catch (Exception e) {
-            log.warn("[BidService] 자동입찰 트리거 실패: {}", e.getMessage()); }
+            log.warn("[BidService] 자동입찰 트리거 실패: {}", e.getMessage());
+        }
+
+        return "SUCCESS";
+    }
+
+    /**
+     * 즉시구매 처리 (버튼 직접 클릭)
+     * 비관적 락 + 경매 즉시 종료 + 포인트 차감/환불 + 알림/SSE
+     */
+    @Override
+    @Transactional
+    public String processBuyout(Long productNo, Long memberNo) {
+        // 1. 상품 비관적 락
+        Product product = productRepository.findByIdWithLock(productNo)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상품입니다."));
+
+        // 2. 유효성 검증
+        if (product.getStatus() != 0 || product.getEndTime().isBefore(LocalDateTime.now())) {
+            return "이미 종료된 경매입니다.";
+        }
+        if (product.getBuyoutPrice() == null) {
+            return "즉시 구매가가 설정되지 않은 상품입니다.";
+        }
+        if (product.getSellerNo().equals(memberNo)) {
+            return "본인이 등록한 상품은 즉시 구매할 수 없습니다.";
+        }
+
+        long buyoutPrice = product.getBuyoutPrice();
+
+        // 3. 현재 최고 입찰자 확인
+        Optional<BidHistory> lastBidOpt = bidHistoryRepository
+                .findFirstByProductNoAndIsCancelledOrderByBidPriceDesc(productNo, 0);
+        Long previousBidderNo = lastBidOpt.map(BidHistory::getMemberNo).orElse(null);
+
+        // 4. 비관적 락 순서 고정 (memberNo 오름차순 — 데드락 방지)
+        Member buyer;
+        Member previousBidder = null;
+
+        if (previousBidderNo != null && !previousBidderNo.equals(memberNo)) {
+            if (previousBidderNo < memberNo) {
+                previousBidder = memberRepository.findByIdWithLock(previousBidderNo)
+                        .orElseThrow(() -> new IllegalStateException("이전 입찰자 정보를 찾을 수 없습니다."));
+                buyer = memberRepository.findByIdWithLock(memberNo)
+                        .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
+            } else {
+                buyer = memberRepository.findByIdWithLock(memberNo)
+                        .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
+                previousBidder = memberRepository.findByIdWithLock(previousBidderNo)
+                        .orElseThrow(() -> new IllegalStateException("이전 입찰자 정보를 찾을 수 없습니다."));
+            }
+        } else {
+            buyer = memberRepository.findByIdWithLock(memberNo)
+                    .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
+        }
+
+        // 5. 포인트 잔액 검증
+        if (buyer.getPoints() < buyoutPrice) {
+            return "보유 포인트가 부족합니다. 즉시 구매가: " + buyoutPrice + "원";
+        }
+
+        // 6. 이전 최고 입찰자 환불
+        if (previousBidder != null && lastBidOpt.isPresent()) {
+            BidHistory lastBid = lastBidOpt.get();
+            previousBidder.setPoints(previousBidder.getPoints() + lastBid.getBidPrice());
+            pointHistoryRepository.save(PointHistory.builder()
+                    .memberNo(previousBidder.getMemberNo())
+                    .type("입찰환불")
+                    .amount(lastBid.getBidPrice())
+                    .balance(previousBidder.getPoints())
+                    .reason("[" + product.getTitle() + "] 즉시구매 발생으로 인한 입찰 환불")
+                    .build());
+            final long prevPoints = previousBidder.getPoints();
+            final Long prevNo = previousBidder.getMemberNo();
+            try { sseService.sendPointUpdate(prevNo, prevPoints); }
+            catch (Exception e) { log.warn("[Buyout] SSE 포인트 전송 실패: {}", e.getMessage()); }
+            try {
+                notificationService.sendAndSaveNotification(prevNo, "bid",
+                        "[" + product.getTitle() + "] 즉시구매로 경매가 종료되어 입찰금이 환불되었습니다.",
+                        "/products/" + productNo);
+            } catch (Exception e) { log.warn("[Buyout] 환불 알림 실패: {}", e.getMessage()); }
+        }
+
+        // 7. 구매자 포인트 차감
+        buyer.setPoints(buyer.getPoints() - buyoutPrice);
+        pointHistoryRepository.save(PointHistory.builder()
+                .memberNo(memberNo)
+                .type("즉시구매차감")
+                .amount(-buyoutPrice)
+                .balance(buyer.getPoints())
+                .reason("[" + product.getTitle() + "] 즉시 구매")
+                .build());
+        final long buyerPoints = buyer.getPoints();
+        try { sseService.sendPointUpdate(memberNo, buyerPoints); }
+        catch (Exception e) { log.warn("[Buyout] SSE 포인트 전송 실패: {}", e.getMessage()); }
+
+        // 8. 입찰 기록 생성 (IS_WINNER=1)
+        BidHistory buyoutBid = bidHistoryRepository.save(BidHistory.builder()
+                .productNo(productNo)
+                .memberNo(memberNo)
+                .bidPrice(buyoutPrice)
+                .bidTime(LocalDateTime.now())
+                .isAuto(0)
+                .isCancelled(0)
+                .isWinner(1)
+                .build());
+
+        // 9. 상품 상태 업데이트
+        product.setCurrentPrice(buyoutPrice);
+        product.setStatus(1);
+        product.setWinnerNo(memberNo);
+        product.setBidCount(product.getBidCount() + 1);
+
+        // 10. 낙찰 결과 저장 (멱등성 이중 보호)
+        boolean resultExists = auctionResultRepository.findFirstByBidNo(buyoutBid.getBidNo()).isPresent();
+        if (!resultExists) {
+            auctionResultRepository.save(AuctionResult.builder()
+                    .bidNo(buyoutBid.getBidNo())
+                    .status("배송대기")
+                    .build());
+        }
+
+        log.info("[Buyout] 즉시구매 완료: productNo={}, buyer={}, price={}", productNo, memberNo, buyoutPrice);
+
+        // 11. 이벤트 발행 (커밋 후 알림 — AuctionNotificationListener 수신)
+        eventPublisher.publishEvent(new AuctionClosedEvent(
+                productNo, product.getTitle(), product.getSellerNo(), memberNo, buyoutBid.getBidNo()));
+
+        // 12. SSE 경매 종료 브로드캐스트
+        try {
+            sseService.broadcastBuyoutEnded(productNo, buyoutPrice, memberNo);
+        } catch (Exception e) {
+            log.warn("[Buyout] SSE 브로드캐스트 실패: {}", e.getMessage()); }
 
         return "SUCCESS";
     }
@@ -233,7 +395,8 @@ public class BidServiceImpl implements BidService {
         try {
             sseService.sendPointUpdate(bidder.getMemberNo(), bidder.getPoints());
         } catch (Exception e) {
-            log.warn("[BidService] SSE 전송 실패: {}", e.getMessage()); }
+            log.warn("[BidService] SSE 전송 실패: {}", e.getMessage());
+        }
     }
 
     @Override
