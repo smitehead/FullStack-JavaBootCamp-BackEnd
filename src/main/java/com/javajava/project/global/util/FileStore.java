@@ -1,6 +1,7 @@
 package com.javajava.project.global.util;
 
 import com.javajava.project.domain.product.entity.ProductImage;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+@Slf4j
 @Component
 public class FileStore {
 
@@ -40,11 +42,15 @@ public class FileStore {
      */
     public String getUploadDir() {
         Path path = Paths.get(fileDir);
+        String finalPath;
         if (path.isAbsolute()) {
-            return path.toString();
+            finalPath = path.toString();
+        } else {
+            // 상대 경로면 프로젝트 루트 기준 절대 경로로 변환
+            finalPath = Paths.get(System.getProperty("user.dir"), fileDir).toAbsolutePath().normalize().toString();
         }
-        // 상대 경로면 프로젝트 루트 기준 절대 경로로 변환
-        return Paths.get(System.getProperty("user.dir"), fileDir).toAbsolutePath().normalize().toString();
+        log.info("[FileStore] 설정된 업로드 디렉토리: {}", finalPath);
+        return finalPath;
     }
 
     /**
