@@ -6,6 +6,7 @@ import com.javajava.project.domain.auction.entity.AuctionResult;
 import com.javajava.project.domain.auction.repository.AuctionResultRepository;
 import com.javajava.project.domain.auction.scheduler.AuctionClosingService;
 import com.javajava.project.domain.auction.scheduler.AuctionClosedEvent;
+import com.javajava.project.domain.auction.scheduler.AuctionExpiryWatchdog;
 import com.javajava.project.domain.bid.entity.BidHistory;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.point.entity.PointHistory;
@@ -41,6 +42,7 @@ public class BidServiceImpl implements BidService {
     private final NotificationService notificationService;
     private final AutoBidService autoBidService;
     private final AuctionClosingService auctionClosingService;
+    private final AuctionExpiryWatchdog auctionExpiryWatchdog;
     private final ApplicationEventPublisher eventPublisher;
 
     /**
@@ -183,7 +185,7 @@ public class BidServiceImpl implements BidService {
         if (buyoutTriggered) {
             // 경매 즉시 종료 (비관적 락 유지, 동일 트랜잭션)
             auctionClosingService.closeDueToBuyout(product, newBid);
-            // 경매 종료 SSE 브로드캐스트
+            auctionExpiryWatchdog.cancel(product.getProductNo());
             try {
                 sseService.broadcastBuyoutEnded(product.getProductNo(), bidDto.getBidPrice(), bidDto.getMemberNo());
             } catch (Exception e) {
@@ -325,22 +327,22 @@ public class BidServiceImpl implements BidService {
         product.setWinnerNo(memberNo);
         product.setBidCount(product.getBidCount() + 1);
 
-        // 10. 낙찰 결과 저장 (멱등성 이중 보호)
-        boolean resultExists = auctionResultRepository.findFirstByBidNo(buyoutBid.getBidNo()).isPresent();
-        if (!resultExists) {
-            auctionResultRepository.save(AuctionResult.builder()
-                    .bidNo(buyoutBid.getBidNo())
-                    .status("배송대기")
-                    .build());
-        }
+        // 10. 낙찰 결과 저장
+        auctionResultRepository.save(AuctionResult.builder()
+                .bidNo(buyoutBid.getBidNo())
+                .status("배송대기")
+                .build());
+
+        // 11. Watchdog 예약 취소 (즉시구매로 종료됐으므로 endTime 스케줄 불필요)
+        auctionExpiryWatchdog.cancel(productNo);
 
         log.info("[Buyout] 즉시구매 완료: productNo={}, buyer={}, price={}", productNo, memberNo, buyoutPrice);
 
-        // 11. 이벤트 발행 (커밋 후 알림 — AuctionNotificationListener 수신)
+        // 12. 이벤트 발행 (커밋 후 알림 — AuctionNotificationListener 수신)
         eventPublisher.publishEvent(new AuctionClosedEvent(
                 productNo, product.getTitle(), product.getSellerNo(), memberNo, buyoutBid.getBidNo()));
 
-        // 12. SSE 경매 종료 브로드캐스트
+        // 13. SSE 경매 종료 브로드캐스트
         try {
             sseService.broadcastBuyoutEnded(productNo, buyoutPrice, memberNo);
         } catch (Exception e) {

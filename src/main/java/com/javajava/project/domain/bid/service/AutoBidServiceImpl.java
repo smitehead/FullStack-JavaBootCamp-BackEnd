@@ -8,6 +8,7 @@ import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.point.entity.PointHistory;
 import com.javajava.project.domain.product.entity.Product;
 import com.javajava.project.domain.auction.scheduler.AuctionClosingService;
+import com.javajava.project.domain.auction.scheduler.AuctionExpiryWatchdog;
 import com.javajava.project.domain.bid.repository.AutoBidRepository;
 import com.javajava.project.domain.bid.repository.BidHistoryRepository;
 import com.javajava.project.domain.member.repository.MemberRepository;
@@ -38,6 +39,7 @@ public class AutoBidServiceImpl implements AutoBidService {
     private final SseService sseService;
     private final NotificationService notificationService;
     private final AuctionClosingService auctionClosingService;
+    private final AuctionExpiryWatchdog auctionExpiryWatchdog;
 
     @Override
     @Transactional
@@ -261,6 +263,7 @@ public class AutoBidServiceImpl implements AutoBidService {
         if (buyoutTriggered) {
             // 경매 즉시 종료 (동일 트랜잭션 합류)
             auctionClosingService.closeDueToBuyout(product, savedBid);
+            auctionExpiryWatchdog.cancel(productNo);
             try { sseService.broadcastBuyoutEnded(productNo, finalPrice, winnerNo); }
             catch (Exception e) { log.warn("[AutoBid] buyout SSE 실패: {}", e.getMessage()); }
             log.info("[AutoBid] 즉시구매가 도달 종료: productNo={}, winner={}, price={}", productNo, winnerNo, finalPrice);
