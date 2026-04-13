@@ -26,7 +26,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .setAllowedOriginPatterns(
                         "http://localhost:5173",
                         "http://localhost:3000",
-                        "http://54.164.62.214:*"
+                        "http://54.164.62.214:*",
+                        "http://3.34.185.4:*"
                 )
                 .withSockJS();
     }

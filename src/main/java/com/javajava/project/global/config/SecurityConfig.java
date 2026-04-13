@@ -55,7 +55,11 @@ public class SecurityConfig {
                 "http://localhost:3000",
                 "http://54.164.62.214:3000",
                 "http://54.164.62.214:5173",
-                "http://54.164.62.214"));
+                "http://54.164.62.214",
+                "http://3.34.185.4",
+                "http://3.34.185.4:5173",
+                "http://3.34.185.4:3000"
+        ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

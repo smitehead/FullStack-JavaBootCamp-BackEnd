@@ -17,11 +17,12 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
      * Oracle 네이티브 쿼리 (FETCH FIRST N ROWS ONLY는 Oracle 12c+)
      */
     @Query(nativeQuery = true, value = """
-        SELECT MSG_NO, ROOM_NO, SENDER_NO, CONTENT, SENT_AT, IS_READ
-        FROM CHAT_MESSAGE
-        WHERE ROOM_NO = :roomNo AND MSG_NO < :lastMsgNo
-        ORDER BY SENT_AT DESC, MSG_NO DESC
-        FETCH FIRST :size ROWS ONLY
+        SELECT * FROM (
+            SELECT MSG_NO, ROOM_NO, SENDER_NO, CONTENT, SENT_AT, IS_READ
+            FROM CHAT_MESSAGE
+            WHERE ROOM_NO = :roomNo AND MSG_NO < :lastMsgNo
+            ORDER BY SENT_AT DESC, MSG_NO DESC
+        ) WHERE ROWNUM <= :size
         """)
     List<Object[]> findMessagesBeforeCursor(
             @Param("roomNo") Long roomNo,
@@ -32,11 +33,12 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
      * [첫 페이지] lastMsgNo 없이 최신 메시지부터 조회
      */
     @Query(nativeQuery = true, value = """
-        SELECT MSG_NO, ROOM_NO, SENDER_NO, CONTENT, SENT_AT, IS_READ
-        FROM CHAT_MESSAGE
-        WHERE ROOM_NO = :roomNo
-        ORDER BY SENT_AT DESC, MSG_NO DESC
-        FETCH FIRST :size ROWS ONLY
+        SELECT * FROM (
+            SELECT MSG_NO, ROOM_NO, SENDER_NO, CONTENT, SENT_AT, IS_READ
+            FROM CHAT_MESSAGE
+            WHERE ROOM_NO = :roomNo
+            ORDER BY SENT_AT DESC, MSG_NO DESC
+        ) WHERE ROWNUM <= :size
         """)
     List<Object[]> findLatestMessages(
             @Param("roomNo") Long roomNo,

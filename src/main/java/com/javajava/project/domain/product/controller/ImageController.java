@@ -2,6 +2,7 @@ package com.javajava.project.domain.product.controller;
 
 import com.javajava.project.global.util.FileStore;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.CacheControl;
@@ -18,6 +19,7 @@ import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/images")
@@ -37,8 +39,10 @@ public class ImageController {
             String uuidName = fileStore.storeGenericFile(file);
             return ResponseEntity.ok(Map.of("url", "/api/images/" + uuidName));
         } catch (IllegalArgumentException e) {
+            log.error("[이미지 업로드] 유효하지 않은 파일: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (IOException e) {
+            log.error("[이미지 업로드] 저장 실패: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "파일 저장에 실패했습니다."));
         }
@@ -57,10 +61,12 @@ public class ImageController {
     public ResponseEntity<Resource> downloadImage(@PathVariable("filename") String filename) {
         try {
             // FileStore가 Path Traversal을 차단하고 안전한 절대 경로를 반환
-            Path filePath = Paths.get(fileStore.getFullPath(filename));
+            String fullPath = fileStore.getFullPath(filename);
+            Path filePath = Paths.get(fullPath);
             Resource resource = new UrlResource(filePath.toUri());
 
             if (!resource.exists() || !resource.isReadable()) {
+                log.warn("[이미지 서빙] 파일을 찾을 수 없거나 읽을 수 없음: {}, 경로: {}", filename, fullPath);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
             }
 
@@ -88,9 +94,10 @@ public class ImageController {
                     .body(resource);
 
         } catch (IllegalArgumentException e) {
-            // Path Traversal 등 잘못된 파일명
+            log.error("[이미지 서빙] 잘못된 경로 접근: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         } catch (Exception e) {
+            log.error("[이미지 서빙] 내부 에러: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
