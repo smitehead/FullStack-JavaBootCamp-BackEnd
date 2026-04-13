@@ -5,7 +5,7 @@
         <parent>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-starter-parent</artifactId>
-                <version>3.5.12-SNAPSHOT</version>
+                <version>3.5.3</version>
                 <relativePath/>
                 <!-- lookup parent from repository -->
         </parent>
@@ -76,7 +76,7 @@
                         <artifactId>spring-boot-starter-mail</artifactId>
                 </dependency>
 
-<!-- JWT 토큰 생성/검증 라이브러리 -->
+                <!-- JWT 토큰 생성/검증 라이브러리 -->
                 <dependency>
                         <groupId>io.jsonwebtoken</groupId>
                         <artifactId>jjwt-api</artifactId>
@@ -97,6 +97,11 @@
                 <dependency>
                         <groupId>org.springframework.boot</groupId>
                         <artifactId>spring-boot-starter-webflux</artifactId>
+                </dependency>
+                <!-- WebSocket + STOMP 설정 -->
+                <dependency>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-starter-websocket</artifactId>
                 </dependency>
         </dependencies>
         <build>

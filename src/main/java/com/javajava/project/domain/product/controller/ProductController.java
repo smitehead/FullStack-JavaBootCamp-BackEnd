@@ -103,6 +103,16 @@ public class ProductController {
         return ResponseEntity.ok().build();
     }
 
+    // 판매자 경매 취소 (조건 A/B/C)
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<Void> cancelAuction(
+            @PathVariable("id") Long productNo,
+            Authentication authentication) {
+        Long memberNo = (Long) authentication.getPrincipal();
+        productService.cancelAuctionBySeller(productNo, memberNo);
+        return ResponseEntity.ok().build();
+    }
+
     /**
      * Authentication에서 memberNo 추출. 비로그인 시 null 반환.
      */

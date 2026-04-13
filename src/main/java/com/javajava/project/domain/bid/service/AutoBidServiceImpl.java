@@ -7,6 +7,8 @@ import com.javajava.project.domain.bid.entity.BidHistory;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.point.entity.PointHistory;
 import com.javajava.project.domain.product.entity.Product;
+import com.javajava.project.domain.auction.scheduler.AuctionClosingService;
+import com.javajava.project.domain.auction.scheduler.AuctionExpiryWatchdog;
 import com.javajava.project.domain.bid.repository.AutoBidRepository;
 import com.javajava.project.domain.bid.repository.BidHistoryRepository;
 import com.javajava.project.domain.member.repository.MemberRepository;
@@ -36,6 +38,8 @@ public class AutoBidServiceImpl implements AutoBidService {
     private final PointHistoryRepository pointHistoryRepository;
     private final SseService sseService;
     private final NotificationService notificationService;
+    private final AuctionClosingService auctionClosingService;
+    private final AuctionExpiryWatchdog auctionExpiryWatchdog;
 
     @Override
     @Transactional
@@ -120,10 +124,10 @@ public class AutoBidServiceImpl implements AutoBidService {
      */
     @Override
     @Transactional
-    public void triggerAutoBids(Long productNo, Long currentPrice, Long triggerMemberNo) {
+    public boolean triggerAutoBids(Long productNo, Long currentPrice, Long triggerMemberNo) {
         Product product = productRepository.findByIdWithLock(productNo).orElse(null);
-        if (product == null) return;
-        if (product.getStatus() != 0 || product.getEndTime().isBefore(LocalDateTime.now())) return;
+        if (product == null) return false;
+        if (product.getStatus() != 0 || product.getEndTime().isBefore(LocalDateTime.now())) return false;
 
         // 활성 자동입찰 목록 (maxPrice 내림차순), 수동 입찰자 제외
         List<AutoBid> autoBids = autoBidRepository.findActiveByProductNo(productNo);
@@ -132,7 +136,7 @@ public class AutoBidServiceImpl implements AutoBidService {
                     .filter(a -> !a.getMemberNo().equals(triggerMemberNo))
                     .toList();
         }
-        if (autoBids.isEmpty()) return;
+        if (autoBids.isEmpty()) return false;
 
         // 현재 최고 입찰 정보
         Optional<BidHistory> lastBidOpt = bidHistoryRepository
@@ -150,7 +154,7 @@ public class AutoBidServiceImpl implements AutoBidService {
                 deactivateWithNotification(autoBids.get(i), product,
                         "더 높은 자동입찰에 의해 자동입찰이 취소되었습니다.");
             }
-            return;
+            return false;
         }
 
         // 승자 한도가 최소 입찰가에 미달 → 승자 포함 전원 실패
@@ -162,7 +166,7 @@ public class AutoBidServiceImpl implements AutoBidService {
             for (AutoBid ab : autoBids) {
                 deactivateWithNotification(ab, product, reason);
             }
-            return;
+            return false;
         }
 
         // ── 2. 최종 낙찰가 계산 ──────────────────────────────────
@@ -206,7 +210,7 @@ public class AutoBidServiceImpl implements AutoBidService {
         // 포인트 부족 시 승자도 실패
         if (winnerMember.getPoints() < finalPrice) {
             deactivateWithNotification(winner, product, "포인트 부족으로 자동입찰이 취소되었습니다.");
-            return;
+            return false;
         }
 
         // 이전 최고 입찰자 환불
@@ -236,11 +240,17 @@ public class AutoBidServiceImpl implements AutoBidService {
         try { sseService.sendPointUpdate(winnerNo, winnerMember.getPoints()); }
         catch (Exception e) { log.warn("[AutoBid] SSE 실패: {}", e.getMessage()); }
 
+        // 즉시구매가 도달 여부 확인 — 도달 시 buyoutPrice에 맞춰 cap
+        boolean buyoutTriggered = product.getBuyoutPrice() != null && finalPrice >= product.getBuyoutPrice();
+        if (buyoutTriggered) {
+            finalPrice = product.getBuyoutPrice();
+        }
+
         // 상품 갱신
         product.setCurrentPrice(finalPrice);
         product.setBidCount(product.getBidCount() + 1);
 
-        bidHistoryRepository.save(BidHistory.builder()
+        BidHistory savedBid = bidHistoryRepository.save(BidHistory.builder()
                 .productNo(productNo)
                 .memberNo(winnerNo)
                 .bidPrice(finalPrice)
@@ -250,10 +260,21 @@ public class AutoBidServiceImpl implements AutoBidService {
                 .isWinner(0)
                 .build());
 
+        if (buyoutTriggered) {
+            // 경매 즉시 종료 (동일 트랜잭션 합류)
+            auctionClosingService.closeDueToBuyout(product, savedBid);
+            auctionExpiryWatchdog.cancel(productNo);
+            try { sseService.broadcastBuyoutEnded(productNo, finalPrice, winnerNo); }
+            catch (Exception e) { log.warn("[AutoBid] buyout SSE 실패: {}", e.getMessage()); }
+            log.info("[AutoBid] 즉시구매가 도달 종료: productNo={}, winner={}, price={}", productNo, winnerNo, finalPrice);
+            return true;
+        }
+
         try { sseService.broadcastPriceUpdate(productNo, finalPrice, winnerNo); }
         catch (Exception e) { log.warn("[AutoBid] 브로드캐스트 실패: {}", e.getMessage()); }
 
         log.info("[AutoBid] 완료: productNo={}, winner={}, finalPrice={}", productNo, winnerNo, finalPrice);
+        return true;
     }
 
     @Override

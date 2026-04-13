@@ -3,6 +3,7 @@ package com.javajava.project.global.sse;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -104,6 +105,32 @@ public class SseService {
         );
         emitterMap.forEach((clientId, emitter) ->
             sendSafe(clientId, emitter, SseEmitter.event().name("priceUpdate").data(data))
+        );
+    }
+
+    /**
+     * 즉시구매 또는 입찰가 도달로 인한 경매 종료 브로드캐스트.
+     * priceUpdate 이벤트에 auctionEnded=true 포함 → 프론트가 경매 종료로 인식.
+     */
+    public void broadcastBuyoutEnded(Long productNo, Long finalPrice, Long buyerNo) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("productNo", productNo);
+        data.put("currentPrice", finalPrice);
+        data.put("bidderNo", buyerNo);
+        data.put("auctionEnded", true);
+        emitterMap.forEach((clientId, emitter) ->
+            sendSafe(clientId, emitter, SseEmitter.event().name("priceUpdate").data(data))
+        );
+    }
+
+    /**
+     * 판매자 경매 취소 브로드캐스트.
+     * 해당 경매를 보고 있는 모든 클라이언트에게 취소 이벤트 전송.
+     */
+    public void broadcastAuctionCancelled(Long productNo) {
+        Map<String, Object> data = Map.of("productNo", productNo);
+        emitterMap.forEach((clientId, emitter) ->
+            sendSafe(clientId, emitter, SseEmitter.event().name("auctionCancelled").data(data))
         );
     }
 }

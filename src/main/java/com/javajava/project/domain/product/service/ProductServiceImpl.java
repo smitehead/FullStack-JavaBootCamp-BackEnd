@@ -20,7 +20,14 @@ import com.javajava.project.domain.auction.repository.AuctionResultRepository;
 import com.javajava.project.domain.auction.entity.AuctionResult;
 import com.javajava.project.domain.auction.scheduler.AuctionExpiryWatchdog;
 import com.javajava.project.global.util.FileStore;
+import com.javajava.project.global.sse.SseService;
 import com.javajava.project.domain.notification.service.NotificationService;
+import com.javajava.project.domain.member.entity.MannerHistory;
+import com.javajava.project.domain.member.repository.MannerHistoryRepository;
+import com.javajava.project.domain.point.entity.PointHistory;
+import com.javajava.project.domain.point.repository.PointHistoryRepository;
+import com.javajava.project.domain.bid.entity.AutoBid;
+import com.javajava.project.domain.bid.repository.AutoBidRepository;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +41,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -60,6 +69,10 @@ public class ProductServiceImpl implements ProductService {
         private final NotificationService notificationService;
         private final AuctionExpiryWatchdog auctionExpiryWatchdog;
         private final CategoryRepository categoryRepository;
+        private final MannerHistoryRepository mannerHistoryRepository;
+        private final PointHistoryRepository pointHistoryRepository;
+        private final AutoBidRepository autoBidRepository;
+        private final SseService sseService;
 
         @Override
         @Transactional
@@ -674,6 +687,128 @@ public class ProductServiceImpl implements ProductService {
                 } catch (Exception e) {
                         log.warn("[ProductService] 경매 취소 알림 전송 실패: {}", e.getMessage());
                 }
+        }
+
+        /**
+         * 판매자 경매 취소 (3단계 조건)
+         *
+         * <ul>
+         *   <li>조건 A: 입찰자 0명 → 즉시 취소, 패널티 없음</li>
+         *   <li>조건 B: 입찰자 ≥ 1명 && 마감 12시간 초과 → 취소 가능, 패널티 부과 (매너온도 -10, 포인트 벌금)</li>
+         *   <li>조건 C: 입찰자 ≥ 1명 && 마감 12시간 이내 → 취소 불가, 관리자 신고 유도</li>
+         * </ul>
+         */
+        @Override
+        @Transactional
+        public void cancelAuctionBySeller(Long productNo, Long memberNo) {
+                // 비관적 락으로 동시 취소/입찰 방지
+                Product product = productRepository.findByIdWithLock(productNo)
+                                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상품입니다."));
+
+                if (!product.getSellerNo().equals(memberNo)) {
+                        throw new IllegalStateException("본인의 상품만 취소할 수 있습니다.");
+                }
+                if (product.getStatus() != 0) {
+                        throw new IllegalStateException("진행 중인 경매만 취소할 수 있습니다.");
+                }
+
+                long bidderCount = bidHistoryRepository.countDistinctParticipants(productNo);
+                long hoursLeft = ChronoUnit.HOURS.between(LocalDateTime.now(), product.getEndTime());
+
+                // ── 조건 C: 마감 임박 + 입찰자 존재 → 취소 불가 ──────────────────────
+                if (bidderCount > 0 && hoursLeft < 12) {
+                        throw new IllegalStateException(
+                                "경매 마감 12시간 이내에는 임의 취소가 불가합니다. " +
+                                "물건 파손 등 불가피한 사유가 있다면 관리자에게 취소를 신청해 주세요.");
+                }
+
+                // ── 조건 B: 입찰자 존재 && 마감 12시간 초과 → 패널티 + 환불 ──────────
+                if (bidderCount > 0) {
+                        Member seller = memberRepository.findByIdWithLock(memberNo)
+                                        .orElseThrow(() -> new IllegalStateException("판매자 정보를 찾을 수 없습니다."));
+
+                        // 매너온도 패널티: -10점 (최저 0점)
+                        double prevTemp = seller.getMannerTemp();
+                        double newTemp = Math.max(0.0, prevTemp - 10.0);
+                        seller.setMannerTemp(newTemp);
+                        mannerHistoryRepository.save(MannerHistory.builder()
+                                        .memberNo(memberNo)
+                                        .previousTemp(prevTemp)
+                                        .newTemp(newTemp)
+                                        .reason("[" + product.getTitle() + "] 경매 임의 취소 패널티")
+                                        .build());
+
+                        // 포인트 벌금: max(1,000, currentPrice × 3%), 잔액 부족 시 취소 불가
+                        long penalty = Math.max(1_000L, (long) (product.getCurrentPrice() * 0.03));
+                        if (seller.getPoints() < penalty) {
+                                throw new IllegalStateException(
+                                        "포인트가 부족하여 취소할 수 없습니다. " +
+                                        "(필요 패널티: " + penalty + "원, 보유: " + seller.getPoints() + "원)");
+                        }
+                        seller.setPoints(seller.getPoints() - penalty);
+                        pointHistoryRepository.save(PointHistory.builder()
+                                        .memberNo(memberNo)
+                                        .type("취소패널티")
+                                        .amount(-penalty)
+                                        .balance(seller.getPoints())
+                                        .reason("[" + product.getTitle() + "] 경매 취소 패널티")
+                                        .build());
+                        try { sseService.sendPointUpdate(memberNo, seller.getPoints()); }
+                        catch (Exception e) { log.warn("[AuctionCancel] 판매자 포인트 SSE 실패: {}", e.getMessage()); }
+
+                        // 현재 최고 입찰자 포인트 환불 (이전 입찰자들은 outbid 시 이미 환불됨)
+                        Optional<BidHistory> topBidOpt = bidHistoryRepository
+                                        .findFirstByProductNoAndIsCancelledOrderByBidPriceDesc(productNo, 0);
+                        if (topBidOpt.isPresent()) {
+                                BidHistory topBid = topBidOpt.get();
+                                Member topBidder = memberRepository.findByIdWithLock(topBid.getMemberNo())
+                                                .orElse(null);
+                                if (topBidder != null) {
+                                        topBidder.setPoints(topBidder.getPoints() + topBid.getBidPrice());
+                                        pointHistoryRepository.save(PointHistory.builder()
+                                                        .memberNo(topBidder.getMemberNo())
+                                                        .type("입찰환불")
+                                                        .amount(topBid.getBidPrice())
+                                                        .balance(topBidder.getPoints())
+                                                        .reason("[" + product.getTitle() + "] 판매자 경매 취소로 인한 환불")
+                                                        .build());
+                                        try { sseService.sendPointUpdate(topBidder.getMemberNo(), topBidder.getPoints()); }
+                                        catch (Exception e) { log.warn("[AuctionCancel] 입찰자 포인트 SSE 실패: {}", e.getMessage()); }
+                                }
+                        }
+                }
+
+                // ── 공통: 활성 자동입찰 전원 비활성화 ──────────────────────────────────
+                List<AutoBid> activeAutoBids = autoBidRepository.findActiveByProductNo(productNo);
+                for (AutoBid autoBid : activeAutoBids) {
+                        autoBid.setIsActive(0);
+                        autoBid.setUpdatedAt(LocalDateTime.now());
+                        autoBidRepository.save(autoBid);
+                }
+
+                // ── 공통: 상품 상태를 취소(2)로 변경 + 스케줄러 취소 ────────────────────
+                product.setStatus(2);
+                auctionExpiryWatchdog.cancel(productNo);
+
+                // ── 공통: 입찰자 전원에게 알림 발송 (취소 알림) ─────────────────────────
+                List<Long> bidderNos = bidHistoryRepository.findDistinctBiddersByProductNo(productNo);
+                for (Long bidderNo : bidderNos) {
+                        try {
+                                notificationService.sendAndSaveNotification(
+                                                bidderNo, "bid",
+                                                "[" + product.getTitle() + "] 판매자의 사정으로 경매가 취소되었습니다.",
+                                                "/products/" + productNo);
+                        } catch (Exception e) {
+                                log.warn("[AuctionCancel] 알림 전송 실패 (bidderNo={}): {}", bidderNo, e.getMessage());
+                        }
+                }
+
+                // ── 공통: SSE 취소 이벤트 브로드캐스트 ─────────────────────────────────
+                try { sseService.broadcastAuctionCancelled(productNo); }
+                catch (Exception e) { log.warn("[AuctionCancel] SSE 브로드캐스트 실패: {}", e.getMessage()); }
+
+                log.info("[AuctionCancel] 판매자 취소 완료: productNo={}, memberNo={}, bidders={}",
+                        productNo, memberNo, bidderNos.size());
         }
 
         @Override

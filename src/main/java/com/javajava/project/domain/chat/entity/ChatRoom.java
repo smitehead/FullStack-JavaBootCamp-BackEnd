@@ -27,8 +27,9 @@ public class ChatRoom {
     @Column(name = "PRODUCT_NO", nullable = false)
     private Long productNo; // 채팅 대상 상품번호 (FK)
 
+    @Builder.Default
     @Column(name = "STATUS", nullable = false, length = 20)
-    private String status = "활성"; // 채팅방 상태 (활성/종료/차단)
+    private String status = "ACTIVE"; // 채팅방 상태 (ACTIVE/DELETED)
 
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
     @Builder.Default

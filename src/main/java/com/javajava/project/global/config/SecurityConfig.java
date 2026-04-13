@@ -98,9 +98,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/sse/**").permitAll()
                         .requestMatchers("/api/images/**").permitAll()
                         .requestMatchers("/api/banners/**").permitAll()
+                        // WebSocket STOMP 엔드포인트 허용
+                        .requestMatchers("/ws-stomp/**").permitAll()
+                        .requestMatchers("/api/chat/**").authenticated()
                         .requestMatchers("/api/inquiries/**").authenticated()
                         .requestMatchers("/api/admin/inquiries/**").authenticated()
-                        // 포인트 API는 인증 필요
+                        // 포인트 API
                         .requestMatchers("/api/points/**").authenticated()
                         .requestMatchers("/api/admin/**").authenticated()
                         .anyRequest().permitAll())

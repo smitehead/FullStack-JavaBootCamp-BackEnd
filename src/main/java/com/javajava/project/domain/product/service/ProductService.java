@@ -50,6 +50,9 @@ public interface ProductService {
     // 관리자: 경매 강제 종료
     void cancelAuctionByAdmin(Long productNo);
 
+    // 판매자: 경매 취소 (조건 A/B/C 적용)
+    void cancelAuctionBySeller(Long productNo, Long memberNo);
+
     // 관리자 대시보드: 대분류별 상품 건수
     List<Map<String, Object>> getCategoryStats();
 }

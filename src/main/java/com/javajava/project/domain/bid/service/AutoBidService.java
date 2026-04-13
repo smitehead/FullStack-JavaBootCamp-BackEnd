@@ -13,8 +13,11 @@ public interface AutoBidService {
     /** 자동입찰 취소 */
     void cancelAutoBid(Long memberNo, Long productNo);
 
-    /** 입찰 발생 시 자동입찰 트리거 */
-    void triggerAutoBids(Long productNo, Long currentPrice, Long triggerMemberNo);
+    /**
+     * 입찰 발생 시 자동입찰 트리거
+     * @return true = 자동입찰이 실행되어 SSE를 전송했음, false = 자동입찰 없음/불가
+     */
+    boolean triggerAutoBids(Long productNo, Long currentPrice, Long triggerMemberNo);
 
     /** 특정 회원의 특정 상품 활성 자동입찰 조회 */
     Optional<AutoBidResponseDto> getActiveAutoBid(Long memberNo, Long productNo);

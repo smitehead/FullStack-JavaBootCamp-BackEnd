@@ -24,6 +24,7 @@ public class ChatMessage {
     @Column(name = "SENDER_NO", nullable = false)
     private Long senderNo; // 발신자 회원번호 (FK)
 
+    @Builder.Default
     @Column(name = "IS_READ", nullable = false)
     private Integer isRead = 0; // 읽음 여부 (1: 읽음)
 
@@ -31,6 +32,6 @@ public class ChatMessage {
     @Builder.Default
     private LocalDateTime sentAt = LocalDateTime.now(); // 전송일시
 
-    @Column(name = "CONTENT", nullable = false, length = 1000)
-    private String content; // 메시지 내용
+    @Column(name = "CONTENT", nullable = false, length = 4000)
+    private String content;
 }
