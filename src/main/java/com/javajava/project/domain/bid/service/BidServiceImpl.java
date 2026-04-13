@@ -194,18 +194,25 @@ public class BidServiceImpl implements BidService {
             return "SUCCESS";
         }
 
-        // 11. 전체 클라이언트 가격 브로드캐스트 (격리)
+        // 11. 자동입찰 트리거 (방금 입찰한 사람 제외)
+        //     자동입찰이 실행되면 내부에서 SSE를 직접 전송하므로, 수동 입찰의 중간 SSE는 생략한다.
+        //     → 클라이언트가 "수동 입찰자가 1위" SSE를 받은 직후 "자동입찰자가 1위" SSE를 받아
+        //       모달이 순간적으로 flicker 되는 문제를 근본적으로 차단.
+        boolean autoBidFired = false;
         try {
-            sseService.broadcastPriceUpdate(product.getProductNo(), bidDto.getBidPrice(), bidDto.getMemberNo());
-        } catch (Exception e) {
-            log.warn("[BidService] 브로드캐스트 실패: {}", e.getMessage());
-        }
-
-        // 12. 자동입찰 트리거 (방금 입찰한 사람 제외하고 자동입찰자가 있으면 즉시 응찰)
-        try {
-            autoBidService.triggerAutoBids(product.getProductNo(), bidDto.getBidPrice(), bidDto.getMemberNo());
+            autoBidFired = autoBidService.triggerAutoBids(
+                    product.getProductNo(), bidDto.getBidPrice(), bidDto.getMemberNo());
         } catch (Exception e) {
             log.warn("[BidService] 자동입찰 트리거 실패: {}", e.getMessage());
+        }
+
+        // 12. 자동입찰이 없었을 때만 수동 입찰 SSE 브로드캐스트 (격리)
+        if (!autoBidFired) {
+            try {
+                sseService.broadcastPriceUpdate(product.getProductNo(), bidDto.getBidPrice(), bidDto.getMemberNo());
+            } catch (Exception e) {
+                log.warn("[BidService] 브로드캐스트 실패: {}", e.getMessage());
+            }
         }
 
         return "SUCCESS";
