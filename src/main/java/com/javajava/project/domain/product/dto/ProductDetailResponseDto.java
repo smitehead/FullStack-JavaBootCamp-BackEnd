@@ -24,6 +24,13 @@ public class ProductDetailResponseDto {
     private Long shippingFee;
     private Long participantCount;
 
+    /**
+     * 경매 진행 상태.
+     * 0: 진행중(ACTIVE) | 1: 낙찰완료(COMPLETED) | 2: 판매자취소(CANCELED)
+     * 3: 결제대기(PENDING_PAYMENT) | 4: 유찰/최종실패(CLOSED_FAILED)
+     */
+    private Integer status;
+
     private List<String> images;
     private Boolean isWishlisted;
     private Long wishlistCount;

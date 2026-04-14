@@ -12,6 +12,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 /**
@@ -54,7 +55,8 @@ public class AuctionClosingService {
 
             // DB 처리 (트랜잭션 내)
             winningBid.setIsWinner(1);
-            product.setStatus(1);
+            // status=3 (PENDING_PAYMENT): 낙찰 확정 후 12시간 결제 대기
+            product.setStatus(3);
             product.setWinnerNo(winningBid.getMemberNo());
 
             // 멱등성 보장: AuctionResult 중복 생성 방지 (Watchdog+Scheduler 동시 실행 race condition 대비)
@@ -68,6 +70,7 @@ public class AuctionClosingService {
             auctionResultRepository.save(AuctionResult.builder()
                     .bidNo(winningBid.getBidNo())
                     .status("배송대기")
+                    .paymentDueDate(LocalDateTime.now().plusHours(12)) // 결제 마감 12시간
                     .build());
 
             log.info("[Scheduler] 상품 번호 {} 낙찰 완료 (입찰번호: {}, 낙찰자: {})",
@@ -83,7 +86,8 @@ public class AuctionClosingService {
                     winningBid.getBidNo()));
 
         } else {
-            product.setStatus(2);
+            // 입찰자 없는 유찰 → status=4 (CLOSED_FAILED)
+            product.setStatus(4);
             log.info("[Scheduler] 상품 번호 {} 유찰 처리 (입찰자 없음)", productNo);
         }
     }
@@ -112,12 +116,14 @@ public class AuctionClosingService {
         }
 
         winningBid.setIsWinner(1);
-        product.setStatus(1);
+        // status=3 (PENDING_PAYMENT): 즉시구매도 결제 확인 전까지 대기 상태
+        product.setStatus(3);
         product.setWinnerNo(winningBid.getMemberNo());
 
         auctionResultRepository.save(AuctionResult.builder()
                 .bidNo(winningBid.getBidNo())
                 .status("배송대기")
+                .paymentDueDate(LocalDateTime.now().plusHours(12)) // 결제 마감 12시간
                 .build());
 
         log.info("[Buyout] 즉시구매 경매 종료: productNo={}, winner={}, price={}",

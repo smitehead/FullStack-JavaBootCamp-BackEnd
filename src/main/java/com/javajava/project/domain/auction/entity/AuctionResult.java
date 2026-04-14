@@ -33,4 +33,11 @@ public class AuctionResult {
 
     @Column(name = "CONFIRMED_AT")
     private LocalDateTime confirmedAt;
+
+    /**
+     * 결제 마감 일시. 낙찰 확정 시 +12시간, 차순위 승계 시 다시 +12시간 갱신.
+     * SECTION 3 DB 마이그레이션(PAYMENT_DUE_DATE) 대응.
+     */
+    @Column(name = "PAYMENT_DUE_DATE")
+    private LocalDateTime paymentDueDate;
 }

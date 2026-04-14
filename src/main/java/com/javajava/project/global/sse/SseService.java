@@ -124,6 +124,26 @@ public class SseService {
     }
 
     /**
+     * 최고 입찰자 취소 브로드캐스트.
+     * 1등이 입찰을 취소하면 현재가가 2등 가격으로 낮아지며 모든 구독자에게 전파.
+     * 프론트는 priceUpdate 이벤트에 bidCancelled=true 플래그가 있으면 취소 처리.
+     *
+     * @param productNo         상품 번호
+     * @param newPrice          차순위 입찰가 (2등 가격). 2등이 없으면 시작가.
+     * @param successorBidderNo 차순위 입찰자 memberNo. 없으면 null.
+     */
+    public void broadcastBidCancelled(Long productNo, Long newPrice, Long successorBidderNo) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("productNo", productNo);
+        data.put("currentPrice", newPrice);
+        data.put("bidderNo", successorBidderNo);
+        data.put("bidCancelled", true);
+        emitterMap.forEach((clientId, emitter) ->
+            sendSafe(clientId, emitter, SseEmitter.event().name("priceUpdate").data(data))
+        );
+    }
+
+    /**
      * 판매자 경매 취소 브로드캐스트.
      * 해당 경매를 보고 있는 모든 클라이언트에게 취소 이벤트 전송.
      */
