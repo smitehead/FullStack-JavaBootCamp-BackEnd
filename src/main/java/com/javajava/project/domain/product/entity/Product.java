@@ -88,4 +88,11 @@ public class Product {
     // 최종 낙찰자 회원번호. 낙찰 전에는 NULL
     @Column(name = "WINNER_NO")
     private Long winnerNo;
+
+    /**
+     * 재등록 시 원본(유찰된) 상품번호. 유찰 파생 이력 추적용.
+     * SECTION 1 DB 마이그레이션(PARENT_PRODUCT_NO) 대응.
+     */
+    @Column(name = "PARENT_PRODUCT_NO")
+    private Long parentProductNo;
 }

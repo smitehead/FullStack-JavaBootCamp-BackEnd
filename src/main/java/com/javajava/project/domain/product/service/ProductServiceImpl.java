@@ -348,6 +348,7 @@ public class ProductServiceImpl implements ProductService {
                                 .endTime(product.getEndTime())
                                 .buyoutPrice(product.getBuyoutPrice())
                                 .shippingFee(product.getShippingFee())
+                                .status(product.getStatus())
                                 .participantCount(
                                                 bidHistoryRepository.countDistinctParticipants(product.getProductNo()))
                                 .images(imageUrls)

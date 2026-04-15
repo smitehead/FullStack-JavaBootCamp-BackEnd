@@ -4,12 +4,14 @@ import com.javajava.project.domain.bid.dto.BidRequestDto;
 import com.javajava.project.domain.bid.dto.BuyoutRequestDto;
 import com.javajava.project.domain.product.dto.ProductDetailResponseDto;
 import com.javajava.project.domain.bid.service.BidService;
+import com.javajava.project.domain.bid.service.BidCancelService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bids")
@@ -17,6 +19,7 @@ import java.util.List;
 public class BidController {
 
     private final BidService bidService;
+    private final BidCancelService bidCancelService;
 
     /**
      * 1. 실시간 입찰버튼
@@ -67,15 +70,43 @@ public class BidController {
     }
 
     /**
-     * 3. 입찰 취소 (필요 시 사용)
+     * 3. 입찰 취소 (관리자/내부용)
      * - 관리자 혹은 특정 조건 하에 입찰을 취소할 때 사용합니다.
      */
     @PatchMapping("/{bidNo}/cancel")
     public ResponseEntity<Void> cancelBid(
             @PathVariable("bidNo") Long bidNo,
             @RequestParam(name = "reason") String reason) {
-        
+
         bidService.cancelBid(bidNo, reason);
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 4. 최고 입찰자 본인 입찰 취소 (Phase 1)
+     * POST /api/bids/cancel
+     *
+     * <p>현재 로그인한 사용자가 해당 상품의 최고 입찰자인 경우에만 취소 가능.
+     * 취소 시 입찰가의 10% 위약금이 즉시 차감되며, 판매자에게 보상금으로 지급됨.
+     * 마감 시간은 변경되지 않음.
+     *
+     * @param body  { "productNo": 123 } — 취소할 상품 번호
+     * @param authentication SecurityContext에서 추출한 인증 정보 (memberNo)
+     */
+    @PostMapping("/cancel")
+    public ResponseEntity<Map<String, String>> cancelMyHighestBid(
+            @RequestBody Map<String, Long> body,
+            Authentication authentication) {
+
+        Long memberNo = (Long) authentication.getPrincipal();
+        Long productNo = body.get("productNo");
+
+        if (productNo == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "상품 번호(productNo)는 필수입니다."));
+        }
+
+        bidCancelService.cancelHighestBid(productNo, memberNo);
+        return ResponseEntity.ok(Map.of("message", "입찰이 취소되었습니다. 위약금이 차감되었습니다."));
     }
 }
