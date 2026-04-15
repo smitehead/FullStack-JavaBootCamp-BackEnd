@@ -123,22 +123,30 @@ public class ReportServiceImpl implements ReportService {
                 .details("신고 처리: #" + reportNo + " (" + status + ")")
                 .build());
 
-        // 신고자에게 처리 결과 알림
-        notificationService.sendAndSaveNotification(
-                report.getReporterNo(),
-                "신고처리",
-                "접수하신 신고(#" + reportNo + ")가 " + status + " 처리되었습니다.",
-                null
-        );
-
-        // 피신고자에게도 제재 알림 (제재 내용이 있는 경우)
-        if (penaltyMsg != null && report.getTargetMemberNo() != null) {
+        // 신고자에게 처리 결과 알림 (탈퇴 회원이면 무시)
+        try {
             notificationService.sendAndSaveNotification(
-                    report.getTargetMemberNo(),
-                    "제재",
-                    "신고 처리에 따른 제재 안내: " + penaltyMsg,
+                    report.getReporterNo(),
+                    "신고처리",
+                    "접수하신 신고(#" + reportNo + ")가 " + status + " 처리되었습니다.",
                     null
             );
+        } catch (Exception e) {
+            log.warn("[Report] 신고자 알림 전송 실패. reportNo={}, reporterNo={}", reportNo, report.getReporterNo());
+        }
+
+        // 피신고자에게도 제재 알림 (제재 내용이 있는 경우, 탈퇴 회원이면 무시)
+        if (penaltyMsg != null && report.getTargetMemberNo() != null) {
+            try {
+                notificationService.sendAndSaveNotification(
+                        report.getTargetMemberNo(),
+                        "제재",
+                        "신고 처리에 따른 제재 안내: " + penaltyMsg,
+                        null
+                );
+            } catch (Exception e) {
+                log.warn("[Report] 피신고자 알림 전송 실패. reportNo={}, targetMemberNo={}", reportNo, report.getTargetMemberNo());
+            }
         }
     }
 
