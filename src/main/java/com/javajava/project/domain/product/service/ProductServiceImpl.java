@@ -226,9 +226,9 @@ public class ProductServiceImpl implements ProductService {
                                 predicates.add(cb.like(root.get("tradeAddrShort"), "%" + neighborhood + "%"));
                         }
 
-                        // 거래 방식 필터 (택배, 대면)
+                        // 거래 방식 필터 (AND: 둘 다 체크 시 혼합만)
                         if (Boolean.TRUE.equals(delivery) && Boolean.TRUE.equals(face))
-                                predicates.add(cb.in(root.get("tradeType")).value(Arrays.asList("택배거래", "직거래", "혼합")));
+                                predicates.add(cb.equal(root.get("tradeType"), "혼합"));
                         else if (Boolean.TRUE.equals(delivery))
                                 predicates.add(cb.in(root.get("tradeType")).value(Arrays.asList("택배거래", "혼합")));
                         else if (Boolean.TRUE.equals(face))
