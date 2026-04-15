@@ -255,6 +255,9 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 .build());
         sseService.sendPointUpdate(buyer.getMemberNo(), buyer.getPoints());
 
+        // 거래 취소 시 구매자 매너온도 하락 (-0.5, 최저 0도)
+        buyer.setMannerTemp(Math.max(0, buyer.getMannerTemp() - 0.5));
+
         result.setStatus("거래취소");
     }
 
