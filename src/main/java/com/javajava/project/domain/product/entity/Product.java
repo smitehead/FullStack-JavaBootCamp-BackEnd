@@ -95,4 +95,13 @@ public class Product {
      */
     @Column(name = "PARENT_PRODUCT_NO")
     private Long parentProductNo;
+
+    /**
+     * 입찰 취소 시 누적된 위약금 풀.
+     * 결제 완료 시 2.5%는 판매자에게, 2.5%는 구매자 할인으로 분배.
+     * 최종 유찰(CLOSED_FAILED) 시 전액 판매자에게 지급.
+     */
+    @Builder.Default
+    @Column(name = "PENALTY_POOL", nullable = false)
+    private Long penaltyPool = 0L;
 }

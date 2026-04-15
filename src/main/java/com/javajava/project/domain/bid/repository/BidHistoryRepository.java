@@ -53,6 +53,18 @@ public interface BidHistoryRepository extends JpaRepository<BidHistory, Long> {
     // findFirst: 중복 낙찰 처리 시 NonUniqueResultException 방지
     Optional<BidHistory> findFirstByProductNoAndIsWinnerOrderByBidPriceDesc(Long productNo, Integer isWinner);
 
+    /**
+     * 차순위 후보 목록 조회 — 특정 회원을 완전히 제외.
+     * <p>입찰 취소자의 모든 입찰을 건너뛰기 위해 memberNo 전체 제외 조건 적용.
+     * isCancelled=0 인 유효한 입찰 중 해당 회원 제외, 입찰가 내림차순 정렬.
+     *
+     * @param productNo        대상 상품 번호
+     * @param isCancelled      0 = 유효 입찰만
+     * @param excludeMemberNo  제외할 회원번호 (취소한 회원)
+     */
+    List<BidHistory> findByProductNoAndIsCancelledAndMemberNoNotOrderByBidPriceDesc(
+            Long productNo, Integer isCancelled, Long excludeMemberNo);
+
     // 특정 상품의 고유 입찰자 memberNo 목록 (취소 입찰 제외)
     @Query("SELECT DISTINCT b.memberNo FROM BidHistory b WHERE b.productNo = :productNo AND b.isCancelled = 0")
     List<Long> findDistinctBiddersByProductNo(@Param("productNo") Long productNo);
