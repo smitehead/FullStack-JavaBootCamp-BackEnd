@@ -3,6 +3,7 @@ package com.javajava.project.domain.community.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
+import java.time.LocalDateTime;
 
 @Getter @Setter
 @NoArgsConstructor
@@ -22,4 +23,7 @@ public class NoticeRequestDto {
     private String content;
 
     private Boolean isImportant; // true면 중요 공지
+
+    private LocalDateTime maintenanceStart; // 점검 시작 일시
+    private LocalDateTime maintenanceEnd;   // 점검 종료 일시
 }

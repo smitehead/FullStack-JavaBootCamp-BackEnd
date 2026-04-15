@@ -39,6 +39,12 @@ public class Notice {
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Column(name = "MAINTENANCE_START")
+    private LocalDateTime maintenanceStart; // 점검 시작 일시 (점검 공지에만 사용)
+
+    @Column(name = "MAINTENANCE_END")
+    private LocalDateTime maintenanceEnd;   // 점검 종료 일시 (점검 공지에만 사용)
+
     @Column(name = "IS_DELETED", nullable = false)
     @Builder.Default
     private Integer isDeleted = 0;

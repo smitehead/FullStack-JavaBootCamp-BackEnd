@@ -18,6 +18,8 @@ public class NoticeResponseDto {
     private Boolean isImportant;
     private LocalDateTime createdAt;
     private Integer isDeleted;
+    private LocalDateTime maintenanceStart;
+    private LocalDateTime maintenanceEnd;
 
     public static NoticeResponseDto from(Notice notice) {
         return NoticeResponseDto.builder()
@@ -28,6 +30,8 @@ public class NoticeResponseDto {
                 .isImportant(notice.getIsImportant() != null && notice.getIsImportant() == 1)
                 .createdAt(notice.getCreatedAt())
                 .isDeleted(notice.getIsDeleted())
+                .maintenanceStart(notice.getMaintenanceStart())
+                .maintenanceEnd(notice.getMaintenanceEnd())
                 .build();
     }
 }

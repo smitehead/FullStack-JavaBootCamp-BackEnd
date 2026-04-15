@@ -51,6 +51,8 @@ public class NoticeServiceImpl implements NoticeService {
                 .title(dto.getTitle())
                 .content(dto.getContent())
                 .isImportant(Boolean.TRUE.equals(dto.getIsImportant()) ? 1 : 0)
+                .maintenanceStart(dto.getMaintenanceStart())
+                .maintenanceEnd(dto.getMaintenanceEnd())
                 .build();
         return noticeRepository.save(notice).getNoticeNo();
     }
@@ -64,6 +66,8 @@ public class NoticeServiceImpl implements NoticeService {
         notice.setTitle(dto.getTitle());
         notice.setContent(dto.getContent());
         notice.setIsImportant(Boolean.TRUE.equals(dto.getIsImportant()) ? 1 : 0);
+        notice.setMaintenanceStart(dto.getMaintenanceStart());
+        notice.setMaintenanceEnd(dto.getMaintenanceEnd());
     }
 
     @Override
