@@ -84,29 +84,23 @@ public class BidController {
 
     /**
      * 4. 최고 입찰자 본인 입찰 취소 (Phase 1)
-     * POST /api/bids/cancel
+     * POST /api/bids/{productId}/cancel
      *
      * <p>현재 로그인한 사용자가 해당 상품의 최고 입찰자인 경우에만 취소 가능.
-     * 취소 시 입찰가의 10% 위약금이 즉시 차감되며, 판매자에게 보상금으로 지급됨.
+     * 취소 시 입찰가의 5% 위약금이 차감되어 위약금 풀에 누적됨.
+     * 차순위 후보 중 포인트 충분한 첫 번째에게 즉시 낙찰 승계.
      * 마감 시간은 변경되지 않음.
      *
-     * @param body  { "productNo": 123 } — 취소할 상품 번호
+     * @param productId      취소할 상품 번호 (Path Variable)
      * @param authentication SecurityContext에서 추출한 인증 정보 (memberNo)
      */
-    @PostMapping("/cancel")
+    @PostMapping("/{productId}/cancel")
     public ResponseEntity<Map<String, String>> cancelMyHighestBid(
-            @RequestBody Map<String, Long> body,
+            @PathVariable("productId") Long productId,
             Authentication authentication) {
 
         Long memberNo = (Long) authentication.getPrincipal();
-        Long productNo = body.get("productNo");
-
-        if (productNo == null) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("error", "상품 번호(productNo)는 필수입니다."));
-        }
-
-        bidCancelService.cancelHighestBid(productNo, memberNo);
-        return ResponseEntity.ok(Map.of("message", "입찰이 취소되었습니다. 위약금이 차감되었습니다."));
+        bidCancelService.cancelHighestBid(productId, memberNo);
+        return ResponseEntity.ok(Map.of("message", "입찰이 취소되었습니다. 위약금(5%)이 차감되었습니다."));
     }
 }

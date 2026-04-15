@@ -40,4 +40,13 @@ public class AuctionResult {
      */
     @Column(name = "PAYMENT_DUE_DATE")
     private LocalDateTime paymentDueDate;
+
+    /**
+     * 스케줄러에 의해 강제 승계된 낙찰자 여부.
+     * 1 = 강제 승계(본인 의사 없음). 결제 불이행 시 매너 패널티 면제 대상.
+     * 0 = 자발적 낙찰(정상 경매 종료 or 입찰 후 1등).
+     */
+    @Builder.Default
+    @Column(name = "IS_FORCE_PROMOTED", nullable = false)
+    private Integer isForcePromoted = 0;
 }
