@@ -52,6 +52,7 @@ public class MemberServiceImpl implements MemberService {
                 .nickname(dto.getNickname())
                 .email(dto.getEmail())
                 .phoneNum(dto.getPhoneNum())
+                .addrRoad(dto.getAddrRoad())
                 .addrDetail(dto.getAddrDetail())
                 .addrShort(dto.getAddrShort())
                 .birthDate(dto.getBirthDate())
