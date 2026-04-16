@@ -53,7 +53,8 @@ import java.util.List;
 public class BidCancelService {
 
     /** 입찰 취소 가능 최소 잔여 시간 (시간 단위). 이 시간 이내이면 서버에서도 차단. */
-    private static final long CANCEL_BLOCK_HOURS = 12L;
+    // TODO: QA 완료 후 12L 로 복구
+    private static final long CANCEL_BLOCK_HOURS = 0L;
 
     private static final double PENALTY_RATE = 0.05; // 위약금 5%
 
