@@ -29,6 +29,12 @@ public class AuctionResultResponseDto {
     private String deliveryAddrRoad;
     private String deliveryAddrDetail;
 
+    /**
+     * 입찰 취소 위약금 풀에서 구매자에게 돌아오는 캐시백 (penaltyPool / 2).
+     * 경쟁 입찰자 취소가 없었으면 0. 결제 완료 시 포인트로 지급됨.
+     */
+    private Long buyerCashback;
+
     @Getter
     @Builder
     public static class SellerInfo {

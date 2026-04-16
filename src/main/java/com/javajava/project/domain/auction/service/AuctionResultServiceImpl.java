@@ -68,6 +68,9 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 .map(img -> "/api/images/" + img.getUuidName())
                 .toList();
 
+        long pool = product.getPenaltyPool() != null ? product.getPenaltyPool() : 0L;
+        long buyerCashback = pool / 2;
+
         return AuctionResultResponseDto.builder()
                 .resultNo(result.getResultNo())
                 .status(result.getStatus())
@@ -86,6 +89,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                         .build())
                 .deliveryAddrRoad(result.getDeliveryAddrRoad())
                 .deliveryAddrDetail(result.getDeliveryAddrDetail())
+                .buyerCashback(buyerCashback)
                 .build();
     }
 
@@ -123,6 +127,45 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 .balance(seller.getPoints())
                 .reason("[" + product.getTitle() + "] 낙찰 대금 수령")
                 .build());
+
+        // ─────────────────────────────────────────────────────────────────
+        // penaltyPool 분배: 정상 결제 완료 시 위약금 풀의 절반씩 구매자·판매자에게 지급
+        //   - 입찰 취소마다 5% 위약금이 penaltyPool에 누적되어 있음
+        //   - 구매자: penaltyPool 의 50% 캐시백 (경쟁 과정에서의 리워드)
+        //   - 판매자: penaltyPool 의 50% 추가 지급 (취소로 인한 경매 진행 손실 보상)
+        // ─────────────────────────────────────────────────────────────────
+        long pool = product.getPenaltyPool();
+        if (pool > 0) {
+            long buyerShare  = pool / 2;
+            long sellerShare = pool - buyerShare; // 홀수 오차는 판매자에게
+
+            Member buyer = memberRepository.findById(memberNo)
+                    .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
+
+            buyer.setPoints(buyer.getPoints() + buyerShare);
+            pointHistoryRepository.save(PointHistory.builder()
+                    .memberNo(buyer.getMemberNo())
+                    .type("위약금보상")
+                    .amount(buyerShare)
+                    .balance(buyer.getPoints())
+                    .reason("[" + product.getTitle() + "] 입찰 취소 위약금 풀 보상 (구매자 50%)")
+                    .build());
+
+            seller.setPoints(seller.getPoints() + sellerShare);
+            pointHistoryRepository.save(PointHistory.builder()
+                    .memberNo(seller.getMemberNo())
+                    .type("위약금보상")
+                    .amount(sellerShare)
+                    .balance(seller.getPoints())
+                    .reason("[" + product.getTitle() + "] 입찰 취소 위약금 풀 보상 (판매자 50%)")
+                    .build());
+
+            product.setPenaltyPool(0L);
+
+            sseService.sendPointUpdate(buyer.getMemberNo(), buyer.getPoints());
+            log.info("[AuctionResult] penaltyPool 분배 완료: productNo={}, pool={}P, 구매자={}P, 판매자={}P",
+                    product.getProductNo(), pool, buyerShare, sellerShare);
+        }
 
         result.setStatus("결제완료");
         String fullAddr = (address != null && !address.isBlank())
