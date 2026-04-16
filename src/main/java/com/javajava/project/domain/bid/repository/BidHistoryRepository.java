@@ -19,12 +19,15 @@ public interface BidHistoryRepository extends JpaRepository<BidHistory, Long> {
     // 회원이 입찰한 내역 조회
     List<BidHistory> findByMemberNo(Long memberNo);
 
-    //입찰 내역(b)과 회원(m)의 닉네임을 조인하여 한 번에 가져옵니다.
+    // 상세 페이지 입찰 기록 조회: 취소된 입찰 제외 (isCancelled = 0 만 노출)
     @Query("SELECT b, m.nickname FROM BidHistory b " +
            "JOIN Member m ON b.memberNo = m.memberNo " +
-           "WHERE b.productNo = :productNo " +
+           "WHERE b.productNo = :productNo AND b.isCancelled = 0 " +
            "ORDER BY b.bidTime DESC")
     List<Object[]> findBidHistoryWithNickname(@Param("productNo") Long productNo);
+
+    // 재입찰 차단 검증: 해당 상품에 취소 이력이 있는지 확인
+    boolean existsByProductNoAndMemberNoAndIsCancelled(Long productNo, Long memberNo, Integer isCancelled);
 
     // 특정 상품에 입찰한 고유 회원 수 조회
     @Query("SELECT COUNT(DISTINCT b.memberNo) FROM BidHistory b WHERE b.productNo = :productNo AND b.isCancelled = 0")

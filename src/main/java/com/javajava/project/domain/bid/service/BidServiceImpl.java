@@ -63,6 +63,11 @@ public class BidServiceImpl implements BidService {
         if (product.getSellerNo().equals(bidDto.getMemberNo())) {
             return "본인이 등록한 상품에는 입찰할 수 없습니다.";
         }
+        // 재입찰 차단: 이 상품에 취소 이력이 있는 회원은 영구 차단
+        if (bidHistoryRepository.existsByProductNoAndMemberNoAndIsCancelled(
+                bidDto.getProductNo(), bidDto.getMemberNo(), 1)) {
+            return "입찰을 취소한 상품에는 다시 입찰할 수 없습니다.";
+        }
         long minRequiredBid = product.getCurrentPrice() + product.getMinBidUnit();
         if (bidDto.getBidPrice() < minRequiredBid) {
             return "최소 입찰 가능 금액은 " + minRequiredBid + "원입니다.";
