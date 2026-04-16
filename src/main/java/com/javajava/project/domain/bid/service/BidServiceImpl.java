@@ -246,6 +246,10 @@ public class BidServiceImpl implements BidService {
         if (product.getSellerNo().equals(memberNo)) {
             return "본인이 등록한 상품은 즉시 구매할 수 없습니다.";
         }
+        // 재구매 차단: 이 상품에 취소 이력이 있는 회원은 즉시구매도 차단
+        if (bidHistoryRepository.existsByProductNoAndMemberNoAndIsCancelled(productNo, memberNo, 1)) {
+            return "입찰을 취소한 상품에는 즉시 구매할 수 없습니다.";
+        }
 
         long buyoutPrice = product.getBuyoutPrice();
 

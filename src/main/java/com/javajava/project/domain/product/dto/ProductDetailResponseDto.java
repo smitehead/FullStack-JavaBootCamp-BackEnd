@@ -39,6 +39,9 @@ public class ProductDetailResponseDto {
     private SellerInfoDto seller;
     private List<BidHistoryDto> bidHistory;
 
+    /** 현재 조회 회원이 최고 입찰자 여부 (memberNo 기반 비교, 비로그인 시 false) */
+    private Boolean isHighestBidder;
+
     @Getter
     @Setter
     @Builder

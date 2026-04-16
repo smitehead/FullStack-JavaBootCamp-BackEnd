@@ -1,7 +1,9 @@
 package com.javajava.project.domain.bid.service;
 
+import com.javajava.project.domain.bid.entity.AutoBid;
 import com.javajava.project.domain.bid.entity.BidHistory;
 import com.javajava.project.domain.bid.event.BidCancelledEvent;
+import com.javajava.project.domain.bid.repository.AutoBidRepository;
 import com.javajava.project.domain.bid.repository.BidHistoryRepository;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.member.repository.MemberRepository;
@@ -57,6 +59,7 @@ public class BidCancelService {
 
     private final ProductRepository productRepository;
     private final BidHistoryRepository bidHistoryRepository;
+    private final AutoBidRepository autoBidRepository;
     private final MemberRepository memberRepository;
     private final PointHistoryRepository pointHistoryRepository;
     private final SseService sseService;
@@ -197,6 +200,18 @@ public class BidCancelService {
 
         // seller 변수 미사용 경고 방지 (데드락 방지를 위해 락 획득은 필수, 실제 포인트 변경은 없음)
         log.debug("[BidCancel] 판매자 락 획득 확인: sellerNo={}", seller.getMemberNo());
+
+        // ── 8-4. 취소자 자동입찰 강제 비활성화 ──────────────────────────────────
+        //   수동 입찰 취소 후 자동입찰이 살아있으면 즉시 차순위 스캔에서 재발동,
+        //   → 취소자가 다시 최고입찰자가 되어 SSE 상태 충돌 및 프론트 오류 발생.
+        autoBidRepository
+                .findByMemberNoAndProductNoAndIsActive(requestingMemberNo, productNo, 1)
+                .ifPresent(autoBid -> {
+                    autoBid.setIsActive(0);
+                    autoBid.setUpdatedAt(java.time.LocalDateTime.now());
+                    log.info("[BidCancel] 취소자 자동입찰 강제 비활성화: memberNo={}, productNo={}",
+                            requestingMemberNo, productNo);
+                });
 
         // ── 9. 차순위 후보 스캔 ────────────────────────────────────────────────
         //   취소자의 모든 입찰을 제외 (memberNo 전체 제외).

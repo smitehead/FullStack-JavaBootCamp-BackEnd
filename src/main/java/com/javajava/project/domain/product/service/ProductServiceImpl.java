@@ -333,7 +333,16 @@ public class ProductServiceImpl implements ProductService {
                         }
                 }
 
-                // 6. 상세 데이터 조립 및 반환
+                // 6. 현재 최고 입찰자 여부 (memberNo 직접 비교 — 닉네임 비교보다 신뢰성 높음)
+                boolean isHighestBidder = false;
+                if (currentMemberNo != null) {
+                        isHighestBidder = bidHistoryRepository
+                                .findFirstByProductNoAndIsCancelledOrderByBidPriceDesc(productNo, 0)
+                                .map(topBid -> topBid.getMemberNo().equals(currentMemberNo))
+                                .orElse(false);
+                }
+
+                // 7. 상세 데이터 조립 및 반환
                 return ProductDetailResponseDto.builder()
                                 .productNo(product.getProductNo())
                                 .title(product.getTitle())
@@ -365,6 +374,7 @@ public class ProductServiceImpl implements ProductService {
                                                 .profileImgUrl(seller.getProfileImgUrl())
                                                 .build())
                                 .bidHistory(bidHistory)
+                                .isHighestBidder(isHighestBidder)
                                 .build();
         }
 
