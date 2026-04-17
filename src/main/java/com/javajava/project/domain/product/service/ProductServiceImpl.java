@@ -428,7 +428,47 @@ public class ProductServiceImpl implements ProductService {
         @Override
         public List<ProductListResponseDto> getMySellingProducts(Long memberNo) {
                 List<Product> products = productRepository.findBySellerNoOrderByProductNoDesc(memberNo);
-                return toProductListDtos(products, memberNo);
+                List<ProductListResponseDto> dtos = toProductListDtos(products, memberNo);
+
+                // 판매 완료 상품에 대해 낙찰 결과 상태(auctionResultStatus) 보강
+                List<Long> completedProductNos = dtos.stream()
+                        .filter(dto -> "completed".equals(dto.getStatus()))
+                        .map(ProductListResponseDto::getId)
+                        .toList();
+
+                if (completedProductNos.isEmpty()) return dtos;
+
+                // 낙찰 입찰 일괄 조회 → productNo : auctionResultStatus 맵 생성
+                Map<Long, String> auctionStatusMap = new HashMap<>();
+                for (Long productNo : completedProductNos) {
+                        bidHistoryRepository
+                                .findFirstByProductNoAndIsWinnerOrderByBidPriceDesc(productNo, 1)
+                                .ifPresent(bid ->
+                                        auctionResultRepository.findFirstByBidNo(bid.getBidNo())
+                                                .ifPresent(result ->
+                                                        auctionStatusMap.put(productNo, result.getStatus())));
+                }
+
+                if (auctionStatusMap.isEmpty()) return dtos;
+
+                // DTO에 auctionResultStatus 주입
+                return dtos.stream().map(dto -> {
+                        String status = auctionStatusMap.get(dto.getId());
+                        if (status == null) return dto;
+                        return ProductListResponseDto.builder()
+                                .id(dto.getId())
+                                .title(dto.getTitle())
+                                .location(dto.getLocation())
+                                .currentPrice(dto.getCurrentPrice())
+                                .endTime(dto.getEndTime())
+                                .participantCount(dto.getParticipantCount())
+                                .status(dto.getStatus())
+                                .images(dto.getImages())
+                                .isWishlisted(dto.isWishlisted())
+                                .bidStatus(dto.getBidStatus())
+                                .auctionResultStatus(status)
+                                .build();
+                }).toList();
         }
 
         @Override
