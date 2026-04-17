@@ -464,7 +464,7 @@ public class ProductServiceImpl implements ProductService {
                                 .participantCount(dto.getParticipantCount())
                                 .status(dto.getStatus())
                                 .images(dto.getImages())
-                                .isWishlisted(dto.isWishlisted())
+                                .isWishlisted(dto.getIsWishlisted())
                                 .bidStatus(dto.getBidStatus())
                                 .auctionResultStatus(status)
                                 .build();
