@@ -1,6 +1,7 @@
 package com.javajava.project.domain.auction.controller;
 
 import com.javajava.project.domain.auction.dto.AuctionResultResponseDto;
+import com.javajava.project.domain.auction.dto.SellerAuctionResultResponseDto;
 import com.javajava.project.domain.auction.service.AuctionResultService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -38,7 +39,7 @@ public class AuctionResultController {
         return ResponseEntity.ok().build();
     }
 
-    // 거래 취소
+    // 강제 승계 낙찰자 단독 취소 (isForcePromoted=1, 패널티 없음)
     @PostMapping("/{resultNo}/cancel")
     public ResponseEntity<Void> cancelTransaction(
             @PathVariable("resultNo") Long resultNo,
@@ -46,5 +47,34 @@ public class AuctionResultController {
         Long memberNo = (Long) authentication.getPrincipal();
         auctionResultService.cancelTransaction(resultNo, memberNo);
         return ResponseEntity.ok().build();
+    }
+
+    // 일반 낙찰자 취소 요청 (isForcePromoted=0 → 상태: 취소요청)
+    @PostMapping("/{resultNo}/request-cancel")
+    public ResponseEntity<Void> requestCancel(
+            @PathVariable("resultNo") Long resultNo,
+            Authentication authentication) {
+        Long memberNo = (Long) authentication.getPrincipal();
+        auctionResultService.requestCancel(resultNo, memberNo);
+        return ResponseEntity.ok().build();
+    }
+
+    // 판매자 취소 승인 (구매자 요청 승인 or 판매자 직접 취소)
+    @PostMapping("/{resultNo}/cancel-approve")
+    public ResponseEntity<Void> approveCancel(
+            @PathVariable("resultNo") Long resultNo,
+            Authentication authentication) {
+        Long sellerNo = (Long) authentication.getPrincipal();
+        auctionResultService.approveCancel(resultNo, sellerNo);
+        return ResponseEntity.ok().build();
+    }
+
+    // 판매자 전용 낙찰 결과 조회
+    @GetMapping("/seller/product/{productNo}")
+    public ResponseEntity<SellerAuctionResultResponseDto> getSellerAuctionResult(
+            @PathVariable("productNo") Long productNo,
+            Authentication authentication) {
+        Long sellerNo = (Long) authentication.getPrincipal();
+        return ResponseEntity.ok(auctionResultService.getAuctionResultBySellerAndProduct(productNo, sellerNo));
     }
 }

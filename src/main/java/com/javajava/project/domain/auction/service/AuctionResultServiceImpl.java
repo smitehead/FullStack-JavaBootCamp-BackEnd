@@ -1,6 +1,7 @@
 package com.javajava.project.domain.auction.service;
 
 import com.javajava.project.domain.auction.dto.AuctionResultResponseDto;
+import com.javajava.project.domain.auction.dto.SellerAuctionResultResponseDto;
 import com.javajava.project.domain.auction.entity.AuctionResult;
 import com.javajava.project.domain.bid.entity.BidHistory;
 import com.javajava.project.domain.member.entity.Member;
@@ -304,6 +305,195 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         result.setStatus("거래취소");
         log.info("[AuctionResult] 강제승계 낙찰 취소 완료 (패널티 없음): resultNo={}, memberNo={}",
                 resultNo, memberNo);
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // 판매자 전용 낙찰 결과 조회
+    // ────────────────────────────────────────────────────────────────────────────
+    @Override
+    public SellerAuctionResultResponseDto getAuctionResultBySellerAndProduct(Long productNo, Long sellerNo) {
+        Product product = productRepository.findById(productNo)
+                .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다."));
+        if (!product.getSellerNo().equals(sellerNo)) {
+            throw new IllegalStateException("해당 상품의 판매자만 조회할 수 있습니다.");
+        }
+
+        BidHistory winnerBid = bidHistoryRepository
+                .findFirstByProductNoAndIsWinnerOrderByBidPriceDesc(productNo, 1)
+                .orElseThrow(() -> new IllegalArgumentException("낙찰 기록이 없습니다."));
+
+        AuctionResult result = auctionResultRepository.findFirstByBidNo(winnerBid.getBidNo())
+                .orElseThrow(() -> new IllegalArgumentException("낙찰 결과를 찾을 수 없습니다."));
+
+        Member buyer = memberRepository.findById(winnerBid.getMemberNo())
+                .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
+
+        List<ProductImage> images = productImageRepository.findByProductNoOrderByIsMainDesc(productNo);
+        List<String> imageUrls = images.stream()
+                .map(img -> "/api/images/" + img.getUuidName())
+                .toList();
+
+        long pool = product.getPenaltyPool() != null ? product.getPenaltyPool() : 0L;
+
+        return SellerAuctionResultResponseDto.builder()
+                .resultNo(result.getResultNo())
+                .status(result.getStatus())
+                .confirmedAt(result.getConfirmedAt())
+                .productNo(product.getProductNo())
+                .title(product.getTitle())
+                .description(product.getDescription())
+                .finalPrice(winnerBid.getBidPrice())
+                .penaltyPool(pool)
+                .sellerBonus(pool / 2)
+                .tradeType(product.getTradeType())
+                .location(product.getTradeAddrDetail())
+                .images(imageUrls)
+                .buyer(SellerAuctionResultResponseDto.BuyerInfo.builder()
+                        .buyerNo(buyer.getMemberNo())
+                        .nickname(buyer.getNickname())
+                        .mannerTemp(buyer.getMannerTemp())
+                        .build())
+                .deliveryAddrRoad(result.getDeliveryAddrRoad())
+                .deliveryAddrDetail(result.getDeliveryAddrDetail())
+                .build();
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // 일반 낙찰자 취소 요청 (isForcePromoted=0 → 상태: 취소요청)
+    // ────────────────────────────────────────────────────────────────────────────
+    @Override
+    @Transactional
+    public void requestCancel(Long resultNo, Long memberNo) {
+        AuctionResult result = getResultAndValidateOwner(resultNo, memberNo);
+
+        if ("구매확정".equals(result.getStatus())) {
+            throw new IllegalStateException("이미 구매 확정된 거래는 취소할 수 없습니다.");
+        }
+        if ("거래취소".equals(result.getStatus())) {
+            throw new IllegalStateException("이미 취소된 거래입니다.");
+        }
+        if ("취소요청".equals(result.getStatus())) {
+            throw new IllegalStateException("이미 취소 요청을 보냈습니다. 판매자의 승인을 기다려주세요.");
+        }
+        // 강제 승계자는 /cancel API로 즉시 취소
+        if (Integer.valueOf(1).equals(result.getIsForcePromoted())) {
+            throw new IllegalStateException("강제 승계 낙찰자는 취소 API를 사용해주세요.");
+        }
+
+        result.setStatus("취소요청");
+
+        // 판매자에게 취소 요청 알림
+        BidHistory bid = bidHistoryRepository.findById(result.getBidNo())
+                .orElseThrow(() -> new IllegalArgumentException("입찰 기록을 찾을 수 없습니다."));
+        Product product = productRepository.findById(bid.getProductNo())
+                .orElseThrow(() -> new IllegalArgumentException("상품 정보를 찾을 수 없습니다."));
+
+        try {
+            notificationService.sendAndSaveNotification(
+                    product.getSellerNo(), "activity",
+                    "구매자가 [" + product.getTitle() + "] 낙찰 취소를 요청했습니다. 판매자 페이지에서 확인해주세요.",
+                    "/seller-result/" + product.getProductNo());
+        } catch (Exception e) {
+            log.warn("[AuctionResult] 판매자 취소요청 알림 전송 실패: {}", e.getMessage());
+        }
+
+        log.info("[AuctionResult] 일반 낙찰자 취소 요청: resultNo={}, memberNo={}", resultNo, memberNo);
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // 판매자 취소 승인 (구매자 요청 승인 or 판매자 직접 취소 개시)
+    // ────────────────────────────────────────────────────────────────────────────
+    @Override
+    @Transactional
+    public void approveCancel(Long resultNo, Long sellerNo) {
+        AuctionResult result = auctionResultRepository.findById(resultNo)
+                .orElseThrow(() -> new IllegalArgumentException("낙찰 결과를 찾을 수 없습니다."));
+
+        if ("구매확정".equals(result.getStatus())) {
+            throw new IllegalStateException("이미 구매 확정된 거래는 취소할 수 없습니다.");
+        }
+        if ("거래취소".equals(result.getStatus())) {
+            throw new IllegalStateException("이미 취소된 거래입니다.");
+        }
+
+        BidHistory bid = bidHistoryRepository.findById(result.getBidNo())
+                .orElseThrow(() -> new IllegalArgumentException("입찰 기록을 찾을 수 없습니다."));
+        Product product = productRepository.findById(bid.getProductNo())
+                .orElseThrow(() -> new IllegalArgumentException("상품 정보를 찾을 수 없습니다."));
+
+        if (!product.getSellerNo().equals(sellerNo)) {
+            throw new IllegalStateException("해당 상품의 판매자만 취소를 처리할 수 있습니다.");
+        }
+
+        Long buyerMemberNo = bid.getMemberNo();
+
+        // 데드락 방지: memberNo 오름차순으로 락 획득
+        Member seller;
+        Member buyer;
+        if (sellerNo < buyerMemberNo) {
+            seller = memberRepository.findByIdWithLock(sellerNo)
+                    .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
+            buyer = memberRepository.findByIdWithLock(buyerMemberNo)
+                    .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
+        } else {
+            buyer = memberRepository.findByIdWithLock(buyerMemberNo)
+                    .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
+            seller = memberRepository.findByIdWithLock(sellerNo)
+                    .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
+        }
+
+        // '결제완료' 상태면 이미 판매자에게 정산 완료 → 회수 후 환불
+        if ("결제완료".equals(result.getStatus())) {
+            seller.setPoints(seller.getPoints() - bid.getBidPrice());
+            pointHistoryRepository.save(PointHistory.builder()
+                    .memberNo(seller.getMemberNo())
+                    .type("거래취소회수")
+                    .amount(-bid.getBidPrice())
+                    .balance(seller.getPoints())
+                    .reason("[" + product.getTitle() + "] 상호 합의 취소 — 낙찰 대금 회수")
+                    .build());
+            sseService.sendPointUpdate(seller.getMemberNo(), seller.getPoints());
+        }
+
+        // 구매자 전액 환불 (에스크로 반환)
+        buyer.setPoints(buyer.getPoints() + bid.getBidPrice());
+        pointHistoryRepository.save(PointHistory.builder()
+                .memberNo(buyer.getMemberNo())
+                .type("거래취소환불")
+                .amount(bid.getBidPrice())
+                .balance(buyer.getPoints())
+                .reason("[" + product.getTitle() + "] 상호 합의 취소 — 전액 환불")
+                .build());
+        sseService.sendPointUpdate(buyer.getMemberNo(), buyer.getPoints());
+
+        // penaltyPool → 판매자 전액 지급 (기존 입찰 취소자들의 위약금, 합의 취소 보상)
+        long pool = product.getPenaltyPool() != null ? product.getPenaltyPool() : 0L;
+        if (pool > 0) {
+            seller.setPoints(seller.getPoints() + pool);
+            pointHistoryRepository.save(PointHistory.builder()
+                    .memberNo(seller.getMemberNo())
+                    .type("위약금보상")
+                    .amount(pool)
+                    .balance(seller.getPoints())
+                    .reason("[" + product.getTitle() + "] 상호 합의 취소 — 입찰 취소자 위약금 풀 전액")
+                    .build());
+            product.setPenaltyPool(0L);
+            sseService.sendPointUpdate(seller.getMemberNo(), seller.getPoints());
+        }
+
+        result.setStatus("거래취소");
+
+        // 구매자에게 취소 승인 알림
+        try {
+            notificationService.sendAndSaveNotification(
+                    buyerMemberNo, "activity",
+                    "판매자가 [" + product.getTitle() + "] 낙찰 취소 요청을 승인했습니다. 포인트가 환불됩니다.",
+                    "/won/" + product.getProductNo());
+        } catch (Exception e) {
+            log.warn("[AuctionResult] 구매자 취소승인 알림 전송 실패: {}", e.getMessage());
+        }
+
+        log.info("[AuctionResult] 판매자 취소 승인 완료: resultNo={}, sellerNo={}", resultNo, sellerNo);
     }
 
     /**
