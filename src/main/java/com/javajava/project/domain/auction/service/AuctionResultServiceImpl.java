@@ -94,120 +94,28 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 .build();
     }
 
+    /**
+     * 구매 확정 (1-step 통합 플로우).
+     *
+     * <p>입찰 시점에 이미 낙찰가만큼 포인트가 에스크로 차감되어 있으므로,
+     * 별도의 결제 단계 없이 구매자가 수령 확인 시 모든 정산을 한 번에 처리한다.
+     *
+     * <ul>
+     *   <li>배송대기 상태: 에스크로 → 판매자 지급 + penaltyPool 분배 + 주소 저장 + 구매확정</li>
+     *   <li>결제완료 상태(하위호환): 이미 판매자 지급 완료 → 구매확정만</li>
+     * </ul>
+     */
     @Override
     @Transactional
-    public void processPayment(Long resultNo, Long memberNo, String address, String addressDetail) {
+    public void confirmPurchase(Long resultNo, Long memberNo, String address, String addressDetail) {
         AuctionResult result = getResultAndValidateOwner(resultNo, memberNo);
 
-        if (!"배송대기".equals(result.getStatus())) {
-            throw new IllegalStateException("현재 상태에서는 결제할 수 없습니다. 현재 상태: " + result.getStatus());
+        if ("구매확정".equals(result.getStatus())) {
+            throw new IllegalStateException("이미 구매 확정된 거래입니다.");
         }
-
-        // 입찰 기록 → 상품 → 판매자 조회
-        BidHistory bid = bidHistoryRepository.findById(result.getBidNo())
-                .orElseThrow(() -> new IllegalArgumentException("입찰 기록을 찾을 수 없습니다."));
-        Product product = productRepository.findById(bid.getProductNo())
-                .orElseThrow(() -> new IllegalArgumentException("상품 정보를 찾을 수 없습니다."));
-
-        // ── 입찰 취소 이력 방어 검증 ──────────────────────────────────────────
-        // 해당 상품에 취소 이력(isCancelled=1)이 있는 회원의 결제 시도를 원천 차단.
-        // 마이페이지 필터링을 우회한 직접 API 호출도 여기서 막힌다.
-        if (bidHistoryRepository.existsByProductNoAndMemberNoAndIsCancelled(
-                product.getProductNo(), memberNo, 1)) {
-            throw new IllegalStateException("입찰을 취소한 상품은 결제할 수 없습니다.");
+        if ("거래취소".equals(result.getStatus())) {
+            throw new IllegalStateException("취소된 거래는 구매 확정할 수 없습니다.");
         }
-        Member seller = memberRepository.findById(product.getSellerNo())
-                .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
-
-        // ─────────────────────────────────────────────────────────────────
-        // [수정] 구매자 포인트를 여기서 차감하지 않음.
-        //
-        // 입찰 시점에 이미 낙찰가만큼 차감(에스크로)되어 있음.
-        // processPayment는 그 에스크로를 판매자에게 이전하는 역할만 함.
-        // 구매자를 다시 차감하면 낙찰가를 두 번 내는 이중 청구 버그 발생.
-        // ─────────────────────────────────────────────────────────────────
-
-        // 에스크로(입찰 시 차감된 금액)를 판매자에게 지급
-        seller.setPoints(seller.getPoints() + bid.getBidPrice());
-        pointHistoryRepository.save(PointHistory.builder()
-                .memberNo(seller.getMemberNo())
-                .type("낙찰대금수령")
-                .amount(bid.getBidPrice())
-                .balance(seller.getPoints())
-                .reason("[" + product.getTitle() + "] 낙찰 대금 수령")
-                .build());
-
-        // ─────────────────────────────────────────────────────────────────
-        // penaltyPool 분배: 정상 결제 완료 시 위약금 풀의 절반씩 구매자·판매자에게 지급
-        //   - 입찰 취소마다 5% 위약금이 penaltyPool에 누적되어 있음
-        //   - 구매자: penaltyPool 의 50% 캐시백 (경쟁 과정에서의 리워드)
-        //   - 판매자: penaltyPool 의 50% 추가 지급 (취소로 인한 경매 진행 손실 보상)
-        // ─────────────────────────────────────────────────────────────────
-        long pool = product.getPenaltyPool();
-        if (pool > 0) {
-            long buyerShare  = pool / 2;
-            long sellerShare = pool - buyerShare; // 홀수 오차는 판매자에게
-
-            Member buyer = memberRepository.findById(memberNo)
-                    .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
-
-            buyer.setPoints(buyer.getPoints() + buyerShare);
-            pointHistoryRepository.save(PointHistory.builder()
-                    .memberNo(buyer.getMemberNo())
-                    .type("위약금보상")
-                    .amount(buyerShare)
-                    .balance(buyer.getPoints())
-                    .reason("[" + product.getTitle() + "] 입찰 취소 위약금 풀 보상 (구매자 50%)")
-                    .build());
-
-            seller.setPoints(seller.getPoints() + sellerShare);
-            pointHistoryRepository.save(PointHistory.builder()
-                    .memberNo(seller.getMemberNo())
-                    .type("위약금보상")
-                    .amount(sellerShare)
-                    .balance(seller.getPoints())
-                    .reason("[" + product.getTitle() + "] 입찰 취소 위약금 풀 보상 (판매자 50%)")
-                    .build());
-
-            product.setPenaltyPool(0L);
-
-            sseService.sendPointUpdate(buyer.getMemberNo(), buyer.getPoints());
-            log.info("[AuctionResult] penaltyPool 분배 완료: productNo={}, pool={}P, 구매자={}P, 판매자={}P",
-                    product.getProductNo(), pool, buyerShare, sellerShare);
-        }
-
-        result.setStatus("결제완료");
-        String fullAddr = (address != null && !address.isBlank())
-                ? (addressDetail != null && !addressDetail.isBlank() ? address + " " + addressDetail
-                        : address)
-                : addressDetail;
-        result.setDeliveryAddrDetail(fullAddr);
-
-        // 판매자 포인트 실시간 반영 (SSE)
-        sseService.sendPointUpdate(seller.getMemberNo(), seller.getPoints());
-
-        // 판매자 알림 — 결제 완료
-        try {
-            notificationService.sendAndSaveNotification(
-                    seller.getMemberNo(), "activity",
-                    "구매자가 [" + product.getTitle() + "] 결제를 완료했습니다. 상품 준비를 시작해 주세요.",
-                    "/products/" + product.getProductNo());
-        } catch (Exception e) {
-            log.warn("[AuctionResult] 판매자 결제완료 알림 전송 실패: {}", e.getMessage());
-        }
-    }
-
-    @Override
-    @Transactional
-    public void confirmPurchase(Long resultNo, Long memberNo) {
-        AuctionResult result = getResultAndValidateOwner(resultNo, memberNo);
-
-        if (!"결제완료".equals(result.getStatus())) {
-            throw new IllegalStateException("결제 완료 상태에서만 구매 확정이 가능합니다.");
-        }
-
-        result.setStatus("구매확정");
-        result.setConfirmedAt(LocalDateTime.now());
 
         // 입찰/상품 정보 조회
         BidHistory bid = bidHistoryRepository.findById(result.getBidNo())
@@ -221,24 +129,82 @@ public class AuctionResultServiceImpl implements AuctionResultService {
             throw new IllegalStateException("입찰을 취소한 상품은 구매 확정할 수 없습니다.");
         }
 
-        // 구매확정 시 양쪽 매너온도 소폭 상승 (+0.2)
-        Member buyer = memberRepository.findById(memberNo)
-                .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
         Member seller = memberRepository.findById(product.getSellerNo())
                 .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
+        Member buyer = memberRepository.findById(memberNo)
+                .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
+
+        // ── 배송대기 상태: 에스크로 정산 (구버전 결제완료 상태는 이미 정산 완료) ──
+        if ("배송대기".equals(result.getStatus())) {
+            // 에스크로(입찰 시 차감된 금액)를 판매자에게 지급
+            // 구매자 포인트는 입찰 시점에 이미 차감됨 — 여기서 재차감 없음
+            seller.setPoints(seller.getPoints() + bid.getBidPrice());
+            pointHistoryRepository.save(PointHistory.builder()
+                    .memberNo(seller.getMemberNo())
+                    .type("낙찰대금수령")
+                    .amount(bid.getBidPrice())
+                    .balance(seller.getPoints())
+                    .reason("[" + product.getTitle() + "] 낙찰 대금 수령")
+                    .build());
+
+            // penaltyPool 분배: 구매자 50% 캐시백 + 판매자 50% 보상
+            long pool = product.getPenaltyPool() != null ? product.getPenaltyPool() : 0L;
+            if (pool > 0) {
+                long buyerShare  = pool / 2;
+                long sellerShare = pool - buyerShare;
+
+                buyer.setPoints(buyer.getPoints() + buyerShare);
+                pointHistoryRepository.save(PointHistory.builder()
+                        .memberNo(buyer.getMemberNo())
+                        .type("위약금보상")
+                        .amount(buyerShare)
+                        .balance(buyer.getPoints())
+                        .reason("[" + product.getTitle() + "] 입찰 취소 위약금 풀 보상 (구매자 50%)")
+                        .build());
+
+                seller.setPoints(seller.getPoints() + sellerShare);
+                pointHistoryRepository.save(PointHistory.builder()
+                        .memberNo(seller.getMemberNo())
+                        .type("위약금보상")
+                        .amount(sellerShare)
+                        .balance(seller.getPoints())
+                        .reason("[" + product.getTitle() + "] 입찰 취소 위약금 풀 보상 (판매자 50%)")
+                        .build());
+
+                product.setPenaltyPool(0L);
+                sseService.sendPointUpdate(buyer.getMemberNo(), buyer.getPoints());
+                log.info("[AuctionResult] penaltyPool 분배: productNo={}, 구매자={}P, 판매자={}P",
+                        product.getProductNo(), buyerShare, sellerShare);
+            }
+
+            // 배송지 저장
+            String fullAddr = (address != null && !address.isBlank())
+                    ? (addressDetail != null && !addressDetail.isBlank() ? address + " " + addressDetail : address)
+                    : (addressDetail != null ? addressDetail : "");
+            result.setDeliveryAddrDetail(fullAddr);
+
+            sseService.sendPointUpdate(seller.getMemberNo(), seller.getPoints());
+        }
+
+        // ── 구매 확정 처리 ─────────────────────────────────────────────────────
+        result.setStatus("구매확정");
+        result.setConfirmedAt(LocalDateTime.now());
+
         buyer.setMannerTemp(Math.min(100, buyer.getMannerTemp() + 0.2));
         seller.setMannerTemp(Math.min(100, seller.getMannerTemp() + 0.2));
 
-        // 판매자 알림 — 구매 확정 (포인트 정산 안내)
         try {
             notificationService.sendAndSaveNotification(
-                    product.getSellerNo(), "activity",
-                    "구매자가 [" + product.getTitle() + "] 구매를 확정하여 "
-                            + String.format("%,d", bid.getBidPrice()) + "포인트가 정산되었습니다.",
+                    seller.getMemberNo(), "activity",
+                    "구매자가 [" + product.getTitle() + "] 상품 수령을 확인하여 "
+                            + String.format("%,d", bid.getBidPrice()) + "P가 정산되었습니다.",
                     "/products/" + product.getProductNo());
         } catch (Exception e) {
             log.warn("[AuctionResult] 판매자 구매확정 알림 전송 실패: {}", e.getMessage());
         }
+
+        log.info("[AuctionResult] 구매 확정 완료: resultNo={}, memberNo={}, price={}P",
+                resultNo, memberNo, bid.getBidPrice());
     }
 
     @Override

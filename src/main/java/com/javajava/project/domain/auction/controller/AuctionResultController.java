@@ -25,26 +25,16 @@ public class AuctionResultController {
         return ResponseEntity.ok(auctionResultService.getAuctionResultByProductNo(productNo, memberNo));
     }
 
-    // 결제 처리
-    @PostMapping("/{resultNo}/pay")
-    public ResponseEntity<Void> processPayment(
-            @PathVariable("resultNo") Long resultNo,
-            @RequestBody Map<String, String> body,
-            Authentication authentication) {
-        Long memberNo = (Long) authentication.getPrincipal();
-        String address = body.getOrDefault("address", "");
-        String addressDetail = body.getOrDefault("addressDetail", "");
-        auctionResultService.processPayment(resultNo, memberNo, address, addressDetail);
-        return ResponseEntity.ok().build();
-    }
-
-    // 구매 확정
+    // 구매 확정 (1-step: 에스크로 정산 + 주소 저장 + 확정 통합)
     @PostMapping("/{resultNo}/confirm")
     public ResponseEntity<Void> confirmPurchase(
             @PathVariable("resultNo") Long resultNo,
+            @RequestBody(required = false) Map<String, String> body,
             Authentication authentication) {
         Long memberNo = (Long) authentication.getPrincipal();
-        auctionResultService.confirmPurchase(resultNo, memberNo);
+        String address = body != null ? body.getOrDefault("address", "") : "";
+        String addressDetail = body != null ? body.getOrDefault("addressDetail", "") : "";
+        auctionResultService.confirmPurchase(resultNo, memberNo, address, addressDetail);
         return ResponseEntity.ok().build();
     }
 
