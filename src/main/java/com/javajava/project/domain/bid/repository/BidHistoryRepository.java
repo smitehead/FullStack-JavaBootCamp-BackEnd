@@ -42,8 +42,13 @@ public interface BidHistoryRepository extends JpaRepository<BidHistory, Long> {
     List<Object[]> countDistinctParticipantsByProductNos(@Param("productNos") List<Long> productNos);
 
     // 마이페이지: 특정 회원이 입찰한 고유 상품 번호 목록
+    // 취소 이력(isCancelled=1)이 있는 상품은 아예 제외 — 취소한 경매가 마이페이지에 노출되는 버그 방지
     @Query("SELECT b.productNo FROM BidHistory b " +
            "WHERE b.memberNo = :memberNo AND b.isCancelled = 0 " +
+           "AND b.productNo NOT IN (" +
+           "  SELECT b2.productNo FROM BidHistory b2 " +
+           "  WHERE b2.memberNo = :memberNo AND b2.isCancelled = 1" +
+           ") " +
            "GROUP BY b.productNo " +
            "ORDER BY MAX(b.bidTime) DESC")
     List<Long> findDistinctProductNosByMemberNo(@Param("memberNo") Long memberNo);

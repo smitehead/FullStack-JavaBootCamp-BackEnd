@@ -108,6 +108,14 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 .orElseThrow(() -> new IllegalArgumentException("입찰 기록을 찾을 수 없습니다."));
         Product product = productRepository.findById(bid.getProductNo())
                 .orElseThrow(() -> new IllegalArgumentException("상품 정보를 찾을 수 없습니다."));
+
+        // ── 입찰 취소 이력 방어 검증 ──────────────────────────────────────────
+        // 해당 상품에 취소 이력(isCancelled=1)이 있는 회원의 결제 시도를 원천 차단.
+        // 마이페이지 필터링을 우회한 직접 API 호출도 여기서 막힌다.
+        if (bidHistoryRepository.existsByProductNoAndMemberNoAndIsCancelled(
+                product.getProductNo(), memberNo, 1)) {
+            throw new IllegalStateException("입찰을 취소한 상품은 결제할 수 없습니다.");
+        }
         Member seller = memberRepository.findById(product.getSellerNo())
                 .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
 
@@ -206,6 +214,12 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 .orElseThrow(() -> new IllegalArgumentException("입찰 기록을 찾을 수 없습니다."));
         Product product = productRepository.findById(bid.getProductNo())
                 .orElseThrow(() -> new IllegalArgumentException("상품 정보를 찾을 수 없습니다."));
+
+        // ── 입찰 취소 이력 방어 검증 ──────────────────────────────────────────
+        if (bidHistoryRepository.existsByProductNoAndMemberNoAndIsCancelled(
+                product.getProductNo(), memberNo, 1)) {
+            throw new IllegalStateException("입찰을 취소한 상품은 구매 확정할 수 없습니다.");
+        }
 
         // 구매확정 시 양쪽 매너온도 소폭 상승 (+0.2)
         Member buyer = memberRepository.findById(memberNo)
