@@ -35,14 +35,22 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public ChatRoomListDto createOrGetRoom(ChatRoomCreateRequest request, Long myNo) {
-        // 1) 이미 ACTIVE인 방이 있는지 확인
+        // 1) 이미 ACTIVE인 방이 있는지 확인 (사용자간 + 상품별 유니크)
         return chatRoomRepository
                 .findByBuyerNoAndSellerNoAndProductNoAndStatus(
                         request.getBuyerNo(), request.getSellerNo(),
                         request.getProductNo(), "ACTIVE")
-                .map(existingRoom -> buildRoomListDto(existingRoom, myNo))
+                .map(existingRoom -> {
+                    // 나갔던 사용자가 다시 입장하는 경우 플래그 복구
+                    if (myNo.equals(existingRoom.getBuyerNo()) && existingRoom.getBuyerLeft() == 1) {
+                        existingRoom.setBuyerLeft(0);
+                    } else if (myNo.equals(existingRoom.getSellerNo()) && existingRoom.getSellerLeft() == 1) {
+                        existingRoom.setSellerLeft(0);
+                    }
+                    return buildRoomListDto(existingRoom, myNo);
+                })
                 .orElseGet(() -> {
-                    // 2) 없으면 새로 생성 — DB 유니크 인덱스로 동시 INSERT 방어
+                    // 2) 없으면 새로 생성
                     try {
                         ChatRoom newRoom = ChatRoom.builder()
                                 .buyerNo(request.getBuyerNo())
@@ -52,13 +60,17 @@ public class ChatServiceImpl implements ChatService {
                         chatRoomRepository.save(newRoom);
                         return buildRoomListDto(newRoom, myNo);
                     } catch (DataIntegrityViolationException e) {
-                        // 동시 요청으로 이미 생성된 경우 → 기존 방 반환
-                        return chatRoomRepository
+                        // 동시 요청 대응
+                        ChatRoom room = chatRoomRepository
                                 .findByBuyerNoAndSellerNoAndProductNoAndStatus(
                                         request.getBuyerNo(), request.getSellerNo(),
                                         request.getProductNo(), "ACTIVE")
-                                .map(room -> buildRoomListDto(room, myNo))
                                 .orElseThrow(() -> new IllegalStateException("채팅방 생성에 실패했습니다."));
+                        
+                        if (myNo.equals(room.getBuyerNo())) room.setBuyerLeft(0);
+                        else if (myNo.equals(room.getSellerNo())) room.setSellerLeft(0);
+                        
+                        return buildRoomListDto(room, myNo);
                     }
                 });
     }
@@ -98,6 +110,16 @@ public class ChatServiceImpl implements ChatService {
         // content 길이 검증 (4000자 제한, IMAGE/LOCATION은 비어있어도 허용)
         if (request.getContent() != null && request.getContent().length() > 4000) {
             throw new IllegalArgumentException("메시지는 4000자를 초과할 수 없습니다.");
+        }
+
+        ChatRoom room = chatRoomRepository.findById(request.getRoomId())
+                .orElseThrow(() -> new IllegalArgumentException("채팅방을 찾을 수 없습니다."));
+
+        // 메시지 발신 시 해당 사용자의 LEFT 플래그 복구 (나갔던 방에 메시지 전송 시 자동 재참여)
+        if (request.getSenderId().equals(room.getBuyerNo())) {
+            room.setBuyerLeft(0);
+        } else if (request.getSenderId().equals(room.getSellerNo())) {
+            room.setSellerLeft(0);
         }
 
         // 1. CHAT_MESSAGE 저장
@@ -251,7 +273,18 @@ public class ChatServiceImpl implements ChatService {
     public void deleteRoom(Long roomNo, Long memberNo) {
         ChatRoom room = chatRoomRepository.findByRoomNoAndParticipant(roomNo, memberNo)
                 .orElseThrow(() -> new IllegalArgumentException("채팅방을 찾을 수 없습니다."));
-        room.setStatus("DELETED");
+
+        // 각자의 나가기 플래그만 세팅 (상대방에는 영향 없음)
+        if (memberNo.equals(room.getBuyerNo())) {
+            room.setBuyerLeft(1);
+        } else if (memberNo.equals(room.getSellerNo())) {
+            room.setSellerLeft(1);
+        }
+
+        // 양쪽 모두 나갔을 때만 방 전체를 DELETED 처리
+        if (room.getBuyerLeft() == 1 && room.getSellerLeft() == 1) {
+            room.setStatus("DELETED");
+        }
     }
 
     @Override

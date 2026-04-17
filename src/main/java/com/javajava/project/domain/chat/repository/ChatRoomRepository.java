@@ -64,6 +64,8 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             CASE WHEN cr.BUYER_NO = :myNo THEN cr.SELLER_NO ELSE cr.BUYER_NO END
         WHERE (cr.BUYER_NO = :myNo OR cr.SELLER_NO = :myNo)
           AND cr.STATUS = 'ACTIVE'
+          AND NOT (cr.BUYER_NO = :myNo AND cr.BUYER_LEFT = 1)
+          AND NOT (cr.SELLER_NO = :myNo AND cr.SELLER_LEFT = 1)
         ORDER BY rm.SENT_AT DESC NULLS LAST
         """)
     List<Object[]> findChatRoomListWithLatestMessage(@Param("myNo") Long myNo);
