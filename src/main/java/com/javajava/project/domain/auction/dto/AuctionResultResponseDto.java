@@ -35,6 +35,12 @@ public class AuctionResultResponseDto {
      */
     private Long buyerCashback;
 
+    /**
+     * 강제 승계 여부. 1 = 상위 입찰자 취소로 자동 승계된 낙찰자.
+     * 이 경우 불이익 없이 낙찰 취소 가능 (매너온도 패널티 면제).
+     */
+    private Integer isForcePromoted;
+
     @Getter
     @Builder
     public static class SellerInfo {

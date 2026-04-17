@@ -90,6 +90,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 .deliveryAddrRoad(result.getDeliveryAddrRoad())
                 .deliveryAddrDetail(result.getDeliveryAddrDetail())
                 .buyerCashback(buyerCashback)
+                .isForcePromoted(result.getIsForcePromoted())
                 .build();
     }
 
@@ -238,70 +239,91 @@ public class AuctionResultServiceImpl implements AuctionResultService {
             throw new IllegalStateException("이미 취소된 거래입니다.");
         }
 
+        // ── 강제 승계 여부 확인 ─────────────────────────────────────────────────
+        // isForcePromoted = 0 (일반 낙찰)은 낙찰 취소 불가.
+        // isForcePromoted = 1 (입찰 취소로 자동 승계)만 불이익 없이 취소 허용.
+        boolean isForcePromoted = Integer.valueOf(1).equals(result.getIsForcePromoted());
+        if (!isForcePromoted) {
+            throw new IllegalStateException("정상 낙찰 건은 취소할 수 없습니다. 판매자와 채팅으로 문의해 주세요.");
+        }
+
         BidHistory bid = bidHistoryRepository.findById(result.getBidNo())
                 .orElseThrow(() -> new IllegalArgumentException("입찰 기록을 찾을 수 없습니다."));
         Product product = productRepository.findById(bid.getProductNo())
                 .orElseThrow(() -> new IllegalArgumentException("상품 정보를 찾을 수 없습니다."));
 
+        Long sellerNo = product.getSellerNo();
+
         // memberNo 오름차순으로 락 획득 (데드락 방지)
         Member buyer;
-        Member sellerForRefund = null;
+        Member seller;
+        if (sellerNo < memberNo) {
+            seller = memberRepository.findByIdWithLock(sellerNo)
+                    .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
+            buyer = memberRepository.findByIdWithLock(memberNo)
+                    .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
+        } else {
+            buyer = memberRepository.findByIdWithLock(memberNo)
+                    .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
+            seller = memberRepository.findByIdWithLock(sellerNo)
+                    .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
+        }
 
         if ("결제완료".equals(result.getStatus())) {
-            // 결제완료 상태: 판매자에게서 회수 + 구매자에게 환불
-            Long sellerNo = product.getSellerNo();
-            if (sellerNo < memberNo) {
-                sellerForRefund = memberRepository.findByIdWithLock(sellerNo)
-                        .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
-                buyer = memberRepository.findByIdWithLock(memberNo)
-                        .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
-            } else {
-                buyer = memberRepository.findByIdWithLock(memberNo)
-                        .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
-                sellerForRefund = memberRepository.findByIdWithLock(sellerNo)
-                        .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
-            }
-
-            // 판매자 포인트 회수
-            sellerForRefund.setPoints(sellerForRefund.getPoints() - bid.getBidPrice());
+            // 결제완료 → 판매자에게서 낙찰 대금 회수 후 구매자 환불
+            seller.setPoints(seller.getPoints() - bid.getBidPrice());
             pointHistoryRepository.save(PointHistory.builder()
-                    .memberNo(sellerForRefund.getMemberNo())
+                    .memberNo(seller.getMemberNo())
                     .type("거래취소회수")
                     .amount(-bid.getBidPrice())
-                    .balance(sellerForRefund.getPoints())
-                    .reason("[" + product.getTitle() + "] 거래 취소로 인한 낙찰 대금 회수")
+                    .balance(seller.getPoints())
+                    .reason("[" + product.getTitle() + "] 강제 승계 낙찰 취소 — 낙찰 대금 회수")
                     .build());
-            sseService.sendPointUpdate(sellerForRefund.getMemberNo(), sellerForRefund.getPoints());
+            sseService.sendPointUpdate(seller.getMemberNo(), seller.getPoints());
 
             try {
                 notificationService.sendAndSaveNotification(
-                        sellerForRefund.getMemberNo(), "activity",
-                        "구매자가 [" + product.getTitle() + "] 거래를 취소하여 낙찰 대금이 회수되었습니다.",
+                        seller.getMemberNo(), "activity",
+                        "강제 승계 낙찰자가 [" + product.getTitle() + "] 거래를 취소하여 낙찰 대금이 회수되었습니다.",
                         "/products/" + product.getProductNo());
             } catch (Exception e) {
                 log.warn("[AuctionResult] 판매자 거래취소 알림 전송 실패: {}", e.getMessage());
             }
-        } else {
-            // 배송대기 상태: 에스크로(구매자 입찰 차감금액) 환불만
-            buyer = memberRepository.findByIdWithLock(memberNo)
-                    .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
         }
 
-        // 구매자 포인트 환불 (에스크로 반환)
+        // 구매자 포인트 전액 환불 (에스크로 반환, 패널티 없음)
         buyer.setPoints(buyer.getPoints() + bid.getBidPrice());
         pointHistoryRepository.save(PointHistory.builder()
                 .memberNo(buyer.getMemberNo())
                 .type("거래취소환불")
                 .amount(bid.getBidPrice())
                 .balance(buyer.getPoints())
-                .reason("[" + product.getTitle() + "] 거래 취소로 인한 환불")
+                .reason("[" + product.getTitle() + "] 강제 승계 낙찰 취소 — 패널티 없는 전액 환불")
                 .build());
         sseService.sendPointUpdate(buyer.getMemberNo(), buyer.getPoints());
 
-        // 거래 취소 시 구매자 매너온도 하락 (-0.5, 최저 0도)
-        buyer.setMannerTemp(Math.max(0, buyer.getMannerTemp() - 0.5));
+        // ── 강제 승계 취소: 매너온도 패널티 면제 + penaltyPool 전액 판매자 지급 ──
+        // 본인 의사 없이 자동 승계된 낙찰자이므로 매너 패널티를 부과하지 않는다.
+        // 대신 원래 입찰 취소자의 위약금(penaltyPool)을 판매자에게 전액 보상한다.
+        long pool = product.getPenaltyPool() != null ? product.getPenaltyPool() : 0L;
+        if (pool > 0) {
+            seller.setPoints(seller.getPoints() + pool);
+            pointHistoryRepository.save(PointHistory.builder()
+                    .memberNo(seller.getMemberNo())
+                    .type("위약금보상")
+                    .amount(pool)
+                    .balance(seller.getPoints())
+                    .reason("[" + product.getTitle() + "] 강제 승계 낙찰 취소 — 입찰 취소자 위약금 풀 전액 보상")
+                    .build());
+            product.setPenaltyPool(0L);
+            sseService.sendPointUpdate(seller.getMemberNo(), seller.getPoints());
+            log.info("[AuctionResult] 강제승계 취소 — penaltyPool {}P 판매자 전액 지급: productNo={}",
+                    pool, product.getProductNo());
+        }
 
         result.setStatus("거래취소");
+        log.info("[AuctionResult] 강제승계 낙찰 취소 완료 (패널티 없음): resultNo={}, memberNo={}",
+                resultNo, memberNo);
     }
 
     /**
