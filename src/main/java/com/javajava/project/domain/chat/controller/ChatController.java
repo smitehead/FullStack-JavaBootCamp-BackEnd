@@ -2,6 +2,7 @@ package com.javajava.project.domain.chat.controller;
 
 import com.javajava.project.domain.chat.dto.*;
 import com.javajava.project.domain.chat.service.ChatService;
+import com.javajava.project.global.util.FileStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -9,8 +10,12 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -20,6 +25,7 @@ public class ChatController {
 
     private final ChatService chatService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final FileStore fileStore;
 
     // ══════════════════════════════════════════════════
     // REST API
@@ -98,6 +104,35 @@ public class ChatController {
         // 상대방에게 실시간 읽음 알림 STOMP 발송
         messagingTemplate.convertAndSend("/sub/chat/room/" + roomId + "/read", event);
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 채팅 이미지 업로드 (POST /api/chat/rooms/{roomId}/images)
+     * 여러 파일을 한 번에 업로드하여 URL 배열 반환
+     * STOMP 전송 전에 먼저 호출해야 함
+     */
+    @PostMapping("/rooms/{roomId}/images")
+    public ResponseEntity<?> uploadChatImages(
+            @PathVariable Long roomId,
+            @RequestParam("files") List<MultipartFile> files,
+            Authentication auth) {
+        Long myNo = (Long) auth.getPrincipal();
+        if (!chatService.isParticipant(roomId, myNo)) {
+            return ResponseEntity.status(403).build();
+        }
+
+        try {
+            List<String> urls = new ArrayList<>();
+            for (MultipartFile file : files) {
+                String uuidName = fileStore.storeGenericFile(file);
+                urls.add("/api/images/" + uuidName);
+            }
+            return ResponseEntity.ok(Map.of("urls", urls));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (IOException e) {
+            return ResponseEntity.status(500).body(Map.of("error", "파일 저장 실패"));
+        }
     }
 
     /**
