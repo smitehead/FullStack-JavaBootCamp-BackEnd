@@ -34,4 +34,20 @@ public class ChatMessage {
 
     @Column(name = "CONTENT", nullable = false, length = 4000)
     private String content;
+
+    @Builder.Default
+    @Column(name = "MSG_TYPE", nullable = false, length = 20)
+    private String msgType = "TEXT"; // TEXT / IMAGE / LOCATION
+
+    @Column(name = "ADDR_ROAD", length = 200)
+    private String addrRoad;
+
+    @Column(name = "ADDR_DETAIL", length = 255)
+    private String addrDetail;
+
+    @Column(name = "LATITUDE")
+    private Double latitude;
+
+    @Column(name = "LONGITUDE")
+    private Double longitude;
 }
