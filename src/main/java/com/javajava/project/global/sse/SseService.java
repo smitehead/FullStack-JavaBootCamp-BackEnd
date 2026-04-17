@@ -77,8 +77,10 @@ public class SseService {
         String clientId = String.valueOf(memberNo);
         SseEmitter emitter = emitterMap.get(clientId);
         if (emitter != null) {
+            // memberNo를 payload에 포함 → 프론트가 "내 이벤트인지" 2차 검증 가능
             sendSafe(clientId, emitter,
-                SseEmitter.event().name("pointUpdate").data(Map.of("points", currentPoints)));
+                SseEmitter.event().name("pointUpdate").data(
+                    Map.of("points", currentPoints, "memberNo", memberNo)));
         }
     }
 
