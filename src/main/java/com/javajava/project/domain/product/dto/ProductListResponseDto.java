@@ -25,4 +25,7 @@ public class ProductListResponseDto {
     private String bidStatus;         // 입찰 상태 ("bidding"=경매중, "won"=낙찰, "lost"=낙찰실패, null=해당없음)
 
     private String auctionResultStatus; // 낙찰 결과 결제 상태 ("결제대기", "결제완료", "구매확정")
+
+    private Long resultNo;            // 낙찰 결과 번호 (구매내역 후기 작성용)
+    private Boolean hasReview;        // 후기 작성 여부 (구매내역용)
 }

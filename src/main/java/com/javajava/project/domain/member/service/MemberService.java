@@ -27,7 +27,7 @@ public interface MemberService {
     void updateProfileImage(Long memberNo, String url);
 
     // 판매자 프로필 조회 (공개용: 기본 정보 + 판매 상품 목록)
-    SellerProfileResponseDto getSellerProfile(Long memberNo);
+    SellerProfileResponseDto getSellerProfile(Long memberNo, Long viewerNo);
 
     void updateProfile(Long memberNo, MemberProfileUpdateDto dto);
     void changePassword(Long memberNo, PasswordChangeDto dto);

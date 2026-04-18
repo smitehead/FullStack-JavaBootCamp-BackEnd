@@ -103,7 +103,13 @@ public class MemberController {
     @GetMapping("/{memberNo}/seller-profile")
     public ResponseEntity<SellerProfileResponseDto> getSellerProfile(
             @PathVariable("memberNo") Long memberNo) {
-        return ResponseEntity.ok(memberService.getSellerProfile(memberNo));
+        Long viewerNo = null;
+        try {
+            viewerNo = getCurrentMemberNo();
+        } catch (Exception e) {
+            // 로그인하지 않은 경우 (Anonymous)
+        }
+        return ResponseEntity.ok(memberService.getSellerProfile(memberNo, viewerNo));
     }
 
     @PutMapping("/{memberNo}/profile-image-url")

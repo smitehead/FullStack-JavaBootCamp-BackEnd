@@ -28,6 +28,7 @@ import com.javajava.project.domain.point.entity.PointHistory;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
 import com.javajava.project.domain.bid.entity.AutoBid;
 import com.javajava.project.domain.bid.repository.AutoBidRepository;
+import com.javajava.project.domain.community.repository.ReviewRepository;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,6 +74,7 @@ public class ProductServiceImpl implements ProductService {
         private final PointHistoryRepository pointHistoryRepository;
         private final AutoBidRepository autoBidRepository;
         private final SseService sseService;
+        private final ReviewRepository reviewRepository;
 
         @Override
         @Transactional
@@ -588,7 +590,25 @@ public class ProductServiceImpl implements ProductService {
                                 .filter(p -> confirmedProductNos.contains(p.getProductNo()))
                                 .toList();
 
-                return toProductListDtos(confirmedProducts, memberNo);
+                // 3. resultNo 맵 생성: productNo → resultNo
+                Map<Long, Long> resultNoMap = new HashMap<>();
+                Map<Long, Long> bidNoToProductNo = winnerBids.stream()
+                                .collect(Collectors.toMap(BidHistory::getBidNo, BidHistory::getProductNo, (a, b) -> a));
+                for (AuctionResult ar : results) {
+                        Long pNo = bidNoToProductNo.get(ar.getBidNo());
+                        if (pNo != null && confirmedProductNos.contains(pNo)) {
+                                resultNoMap.put(pNo, ar.getResultNo());
+                        }
+                }
+
+                // 4. 후기 작성 여부 배치 확인
+                Map<Long, Boolean> hasReviewMap = new HashMap<>();
+                for (Map.Entry<Long, Long> entry : resultNoMap.entrySet()) {
+                        hasReviewMap.put(entry.getKey(),
+                                        reviewRepository.findByResultNo(entry.getValue()).isPresent());
+                }
+
+                return toProductListDtosWithReview(confirmedProducts, memberNo, resultNoMap, hasReviewMap);
         }
 
         @Override
@@ -937,6 +957,55 @@ public class ProductServiceImpl implements ProductService {
                                         .status(isFinished ? "completed" : "active")
                                         .images(imageUrls)
                                         .isWishlisted(wishlistedNos.contains(product.getProductNo()))
+                                        .build();
+                }).toList();
+        }
+
+        /**
+         * 구매 내역 전용: resultNo, hasReview 포함 변환
+         */
+        private List<ProductListResponseDto> toProductListDtosWithReview(
+                        List<Product> products, Long memberNo,
+                        Map<Long, Long> resultNoMap, Map<Long, Boolean> hasReviewMap) {
+                products = products.stream()
+                                .filter(p -> p.getIsDeleted() == 0)
+                                .toList();
+                if (products.isEmpty()) return List.of();
+
+                List<Long> productNos = products.stream().map(Product::getProductNo).toList();
+
+                Map<Long, ProductImage> mainImageMap = productImageRepository.findMainImagesByProductNos(productNos)
+                                .stream()
+                                .collect(Collectors.toMap(ProductImage::getProductNo, Function.identity(),
+                                                (a, b) -> a));
+
+                Set<Long> wishlistedNos = (memberNo != null)
+                                ? Set.copyOf(wishlistRepository.findWishlistedProductNos(memberNo, productNos))
+                                : Set.of();
+
+                Map<Long, Long> participantCountMap = bidHistoryRepository
+                                .countDistinctParticipantsByProductNos(productNos).stream()
+                                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+
+                return products.stream().map(product -> {
+                        ProductImage mainImg = mainImageMap.get(product.getProductNo());
+                        List<String> imageUrls = mainImg != null
+                                        ? List.of("/api/images/" + mainImg.getUuidName())
+                                        : List.of();
+
+                        return ProductListResponseDto.builder()
+                                        .id(product.getProductNo())
+                                        .title(product.getTitle())
+                                        .location(product.getTradeAddrShort() != null ? product.getTradeAddrShort()
+                                                        : product.getTradeAddrDetail())
+                                        .currentPrice(product.getCurrentPrice())
+                                        .endTime(product.getEndTime())
+                                        .participantCount(participantCountMap.getOrDefault(product.getProductNo(), 0L))
+                                        .status("completed")
+                                        .images(imageUrls)
+                                        .isWishlisted(wishlistedNos.contains(product.getProductNo()))
+                                        .resultNo(resultNoMap.get(product.getProductNo()))
+                                        .hasReview(hasReviewMap.getOrDefault(product.getProductNo(), false))
                                         .build();
                 }).toList();
         }

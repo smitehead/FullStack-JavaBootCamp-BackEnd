@@ -91,4 +91,7 @@ public interface BidHistoryRepository extends JpaRepository<BidHistory, Long> {
            "AND b.bidPrice = (SELECT MAX(b2.bidPrice) FROM BidHistory b2 " +
            "                  WHERE b2.productNo = b.productNo AND b2.isCancelled = 0)")
     List<Object[]> findTopBidderByProductNos(@Param("productNos") List<Long> productNos);
+
+    // 특정 회원의 특정 상품 리스트에 대한 모든 입찰 내역 조회
+    List<BidHistory> findByMemberNoAndProductNoIn(Long memberNo, List<Long> productNos);
 }
