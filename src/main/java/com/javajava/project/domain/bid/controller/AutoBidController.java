@@ -19,14 +19,19 @@ public class AutoBidController {
 
     /**
      * 자동입찰 등록 / 수정
+     * 동일·하위 금액, 포인트 부족 등 오류는 400으로 반환
      */
     @PostMapping
-    public ResponseEntity<AutoBidResponseDto> registerAutoBid(
+    public ResponseEntity<?> registerAutoBid(
             @RequestBody AutoBidRequestDto dto,
             Authentication authentication) {
         Long memberNo = (Long) authentication.getPrincipal();
-        AutoBidResponseDto result = autoBidService.registerAutoBid(memberNo, dto);
-        return ResponseEntity.ok(result);
+        try {
+            AutoBidResponseDto result = autoBidService.registerAutoBid(memberNo, dto);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.javajava.project.domain.bid.controller;
 
 import com.javajava.project.domain.bid.dto.BidRequestDto;
+import com.javajava.project.domain.bid.dto.BidResultDto;
 import com.javajava.project.domain.bid.dto.BuyoutRequestDto;
 import com.javajava.project.domain.product.dto.ProductDetailResponseDto;
 import com.javajava.project.domain.bid.service.BidService;
@@ -23,21 +24,19 @@ public class BidController {
 
     /**
      * 1. 실시간 입찰버튼
+     * 성공: BidResultDto (autoBidFired, finalBidderNo, finalPrice)
+     * 실패: 400 + 오류 메시지
      */
     @PostMapping
-    public ResponseEntity<String> placeBid(@RequestBody BidRequestDto bidDto,
-                                           Authentication authentication) {
-        // SecurityContext에서 인증된 사용자의 memberNo를 강제 세팅 (클라이언트 조작 방지)
+    public ResponseEntity<?> placeBid(@RequestBody BidRequestDto bidDto,
+                                      Authentication authentication) {
         Long memberNo = (Long) authentication.getPrincipal();
         bidDto.setMemberNo(memberNo);
-
-        String result = bidService.processBid(bidDto);
-        
-        if ("SUCCESS".equals(result)) {
-            return ResponseEntity.ok("입찰이 성공적으로 완료되었습니다.");
-        } else {
-            // 실패 사유(포인트 부족, 금액 미달 등)를 반환
-            return ResponseEntity.badRequest().body(result);
+        try {
+            BidResultDto result = bidService.processBid(bidDto);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
