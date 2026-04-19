@@ -144,11 +144,9 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                     .reason("[" + product.getTitle() + "] 낙찰 대금 수령")
                     .build());
 
-            // 배송지 저장
-            String fullAddr = (address != null && !address.isBlank())
-                    ? (addressDetail != null && !addressDetail.isBlank() ? address + " " + addressDetail : address)
-                    : (addressDetail != null ? addressDetail : "");
-            result.setDeliveryAddrDetail(fullAddr);
+            // 배송지 저장 (도로명/상세주소 분리 저장)
+            result.setDeliveryAddrRoad(address != null && !address.isBlank() ? address.strip() : null);
+            result.setDeliveryAddrDetail(addressDetail != null && !addressDetail.isBlank() ? addressDetail.strip() : null);
 
             sseService.sendPointUpdate(seller.getMemberNo(), seller.getPoints());
         }
