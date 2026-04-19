@@ -46,11 +46,12 @@ public interface BidHistoryRepository extends JpaRepository<BidHistory, Long> {
     Long countDistinctParticipants(@Param("productNo") Long productNo);
 
     // 여러 상품의 참여자 수를 한 번에 조회 (N+1 방지, 취소 이력 있는 회원 전체 제외)
+    // b2.productNo = b.productNo 로 상품별 상관 서브쿼리 — IN :productNos 사용 시 다른 상품 취소자가 교차 제외되는 버그 방지
     @Query("SELECT b.productNo, COUNT(DISTINCT b.memberNo) FROM BidHistory b " +
            "WHERE b.productNo IN :productNos AND b.isCancelled = 0 " +
            "AND b.memberNo NOT IN (" +
            "  SELECT b2.memberNo FROM BidHistory b2 " +
-           "  WHERE b2.productNo IN :productNos AND b2.isCancelled = 1" +
+           "  WHERE b2.productNo = b.productNo AND b2.isCancelled = 1" +
            ") " +
            "GROUP BY b.productNo")
     List<Object[]> countDistinctParticipantsByProductNos(@Param("productNos") List<Long> productNos);
