@@ -106,7 +106,7 @@ public class ChatServiceImpl implements ChatService {
     // ──────────────────────────────────────────────
     @Override
     @Transactional
-    public ChatMessageDto saveMessage(ChatMessageRequest request) {
+    public ChatMessageDto saveMessage(ChatMessageRequest request, Long senderId) {
         // content 길이 검증 (4000자 제한, IMAGE/LOCATION은 비어있어도 허용)
         if (request.getContent() != null && request.getContent().length() > 4000) {
             throw new IllegalArgumentException("메시지는 4000자를 초과할 수 없습니다.");
@@ -115,17 +115,22 @@ public class ChatServiceImpl implements ChatService {
         ChatRoom room = chatRoomRepository.findById(request.getRoomId())
                 .orElseThrow(() -> new IllegalArgumentException("채팅방을 찾을 수 없습니다."));
 
+        // [Security] 발신자가 해당 채팅방의 참여자인지 검증
+        if (!senderId.equals(room.getBuyerNo()) && !senderId.equals(room.getSellerNo())) {
+            throw new IllegalArgumentException("해당 채팅방의 참여자가 아닙니다. (senderId: " + senderId + ")");
+        }
+
         // 메시지 발신 시 해당 사용자의 LEFT 플래그 복구 (나갔던 방에 메시지 전송 시 자동 재참여)
-        if (request.getSenderId().equals(room.getBuyerNo())) {
+        if (senderId.equals(room.getBuyerNo())) {
             room.setBuyerLeft(0);
-        } else if (request.getSenderId().equals(room.getSellerNo())) {
+        } else if (senderId.equals(room.getSellerNo())) {
             room.setSellerLeft(0);
         }
 
         // 1. CHAT_MESSAGE 저장
         ChatMessage message = ChatMessage.builder()
                 .roomNo(request.getRoomId())
-                .senderNo(request.getSenderId())
+                .senderNo(senderId)
                 .content(request.getContent() != null ? request.getContent() : "")
                 .msgType(request.getMsgType() != null ? request.getMsgType() : "TEXT")
                 .addrRoad(request.getAddrRoad())
