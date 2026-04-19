@@ -69,9 +69,6 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 .map(img -> "/api/images/" + img.getUuidName())
                 .toList();
 
-        long pool = product.getPenaltyPool() != null ? product.getPenaltyPool() : 0L;
-        long buyerCashback = pool / 2;
-
         return AuctionResultResponseDto.builder()
                 .resultNo(result.getResultNo())
                 .status(result.getStatus())
@@ -90,7 +87,6 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                         .build())
                 .deliveryAddrRoad(result.getDeliveryAddrRoad())
                 .deliveryAddrDetail(result.getDeliveryAddrDetail())
-                .buyerCashback(buyerCashback)
                 .isForcePromoted(result.getIsForcePromoted())
                 .build();
     }
@@ -147,36 +143,6 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                     .balance(seller.getPoints())
                     .reason("[" + product.getTitle() + "] 낙찰 대금 수령")
                     .build());
-
-            // penaltyPool 분배: 구매자 50% 캐시백 + 판매자 50% 보상
-            long pool = product.getPenaltyPool() != null ? product.getPenaltyPool() : 0L;
-            if (pool > 0) {
-                long buyerShare  = pool / 2;
-                long sellerShare = pool - buyerShare;
-
-                buyer.setPoints(buyer.getPoints() + buyerShare);
-                pointHistoryRepository.save(PointHistory.builder()
-                        .memberNo(buyer.getMemberNo())
-                        .type("위약금보상")
-                        .amount(buyerShare)
-                        .balance(buyer.getPoints())
-                        .reason("[" + product.getTitle() + "] 입찰 취소 위약금 풀 보상 (구매자 50%)")
-                        .build());
-
-                seller.setPoints(seller.getPoints() + sellerShare);
-                pointHistoryRepository.save(PointHistory.builder()
-                        .memberNo(seller.getMemberNo())
-                        .type("위약금보상")
-                        .amount(sellerShare)
-                        .balance(seller.getPoints())
-                        .reason("[" + product.getTitle() + "] 입찰 취소 위약금 풀 보상 (판매자 50%)")
-                        .build());
-
-                product.setPenaltyPool(0L);
-                sseService.sendPointUpdate(buyer.getMemberNo(), buyer.getPoints());
-                log.info("[AuctionResult] penaltyPool 분배: productNo={}, 구매자={}P, 판매자={}P",
-                        product.getProductNo(), buyerShare, sellerShare);
-            }
 
             // 배송지 저장
             String fullAddr = (address != null && !address.isBlank())
@@ -283,25 +249,6 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 .build());
         sseService.sendPointUpdate(buyer.getMemberNo(), buyer.getPoints());
 
-        // ── 강제 승계 취소: 매너온도 패널티 면제 + penaltyPool 전액 판매자 지급 ──
-        // 본인 의사 없이 자동 승계된 낙찰자이므로 매너 패널티를 부과하지 않는다.
-        // 대신 원래 입찰 취소자의 위약금(penaltyPool)을 판매자에게 전액 보상한다.
-        long pool = product.getPenaltyPool() != null ? product.getPenaltyPool() : 0L;
-        if (pool > 0) {
-            seller.setPoints(seller.getPoints() + pool);
-            pointHistoryRepository.save(PointHistory.builder()
-                    .memberNo(seller.getMemberNo())
-                    .type("위약금보상")
-                    .amount(pool)
-                    .balance(seller.getPoints())
-                    .reason("[" + product.getTitle() + "] 강제 승계 낙찰 취소 — 입찰 취소자 위약금 풀 전액 보상")
-                    .build());
-            product.setPenaltyPool(0L);
-            sseService.sendPointUpdate(seller.getMemberNo(), seller.getPoints());
-            log.info("[AuctionResult] 강제승계 취소 — penaltyPool {}P 판매자 전액 지급: productNo={}",
-                    pool, product.getProductNo());
-        }
-
         result.setStatus("거래취소");
         log.info("[AuctionResult] 강제승계 낙찰 취소 완료 (패널티 없음): resultNo={}, memberNo={}",
                 resultNo, memberNo);
@@ -333,8 +280,6 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 .map(img -> "/api/images/" + img.getUuidName())
                 .toList();
 
-        long pool = product.getPenaltyPool() != null ? product.getPenaltyPool() : 0L;
-
         return SellerAuctionResultResponseDto.builder()
                 .resultNo(result.getResultNo())
                 .status(result.getStatus())
@@ -343,8 +288,6 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 .title(product.getTitle())
                 .description(product.getDescription())
                 .finalPrice(winnerBid.getBidPrice())
-                .penaltyPool(pool)
-                .sellerBonus(pool / 2)
                 .tradeType(product.getTradeType())
                 .location(product.getTradeAddrDetail())
                 .images(imageUrls)
@@ -465,21 +408,6 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 .reason("[" + product.getTitle() + "] 상호 합의 취소 — 전액 환불")
                 .build());
         sseService.sendPointUpdate(buyer.getMemberNo(), buyer.getPoints());
-
-        // penaltyPool → 판매자 전액 지급 (기존 입찰 취소자들의 위약금, 합의 취소 보상)
-        long pool = product.getPenaltyPool() != null ? product.getPenaltyPool() : 0L;
-        if (pool > 0) {
-            seller.setPoints(seller.getPoints() + pool);
-            pointHistoryRepository.save(PointHistory.builder()
-                    .memberNo(seller.getMemberNo())
-                    .type("위약금보상")
-                    .amount(pool)
-                    .balance(seller.getPoints())
-                    .reason("[" + product.getTitle() + "] 상호 합의 취소 — 입찰 취소자 위약금 풀 전액")
-                    .build());
-            product.setPenaltyPool(0L);
-            sseService.sendPointUpdate(seller.getMemberNo(), seller.getPoints());
-        }
 
         result.setStatus("거래취소");
 

@@ -7,6 +7,8 @@ import com.javajava.project.domain.bid.repository.AutoBidRepository;
 import com.javajava.project.domain.bid.repository.BidHistoryRepository;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.member.repository.MemberRepository;
+import com.javajava.project.domain.platform.entity.PlatformRevenue;
+import com.javajava.project.domain.platform.repository.PlatformRevenueRepository;
 import com.javajava.project.domain.point.entity.PointHistory;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
 import com.javajava.project.domain.product.entity.Product;
@@ -63,6 +65,7 @@ public class BidCancelService {
     private final AutoBidRepository autoBidRepository;
     private final MemberRepository memberRepository;
     private final PointHistoryRepository pointHistoryRepository;
+    private final PlatformRevenueRepository platformRevenueRepository;
     private final SseService sseService;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -194,10 +197,14 @@ public class BidCancelService {
                 .reason("[" + product.getTitle() + "] 입찰 취소 위약금 (입찰가의 5%)")
                 .build());
 
-        // 8-3. 위약금 → penaltyPool 적립 (판매자 즉시 지급 아님)
-        product.setPenaltyPool(product.getPenaltyPool() + penalty);
-        log.info("[BidCancel] 위약금 풀 적립: productNo={}, +{}P, totalPool={}P",
-                productNo, penalty, product.getPenaltyPool());
+        // 8-3. 위약금 → 플랫폼 수익 테이블에 즉시 INSERT
+        platformRevenueRepository.save(PlatformRevenue.builder()
+                .amount(penalty)
+                .reason("[" + product.getTitle() + "] 입찰 취소 위약금 (입찰가의 5%)")
+                .sourceMemberNo(requestingMemberNo)
+                .relatedProductNo(productNo)
+                .build());
+        log.info("[BidCancel] 플랫폼 수익 귀속: productNo={}, amount={}P (입찰가의 5%)", productNo, penalty);
 
         // seller 변수 미사용 경고 방지 (데드락 방지를 위해 락 획득은 필수, 실제 포인트 변경은 없음)
         log.debug("[BidCancel] 판매자 락 획득 확인: sellerNo={}", seller.getMemberNo());
@@ -295,7 +302,7 @@ public class BidCancelService {
                 productNo, product.getTitle(), sellerNo,
                 requestingMemberNo, finalSuccessorNo, penalty));
 
-        log.info("[BidCancel] 취소 완료: productNo={}, cancelledBy={}, penalty={}P(5%), newPrice={}P, penaltyPool={}P",
-                productNo, requestingMemberNo, penalty, newPrice, product.getPenaltyPool());
+        log.info("[BidCancel] 취소 완료: productNo={}, cancelledBy={}, penalty={}P(5%→플랫폼수익), newPrice={}P",
+                productNo, requestingMemberNo, penalty, newPrice);
     }
 }

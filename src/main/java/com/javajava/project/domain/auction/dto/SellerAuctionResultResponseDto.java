@@ -20,8 +20,6 @@ public class SellerAuctionResultResponseDto {
     private String title;
     private String description;
     private Long finalPrice;         // 낙찰가 (판매자 수령 예정 기본액)
-    private Long penaltyPool;        // 위약금 풀 총액
-    private Long sellerBonus;        // penaltyPool / 2  (구매확정 시 판매자 추가 수령)
     private String tradeType;
     private String location;
     private List<String> images;

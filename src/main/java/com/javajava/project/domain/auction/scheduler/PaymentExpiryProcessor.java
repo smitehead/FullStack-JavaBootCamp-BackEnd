@@ -138,12 +138,9 @@ public class PaymentExpiryProcessor {
             product.setStatus(4); // CLOSED_FAILED
             product.setWinnerNo(null);
 
-            distributePenaltyPool(product);
-
             log.info("[PaymentExpiry] Phase3 최종 유찰: productNo={}", productNo);
             notifySeller(product.getSellerNo(), product.getTitle(), productNo,
-                    "낙찰자가 결제하지 않아 경매가 최종 유찰되었습니다. " +
-                            "위약금 보상금이 지급되었으며 수수료 없이 재등록하실 수 있습니다.");
+                    "낙찰자가 결제하지 않아 경매가 최종 유찰되었습니다. 수수료 없이 재등록하실 수 있습니다.");
         }
     }
 
@@ -185,30 +182,6 @@ public class PaymentExpiryProcessor {
             }
         }
         return null;
-    }
-
-    /**
-     * penaltyPool 전액을 판매자에게 지급.
-     * 최종 유찰(CLOSED_FAILED) 또는 경매 종료 시 호출.
-     */
-    private void distributePenaltyPool(Product product) {
-        long pool = product.getPenaltyPool();
-        if (pool <= 0) return;
-
-        Optional<Member> sellerOpt = memberRepository.findByIdWithLock(product.getSellerNo());
-        sellerOpt.ifPresent(seller -> {
-            seller.setPoints(seller.getPoints() + pool);
-            pointHistoryRepository.save(PointHistory.builder()
-                    .memberNo(seller.getMemberNo())
-                    .type("취소보상금")
-                    .amount(pool)
-                    .balance(seller.getPoints())
-                    .reason("[" + product.getTitle() + "] 최종 유찰 위약금 풀 전액 지급")
-                    .build());
-            log.info("[PaymentExpiry] penaltyPool 판매자 지급: sellerNo={}, amount={}",
-                    seller.getMemberNo(), pool);
-        });
-        product.setPenaltyPool(0L);
     }
 
     private void notifySuccessor(Long memberNo, String productTitle, Long productNo) {

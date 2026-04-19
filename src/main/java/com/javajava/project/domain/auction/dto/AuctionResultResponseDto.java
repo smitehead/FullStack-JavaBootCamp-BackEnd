@@ -30,12 +30,6 @@ public class AuctionResultResponseDto {
     private String deliveryAddrDetail;
 
     /**
-     * 입찰 취소 위약금 풀에서 구매자에게 돌아오는 캐시백 (penaltyPool / 2).
-     * 경쟁 입찰자 취소가 없었으면 0. 결제 완료 시 포인트로 지급됨.
-     */
-    private Long buyerCashback;
-
-    /**
      * 강제 승계 여부. 1 = 상위 입찰자 취소로 자동 승계된 낙찰자.
      * 이 경우 불이익 없이 낙찰 취소 가능 (매너온도 패널티 면제).
      */
