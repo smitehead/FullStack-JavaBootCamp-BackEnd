@@ -23,4 +23,7 @@ public interface AuctionResultService {
 
     // 판매자 취소 승인 (구매자의 취소요청 승인 또는 판매자 직접 취소)
     void approveCancel(Long resultNo, Long sellerNo);
+
+    // 판매자가 채팅에서 받은 배송지 주소를 낙찰 결과에 저장
+    void updateDeliveryAddress(Long productNo, Long sellerNo, String addrRoad, String addrDetail);
 }

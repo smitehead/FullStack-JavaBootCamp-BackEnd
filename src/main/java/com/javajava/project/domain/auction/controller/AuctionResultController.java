@@ -1,6 +1,7 @@
 package com.javajava.project.domain.auction.controller;
 
 import com.javajava.project.domain.auction.dto.AuctionResultResponseDto;
+import com.javajava.project.domain.auction.dto.DeliveryAddressUpdateRequest;
 import com.javajava.project.domain.auction.dto.SellerAuctionResultResponseDto;
 import com.javajava.project.domain.auction.service.AuctionResultService;
 import lombok.RequiredArgsConstructor;
@@ -76,5 +77,16 @@ public class AuctionResultController {
             Authentication authentication) {
         Long sellerNo = (Long) authentication.getPrincipal();
         return ResponseEntity.ok(auctionResultService.getAuctionResultBySellerAndProduct(productNo, sellerNo));
+    }
+
+    // 판매자 배송지 업데이트 (채팅에서 받은 주소 저장)
+    @PatchMapping("/seller/product/{productNo}/delivery-address")
+    public ResponseEntity<Void> updateDeliveryAddress(
+            @PathVariable("productNo") Long productNo,
+            @RequestBody DeliveryAddressUpdateRequest request,
+            Authentication authentication) {
+        Long sellerNo = (Long) authentication.getPrincipal();
+        auctionResultService.updateDeliveryAddress(productNo, sellerNo, request.getAddrRoad(), request.getAddrDetail());
+        return ResponseEntity.ok().build();
     }
 }

@@ -424,6 +424,28 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         log.info("[AuctionResult] 판매자 취소 승인 완료: resultNo={}, sellerNo={}", resultNo, sellerNo);
     }
 
+    // ────────────────────────────────────────────────────────────────────────────
+    // 판매자 배송지 업데이트 (채팅에서 받은 ADDRESS 메시지 확인 시)
+    // ────────────────────────────────────────────────────────────────────────────
+    @Override
+    @Transactional
+    public void updateDeliveryAddress(Long productNo, Long sellerNo, String addrRoad, String addrDetail) {
+        Product product = productRepository.findById(productNo)
+                .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다."));
+        if (!product.getSellerNo().equals(sellerNo)) {
+            throw new IllegalStateException("해당 상품의 판매자만 배송지를 수정할 수 있습니다.");
+        }
+        BidHistory winnerBid = bidHistoryRepository
+                .findFirstByProductNoAndIsWinnerOrderByBidPriceDesc(productNo, 1)
+                .orElseThrow(() -> new IllegalArgumentException("낙찰 기록이 없습니다."));
+        AuctionResult result = auctionResultRepository.findFirstByBidNo(winnerBid.getBidNo())
+                .orElseThrow(() -> new IllegalArgumentException("낙찰 결과를 찾을 수 없습니다."));
+
+        result.setDeliveryAddrRoad(addrRoad);
+        result.setDeliveryAddrDetail(addrDetail);
+        log.info("[AuctionResult] 판매자 배송지 업데이트: productNo={}, sellerNo={}", productNo, sellerNo);
+    }
+
     /**
          * AuctionResult를 조회하고 낙찰자 본인인지 검증
          */
