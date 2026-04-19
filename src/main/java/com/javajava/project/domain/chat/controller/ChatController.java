@@ -159,13 +159,16 @@ public class ChatController {
      * Payload (Sub): ChatMessageDto (DB PK 포함)
      */
     @MessageMapping("/chat/message")
-    public void handleMessage(ChatMessageRequest request) {
-        log.info("[STOMP] 메시지 수신 시작 - roomId: {}, senderId: {}, uuid: {}, content: {}",
-                request.getRoomId(), request.getSenderId(), request.getClientUuid(), request.getContent());
+    public void handleMessage(ChatMessageRequest request, Authentication auth) {
+        // [Security] 클라이언트가 보낸 senderId 대신 인증 세션(Principal)의 memberNo를 사용
+        Long senderId = (Long) auth.getPrincipal();
+
+        log.info("[STOMP] 메시지 수신 시작 - roomId: {}, senderId(Auth): {}, uuid: {}, content: {}",
+                request.getRoomId(), senderId, request.getClientUuid(), request.getContent());
 
         try {
-            // 1. DB 저장 (Save-then-Broadcast)
-            ChatMessageDto savedMessage = chatService.saveMessage(request);
+            // 1. DB 저장 (Save-then-Broadcast) - 서비스 레벨에서 참여자 검증 수행
+            ChatMessageDto savedMessage = chatService.saveMessage(request, senderId);
             log.info("[STOMP] 메시지 DB 저장 성공 - msgNo: {}", savedMessage.getMsgNo());
 
             // 2. 해당 채팅방 구독자에게 브로드캐스트
@@ -174,10 +177,9 @@ public class ChatController {
                     savedMessage
             );
             log.info("[STOMP] 메시지 브로드캐스트 완료 - roomId: {}", request.getRoomId());
-            
+
         } catch (Exception e) {
             log.error("[STOMP] 메시지 처리 중 오류 발생: {}", e.getMessage(), e);
-            // 에러 상황을 클라이언트에게 별도로 알리고 싶다면 여기서 특정 에러 토픽으로 발송 가능
         }
     }
 
