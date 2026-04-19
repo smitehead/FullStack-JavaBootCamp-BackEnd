@@ -66,7 +66,10 @@ public class ProductDetailResponseDto {
     @Getter
     @Setter
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class BidHistoryDto {
+        private Long bidNo;
         private String bidderNickname;
         private Long bidPrice;
         private LocalDateTime bidTime;
