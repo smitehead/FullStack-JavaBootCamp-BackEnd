@@ -42,7 +42,8 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             NVL(uc.cnt, 0)      AS unreadCount,
             CASE WHEN cr.BUYER_NO = :myNo THEN cr.SELLER_NO ELSE cr.BUYER_NO END AS otherUserNo,
             m.NICKNAME          AS otherUserNickname,
-            m.PROFILE_IMG_URL   AS otherUserProfileImage
+            m.PROFILE_IMG_URL   AS otherUserProfileImage,
+            p.TRADE_TYPE        AS tradeType
         FROM CHAT_ROOM cr
         LEFT JOIN (
             SELECT cm2.ROOM_NO, cm2.CONTENT, cm2.SENT_AT, cm2.SENDER_NO
