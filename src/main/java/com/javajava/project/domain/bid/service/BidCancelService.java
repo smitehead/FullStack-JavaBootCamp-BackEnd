@@ -172,9 +172,18 @@ public class BidCancelService {
                     penalty, bidder.getPoints() + bidPrice));
         }
 
-        // ── 7. Soft Delete: 취소 입찰 논리 삭제 ────────────────────────────────
-        topBid.setIsCancelled(1);
-        topBid.setCancelReason("입찰자 본인 취소 (위약금 " + penalty + "P 차감, 5%)");
+        // ── 7. 취소자의 해당 상품 모든 활성 입찰 일괄 무효화 ─────────────────────
+        //   단건(topBid)만 무효화하면 낮은 가격의 과거 입찰이 차순위로 다시 부상하는 버그 발생.
+        //   취소자의 모든 isCancelled=0 입찰을 한꺼번에 Soft-Delete한다.
+        List<BidHistory> allActiveBids = bidHistoryRepository
+                .findByProductNoAndMemberNoAndIsCancelled(productNo, requestingMemberNo, 0);
+        String cancelReason = "입찰자 본인 취소 (위약금 " + penalty + "P 차감, 5%)";
+        for (BidHistory bid : allActiveBids) {
+            bid.setIsCancelled(1);
+            bid.setCancelReason(cancelReason);
+        }
+        log.info("[BidCancel] 취소자 활성 입찰 {}건 일괄 무효화: memberNo={}, productNo={}",
+                allActiveBids.size(), requestingMemberNo, productNo);
 
         // ── 8. 포인트 처리 ────────────────────────────────────────────────────────
         // 8-1. 입찰가 환불
