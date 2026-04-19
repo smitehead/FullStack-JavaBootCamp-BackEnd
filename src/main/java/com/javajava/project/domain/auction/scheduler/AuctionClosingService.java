@@ -152,6 +152,7 @@ public class AuctionClosingService {
         // status=3 (PENDING_PAYMENT): 즉시구매도 결제 확인 전까지 대기 상태
         product.setStatus(3);
         product.setWinnerNo(winningBid.getMemberNo());
+        product.setEndTime(LocalDateTime.now()); // [추가] 즉시구매 시 종료 시간 업데이트
 
         auctionResultRepository.save(AuctionResult.builder()
                 .bidNo(winningBid.getBidNo())

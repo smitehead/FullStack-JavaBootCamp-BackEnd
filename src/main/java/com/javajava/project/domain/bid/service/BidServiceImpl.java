@@ -330,28 +330,16 @@ public class BidServiceImpl implements BidService {
                 .isWinner(1)
                 .build());
 
-        // 9. 상품 상태 업데이트
-        product.setCurrentPrice(buyoutPrice);
-        product.setStatus(1);
-        product.setWinnerNo(memberNo);
-        product.setBidCount(product.getBidCount() + 1);
+        // 9. 상품 및 입찰 상태 최종 업데이트 (AuctionClosingService 위임)
+        // - status=3(PENDING_PAYMENT), endTime=now(), AuctionResult 저장, AuctionClosedEvent 발행 포함
+        auctionClosingService.closeDueToBuyout(product, buyoutBid);
 
-        // 10. 낙찰 결과 저장
-        auctionResultRepository.save(AuctionResult.builder()
-                .bidNo(buyoutBid.getBidNo())
-                .status("배송대기")
-                .build());
-
-        // 11. Watchdog 예약 취소 (즉시구매로 종료됐으므로 endTime 스케줄 불필요)
+        // 10. Watchdog 예약 취소 (즉시구매로 종료됐으므로 endTime 스케줄 불필요)
         auctionExpiryWatchdog.cancel(productNo);
 
         log.info("[Buyout] 즉시구매 완료: productNo={}, buyer={}, price={}", productNo, memberNo, buyoutPrice);
 
-        // 12. 이벤트 발행 (커밋 후 알림 — AuctionNotificationListener 수신)
-        eventPublisher.publishEvent(new AuctionClosedEvent(
-                productNo, product.getTitle(), product.getSellerNo(), memberNo, buyoutBid.getBidNo()));
-
-        // 13. SSE 경매 종료 브로드캐스트
+        // 11. SSE 경매 종료 브로드캐스트
         try {
             sseService.broadcastBuyoutEnded(productNo, buyoutPrice, memberNo);
         } catch (Exception e) {
