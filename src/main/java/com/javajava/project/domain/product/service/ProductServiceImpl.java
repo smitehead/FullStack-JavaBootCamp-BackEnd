@@ -92,7 +92,6 @@ public class ProductServiceImpl implements ProductService {
                                 .buyoutPrice(dto.getBuyoutPrice())
                                 .minBidUnit(dto.getMinBidUnit())
                                 .endTime(dto.getEndTime())
-                                .shippingFee(dto.getShippingFee() != null ? dto.getShippingFee() : 0L)
                                 .createdAt(LocalDateTime.now()) // Oracle NOT NULL 제약 조건(ORA-01400) 해결
                                 .viewCount(0L)
                                 .bidCount(0L)
@@ -358,7 +357,6 @@ public class ProductServiceImpl implements ProductService {
                                 .createdAt(product.getCreatedAt())
                                 .endTime(product.getEndTime())
                                 .buyoutPrice(product.getBuyoutPrice())
-                                .shippingFee(product.getShippingFee())
                                 .status(product.getStatus())
                                 .participantCount(
                                                 bidHistoryRepository.countDistinctParticipants(product.getProductNo()))

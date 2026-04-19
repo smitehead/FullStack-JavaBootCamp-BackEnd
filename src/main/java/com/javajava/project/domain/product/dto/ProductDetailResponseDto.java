@@ -21,7 +21,6 @@ public class ProductDetailResponseDto {
     private LocalDateTime createdAt;
     private LocalDateTime endTime;
     private Long buyoutPrice;
-    private Long shippingFee;
     private Long participantCount;
 
     /**

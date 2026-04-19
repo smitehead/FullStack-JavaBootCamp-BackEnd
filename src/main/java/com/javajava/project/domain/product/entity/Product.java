@@ -71,10 +71,6 @@ public class Product {
     @Column(name = "END_TIME", nullable = false)
     private LocalDateTime endTime;
 
-    @Builder.Default
-    @Column(name = "SHIPPING_FEE", nullable = false)
-    private Long shippingFee = 0L;
-
     /**
      * 경매 진행 상태
      * 0 : active (진행중)
