@@ -54,7 +54,7 @@ public class AuctionClosingService {
 
             // DB 처리 (트랜잭션 내)
             winningBid.setIsWinner(1);
-            // status=3 (PENDING_PAYMENT): 낙찰 확정 후 12시간 결제 대기
+            // status=3 (PENDING_PAYMENT): 낙찰 확정, 구매자 수령 확인 대기 (7일 후 자동 구매 확정)
             product.setStatus(3);
             product.setWinnerNo(winningBid.getMemberNo());
 
@@ -69,7 +69,7 @@ public class AuctionClosingService {
             auctionResultRepository.save(AuctionResult.builder()
                     .bidNo(winningBid.getBidNo())
                     .status("배송대기")
-                    .paymentDueDate(LocalDateTime.now().plusHours(12)) // 결제 마감 12시간
+                    .paymentDueDate(LocalDateTime.now().plusDays(7)) // 자동 구매 확정 기준: 낙찰일 +7일
                     .build());
 
             log.info("[Scheduler] 상품 번호 {} 낙찰 완료 (입찰번호: {}, 낙찰자: {})",
@@ -115,7 +115,7 @@ public class AuctionClosingService {
         }
 
         winningBid.setIsWinner(1);
-        // status=3 (PENDING_PAYMENT): 즉시구매도 결제 확인 전까지 대기 상태
+        // status=3 (PENDING_PAYMENT): 즉시구매도 구매자 수령 확인 대기 (7일 후 자동 구매 확정)
         product.setStatus(3);
         product.setWinnerNo(winningBid.getMemberNo());
         product.setEndTime(LocalDateTime.now()); // [추가] 즉시구매 시 종료 시간 업데이트
@@ -123,7 +123,7 @@ public class AuctionClosingService {
         auctionResultRepository.save(AuctionResult.builder()
                 .bidNo(winningBid.getBidNo())
                 .status("배송대기")
-                .paymentDueDate(LocalDateTime.now().plusHours(12)) // 결제 마감 12시간
+                .paymentDueDate(LocalDateTime.now().plusDays(7)) // 자동 구매 확정 기준: 낙찰일 +7일
                 .build());
 
         log.info("[Buyout] 즉시구매 경매 종료: productNo={}, winner={}, price={}",
