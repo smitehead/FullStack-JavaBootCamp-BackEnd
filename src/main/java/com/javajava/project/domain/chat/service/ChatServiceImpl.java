@@ -129,10 +129,14 @@ public class ChatServiceImpl implements ChatService {
         }
 
         // 1. CHAT_MESSAGE 저장
+        // Oracle은 빈 문자열("")을 NULL로 처리하므로, 공백으로 대체 (NOT NULL 제약 위반 방지)
+        String content = (request.getContent() != null && !request.getContent().isEmpty())
+                ? request.getContent() : " ";
+
         ChatMessage message = ChatMessage.builder()
                 .roomNo(request.getRoomId())
                 .senderNo(senderId)
-                .content(request.getContent() != null ? request.getContent() : "")
+                .content(content)
                 .msgType(request.getMsgType() != null ? request.getMsgType() : "TEXT")
                 .addrRoad(request.getAddrRoad())
                 .addrDetail(request.getAddrDetail())
