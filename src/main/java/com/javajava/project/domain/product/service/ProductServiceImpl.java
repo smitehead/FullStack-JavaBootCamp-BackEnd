@@ -475,7 +475,7 @@ public class ProductServiceImpl implements ProductService {
         public Page<ProductListResponseDto> getMyBiddingProducts(Long memberNo, int page, int size) {
                 List<Long> productNos = bidHistoryRepository.findDistinctProductNosByMemberNo(memberNo);
                 if (productNos.isEmpty())
-                        return List.of();
+                        return Page.empty();
 
                 // findAllById는 순서를 보장하지 않으므로, productNos 순서대로 재정렬 필요
                 List<Product> fetchedProducts = productRepository.findAllById(productNos);
@@ -548,7 +548,7 @@ public class ProductServiceImpl implements ProductService {
                 // 1. 내가 낙찰받은 상품 번호 목록
                 List<Long> wonProductNos = bidHistoryRepository.findWonProductNosByMemberNo(memberNo);
                 if (wonProductNos.isEmpty())
-                        return List.of();
+                        return Page.empty();
 
                 // 2. 해당 상품들의 낙찰 입찰번호를 찾고, AuctionResult에서 구매확정된 것만 필터
                 List<Product> fetchedProducts = productRepository.findAllById(wonProductNos);
@@ -569,7 +569,7 @@ public class ProductServiceImpl implements ProductService {
 
                 List<Long> bidNos = winnerBids.stream().map(BidHistory::getBidNo).toList();
                 if (bidNos.isEmpty())
-                        return List.of();
+                        return Page.empty();
 
                 // AuctionResult 중 결제완료 또는 구매확정된 것 필터 (결제 완료 시 구매내역으로 이동)
                 List<AuctionResult> results = auctionResultRepository.findByBidNos(bidNos);
