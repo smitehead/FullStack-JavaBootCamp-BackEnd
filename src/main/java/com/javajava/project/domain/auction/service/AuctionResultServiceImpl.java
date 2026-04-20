@@ -5,6 +5,8 @@ import com.javajava.project.domain.auction.dto.SellerAuctionResultResponseDto;
 import com.javajava.project.domain.auction.entity.AuctionResult;
 import com.javajava.project.domain.bid.entity.BidHistory;
 import com.javajava.project.domain.member.entity.Member;
+import com.javajava.project.domain.platform.entity.PlatformRevenue;
+import com.javajava.project.domain.platform.repository.PlatformRevenueRepository;
 import com.javajava.project.domain.point.entity.PointHistory;
 import com.javajava.project.domain.product.entity.Product;
 import com.javajava.project.domain.product.entity.ProductImage;
@@ -36,6 +38,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
     private final MemberRepository memberRepository;
     private final ProductImageRepository productImageRepository;
     private final PointHistoryRepository pointHistoryRepository;
+    private final PlatformRevenueRepository platformRevenueRepository;
     private final NotificationService notificationService;
     private final SseService sseService;
 
@@ -133,15 +136,28 @@ public class AuctionResultServiceImpl implements AuctionResultService {
 
         // ── 배송대기 상태: 에스크로 정산 (구버전 결제완료 상태는 이미 정산 완료) ──
         if ("배송대기".equals(result.getStatus())) {
-            // 에스크로(입찰 시 차감된 금액)를 판매자에게 지급
-            // 구매자 포인트는 입찰 시점에 이미 차감됨 — 여기서 재차감 없음
-            seller.setPoints(seller.getPoints() + bid.getBidPrice());
+            // 수수료율: 직거래 1%, 택배거래·혼합 2%
+            double feeRate = "직거래".equals(product.getTradeType()) ? 0.01 : 0.02;
+            String feeLabel = "직거래".equals(product.getTradeType()) ? "1%" : "2%";
+            long fee = Math.round(bid.getBidPrice() * feeRate);
+            long settlementAmount = bid.getBidPrice() - fee;
+
+            // 판매자에게 정산금(낙찰가 - 수수료) 지급
+            seller.setPoints(seller.getPoints() + settlementAmount);
             pointHistoryRepository.save(PointHistory.builder()
                     .memberNo(seller.getMemberNo())
                     .type("낙찰대금수령")
-                    .amount(bid.getBidPrice())
+                    .amount(settlementAmount)
                     .balance(seller.getPoints())
-                    .reason("[" + product.getTitle() + "] 낙찰 대금 수령")
+                    .reason("[" + product.getTitle() + "] 판매 정산금 (수수료 " + feeLabel + " 제외)")
+                    .build());
+
+            // 수수료를 플랫폼 수익으로 귀속
+            platformRevenueRepository.save(PlatformRevenue.builder()
+                    .amount(fee)
+                    .reason("낙찰 수수료 (플랫폼 이용료)")
+                    .sourceMemberNo(seller.getMemberNo())
+                    .relatedProductNo(product.getProductNo())
                     .build());
 
             // 배송지 저장 (도로명/상세주소 분리 저장)
@@ -158,18 +174,20 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         buyer.setMannerTemp(Math.min(100, buyer.getMannerTemp() + 0.2));
         seller.setMannerTemp(Math.min(100, seller.getMannerTemp() + 0.2));
 
+        double feeRateForNotif = "직거래".equals(product.getTradeType()) ? 0.01 : 0.02;
+        long settlementForNotif = bid.getBidPrice() - Math.round(bid.getBidPrice() * feeRateForNotif);
         try {
             notificationService.sendAndSaveNotification(
                     seller.getMemberNo(), "activity",
                     "구매자가 [" + product.getTitle() + "] 상품 수령을 확인하여 "
-                            + String.format("%,d", bid.getBidPrice()) + "P가 정산되었습니다.",
+                            + String.format("%,d", settlementForNotif) + "P가 정산되었습니다.",
                     "/products/" + product.getProductNo());
         } catch (Exception e) {
             log.warn("[AuctionResult] 판매자 구매확정 알림 전송 실패: {}", e.getMessage());
         }
 
-        log.info("[AuctionResult] 구매 확정 완료: resultNo={}, memberNo={}, price={}P",
-                resultNo, memberNo, bid.getBidPrice());
+        log.info("[AuctionResult] 구매 확정 완료: resultNo={}, memberNo={}, price={}P, settlement={}P",
+                resultNo, memberNo, bid.getBidPrice(), settlementForNotif);
     }
 
     @Override

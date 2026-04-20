@@ -7,6 +7,8 @@ import com.javajava.project.domain.bid.repository.BidHistoryRepository;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.domain.notification.service.NotificationService;
+import com.javajava.project.domain.platform.entity.PlatformRevenue;
+import com.javajava.project.domain.platform.repository.PlatformRevenueRepository;
 import com.javajava.project.domain.point.entity.PointHistory;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
 import com.javajava.project.domain.product.entity.Product;
@@ -37,6 +39,7 @@ public class AuctionAutoConfirmProcessor {
     private final ProductRepository productRepository;
     private final MemberRepository memberRepository;
     private final PointHistoryRepository pointHistoryRepository;
+    private final PlatformRevenueRepository platformRevenueRepository;
     private final NotificationService notificationService;
     private final SseService sseService;
 
@@ -82,14 +85,26 @@ public class AuctionAutoConfirmProcessor {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "구매자를 찾을 수 없습니다. memberNo=" + bid.getMemberNo()));
 
-        // ── 3. 에스크로 정산: 입찰 시 차감된 낙찰가를 판매자에게 지급 ────────
-        seller.setPoints(seller.getPoints() + bid.getBidPrice());
+        // ── 3. 에스크로 정산: 수수료 차감 후 판매자에게 정산금 지급 ──────────
+        double feeRate = "직거래".equals(product.getTradeType()) ? 0.01 : 0.02;
+        String feeLabel = "직거래".equals(product.getTradeType()) ? "1%" : "2%";
+        long fee = Math.round(bid.getBidPrice() * feeRate);
+        long settlementAmount = bid.getBidPrice() - fee;
+
+        seller.setPoints(seller.getPoints() + settlementAmount);
         pointHistoryRepository.save(PointHistory.builder()
                 .memberNo(seller.getMemberNo())
                 .type("낙찰대금수령")
-                .amount(bid.getBidPrice())
+                .amount(settlementAmount)
                 .balance(seller.getPoints())
-                .reason("[" + product.getTitle() + "] 7일 자동 구매 확정 — 낙찰 대금 수령")
+                .reason("[" + product.getTitle() + "] 판매 정산금 (수수료 " + feeLabel + " 제외) — 7일 자동 구매 확정")
+                .build());
+
+        platformRevenueRepository.save(PlatformRevenue.builder()
+                .amount(fee)
+                .reason("낙찰 수수료 (플랫폼 이용료)")
+                .sourceMemberNo(seller.getMemberNo())
+                .relatedProductNo(product.getProductNo())
                 .build());
 
         // ── 4. 구매 확정 처리 ──────────────────────────────────────────────────
@@ -111,7 +126,7 @@ public class AuctionAutoConfirmProcessor {
             notificationService.sendAndSaveNotification(
                     seller.getMemberNo(), "activity",
                     "[" + product.getTitle() + "] 상품이 7일 자동 구매 확정되어 "
-                            + String.format("%,d", bid.getBidPrice()) + "P가 정산되었습니다.",
+                            + String.format("%,d", settlementAmount) + "P가 정산되었습니다.",
                     "/products/" + product.getProductNo());
         } catch (Exception e) {
             log.warn("[AutoConfirm] 판매자 알림 실패 (resultNo={}): {}", resultNo, e.getMessage());
@@ -126,7 +141,7 @@ public class AuctionAutoConfirmProcessor {
             log.warn("[AutoConfirm] 구매자 알림 실패 (resultNo={}): {}", resultNo, e.getMessage());
         }
 
-        log.info("[AutoConfirm] 자동 구매 확정 완료: resultNo={}, buyerNo={}, sellerNo={}, price={}P",
-                resultNo, buyer.getMemberNo(), seller.getMemberNo(), bid.getBidPrice());
+        log.info("[AutoConfirm] 자동 구매 확정 완료: resultNo={}, buyerNo={}, sellerNo={}, price={}P, settlement={}P",
+                resultNo, buyer.getMemberNo(), seller.getMemberNo(), bid.getBidPrice(), settlementAmount);
     }
 }
