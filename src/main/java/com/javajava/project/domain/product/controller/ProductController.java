@@ -76,23 +76,32 @@ public class ProductController {
 
     // 마이페이지: 내가 등록한 상품 목록
     @GetMapping("/my-selling")
-    public ResponseEntity<List<ProductListResponseDto>> getMySellingProducts(Authentication authentication) {
+    public ResponseEntity<Page<ProductListResponseDto>> getMySellingProducts(
+            Authentication authentication,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "6") int size) {
         Long memberNo = (Long) authentication.getPrincipal();
-        return ResponseEntity.ok(productService.getMySellingProducts(memberNo));
+        return ResponseEntity.ok(productService.getMySellingProducts(memberNo, page, size));
     }
 
     // 마이페이지: 내가 입찰한 상품 목록 (입찰상태 포함)
     @GetMapping("/my-bidding")
-    public ResponseEntity<List<ProductListResponseDto>> getMyBiddingProducts(Authentication authentication) {
+    public ResponseEntity<Page<ProductListResponseDto>> getMyBiddingProducts(
+            Authentication authentication,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "6") int size) {
         Long memberNo = (Long) authentication.getPrincipal();
-        return ResponseEntity.ok(productService.getMyBiddingProducts(memberNo));
+        return ResponseEntity.ok(productService.getMyBiddingProducts(memberNo, page, size));
     }
 
     // 마이페이지: 구매 완료(구매확정) 상품 목록
     @GetMapping("/my-purchased")
-    public ResponseEntity<List<ProductListResponseDto>> getMyPurchasedProducts(Authentication authentication) {
+    public ResponseEntity<Page<ProductListResponseDto>> getMyPurchasedProducts(
+            Authentication authentication,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "6") int size) {
         Long memberNo = (Long) authentication.getPrincipal();
-        return ResponseEntity.ok(productService.getMyPurchasedProducts(memberNo));
+        return ResponseEntity.ok(productService.getMyPurchasedProducts(memberNo, page, size));
     }
 
     // 상품 삭제 (soft delete)

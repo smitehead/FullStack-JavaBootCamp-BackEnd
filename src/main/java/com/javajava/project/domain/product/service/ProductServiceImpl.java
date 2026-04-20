@@ -34,6 +34,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -426,7 +427,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         @Override
-        public List<ProductListResponseDto> getMySellingProducts(Long memberNo) {
+        public Page<ProductListResponseDto> getMySellingProducts(Long memberNo, int page, int size) {
                 List<Product> products = productRepository.findBySellerNoOrderByProductNoDesc(memberNo);
                 List<ProductListResponseDto> dtos = toProductListDtos(products, memberNo);
 
@@ -436,43 +437,42 @@ public class ProductServiceImpl implements ProductService {
                         .map(ProductListResponseDto::getId)
                         .toList();
 
-                if (completedProductNos.isEmpty()) return dtos;
-
-                // 낙찰 입찰 일괄 조회 → productNo : auctionResultStatus 맵 생성
-                Map<Long, String> auctionStatusMap = new HashMap<>();
-                for (Long productNo : completedProductNos) {
-                        bidHistoryRepository
-                                .findFirstByProductNoAndIsWinnerOrderByBidPriceDesc(productNo, 1)
-                                .ifPresent(bid ->
-                                        auctionResultRepository.findFirstByBidNo(bid.getBidNo())
-                                                .ifPresent(result ->
-                                                        auctionStatusMap.put(productNo, result.getStatus())));
+                List<ProductListResponseDto> enriched = dtos;
+                if (!completedProductNos.isEmpty()) {
+                        Map<Long, String> auctionStatusMap = new HashMap<>();
+                        for (Long productNo : completedProductNos) {
+                                bidHistoryRepository
+                                        .findFirstByProductNoAndIsWinnerOrderByBidPriceDesc(productNo, 1)
+                                        .ifPresent(bid ->
+                                                auctionResultRepository.findFirstByBidNo(bid.getBidNo())
+                                                        .ifPresent(result ->
+                                                                auctionStatusMap.put(productNo, result.getStatus())));
+                        }
+                        if (!auctionStatusMap.isEmpty()) {
+                                enriched = dtos.stream().map(dto -> {
+                                        String status = auctionStatusMap.get(dto.getId());
+                                        if (status == null) return dto;
+                                        return ProductListResponseDto.builder()
+                                                .id(dto.getId())
+                                                .title(dto.getTitle())
+                                                .location(dto.getLocation())
+                                                .currentPrice(dto.getCurrentPrice())
+                                                .endTime(dto.getEndTime())
+                                                .participantCount(dto.getParticipantCount())
+                                                .status(dto.getStatus())
+                                                .images(dto.getImages())
+                                                .isWishlisted(dto.getIsWishlisted())
+                                                .bidStatus(dto.getBidStatus())
+                                                .auctionResultStatus(status)
+                                                .build();
+                                }).toList();
+                        }
                 }
-
-                if (auctionStatusMap.isEmpty()) return dtos;
-
-                // DTO에 auctionResultStatus 주입
-                return dtos.stream().map(dto -> {
-                        String status = auctionStatusMap.get(dto.getId());
-                        if (status == null) return dto;
-                        return ProductListResponseDto.builder()
-                                .id(dto.getId())
-                                .title(dto.getTitle())
-                                .location(dto.getLocation())
-                                .currentPrice(dto.getCurrentPrice())
-                                .endTime(dto.getEndTime())
-                                .participantCount(dto.getParticipantCount())
-                                .status(dto.getStatus())
-                                .images(dto.getImages())
-                                .isWishlisted(dto.getIsWishlisted())
-                                .bidStatus(dto.getBidStatus())
-                                .auctionResultStatus(status)
-                                .build();
-                }).toList();
+                return toPage(enriched, page, size);
         }
 
         @Override
-        public List<ProductListResponseDto> getMyBiddingProducts(Long memberNo) {
+        public Page<ProductListResponseDto> getMyBiddingProducts(Long memberNo, int page, int size) {
                 List<Long> productNos = bidHistoryRepository.findDistinctProductNosByMemberNo(memberNo);
                 if (productNos.isEmpty())
                         return List.of();
@@ -540,11 +540,11 @@ public class ProductServiceImpl implements ProductService {
                                         .forEach(row -> topBidderMap.putIfAbsent((Long) row[0], (Long) row[1]));
                 }
 
-                return toProductListDtosWithBidStatus(products, memberNo, wonProductNos, topBidderMap, auctionStatusMap);
+                return toPage(toProductListDtosWithBidStatus(products, memberNo, wonProductNos, topBidderMap, auctionStatusMap), page, size);
         }
 
         @Override
-        public List<ProductListResponseDto> getMyPurchasedProducts(Long memberNo) {
+        public Page<ProductListResponseDto> getMyPurchasedProducts(Long memberNo, int page, int size) {
                 // 1. 내가 낙찰받은 상품 번호 목록
                 List<Long> wonProductNos = bidHistoryRepository.findWonProductNosByMemberNo(memberNo);
                 if (wonProductNos.isEmpty())
@@ -606,14 +606,14 @@ public class ProductServiceImpl implements ProductService {
                                         reviewRepository.findByResultNo(entry.getValue()).isPresent());
                 }
 
-                return toProductListDtosWithReview(confirmedProducts, memberNo, resultNoMap, hasReviewMap);
+                return toPage(toProductListDtosWithReview(confirmedProducts, memberNo, resultNoMap, hasReviewMap), page, size);
         }
 
         @Override
-        public List<ProductListResponseDto> getMyWishlistProducts(Long memberNo) {
+        public Page<ProductListResponseDto> getMyWishlistProducts(Long memberNo, int page, int size) {
                 List<Long> productNos = wishlistRepository.findProductNosByMemberNo(memberNo);
                 if (productNos.isEmpty())
-                        return List.of();
+                        return Page.empty();
 
                 List<Product> fetchedProducts = productRepository.findAllById(productNos);
                 Map<Long, Product> productMap = fetchedProducts.stream()
@@ -623,7 +623,14 @@ public class ProductServiceImpl implements ProductService {
                                 .filter(Objects::nonNull)
                                 .toList();
 
-                return toProductListDtos(products, memberNo);
+                return toPage(toProductListDtos(products, memberNo), page, size);
+        }
+
+        private Page<ProductListResponseDto> toPage(List<ProductListResponseDto> all, int page, int size) {
+                int total = all.size();
+                int fromIndex = Math.min((page - 1) * size, total);
+                int toIndex = Math.min(fromIndex + size, total);
+                return new PageImpl<>(all.subList(fromIndex, toIndex), PageRequest.of(page - 1, size), total);
         }
 
         @Override

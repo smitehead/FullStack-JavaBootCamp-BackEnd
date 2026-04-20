@@ -8,7 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/wishlists")
@@ -29,8 +30,11 @@ public class WishlistController {
 
     // 마이페이지: 내 찜 목록
     @GetMapping("/my")
-    public ResponseEntity<List<ProductListResponseDto>> getMyWishlist(Authentication authentication) {
+    public ResponseEntity<Page<ProductListResponseDto>> getMyWishlist(
+            Authentication authentication,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "6") int size) {
         Long memberNo = (Long) authentication.getPrincipal();
-        return ResponseEntity.ok(productService.getMyWishlistProducts(memberNo));
+        return ResponseEntity.ok(productService.getMyWishlistProducts(memberNo, page, size));
     }
 }
