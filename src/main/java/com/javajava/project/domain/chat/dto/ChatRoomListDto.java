@@ -25,4 +25,7 @@ public class ChatRoomListDto {
 
     // 안 읽은 메시지 수
     private Long unreadCount;
+
+    // 거래 유형 (택배 / 직거래 / 혼합)
+    private String tradeType;
 }

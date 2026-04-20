@@ -97,6 +97,7 @@ public class ChatServiceImpl implements ChatService {
                         // 상대방 역할: 내가 buyer면 상대는 seller, 반대면 buyer
                         toLong(row[1]).equals(myNo) ? "seller" : "buyer"
                 )
+                .tradeType((String) row[13])
                 .build()
         ).collect(Collectors.toList());
     }
