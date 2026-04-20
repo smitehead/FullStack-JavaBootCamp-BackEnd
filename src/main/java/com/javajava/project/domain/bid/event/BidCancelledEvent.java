@@ -14,7 +14,7 @@ package com.javajava.project.domain.bid.event;
  * @param sellerNo            판매자 회원번호
  * @param cancelledBidderNo   취소한 입찰자(1등) 회원번호
  * @param successorBidderNo   차순위(2등) 입찰자 회원번호. 2등이 없으면 null.
- * @param penalty             위약금 금액 (현재 입찰가의 10%)
+ * @param penalty             위약금 금액 (현재 입찰가의 5%) — 플랫폼 수익으로 귀속
  */
 public record BidCancelledEvent(
         Long productNo,
