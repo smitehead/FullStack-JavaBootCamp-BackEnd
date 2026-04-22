@@ -21,8 +21,14 @@ public interface AuctionResultService {
     // 일반 낙찰자 취소 요청 (isForcePromoted=0 → 상태: 취소요청, 판매자 동의 필요)
     void requestCancel(Long resultNo, Long memberNo);
 
-    // 판매자 취소 승인 (구매자의 취소요청 승인 또는 판매자 직접 취소)
+    // 판매자 취소 승인 (구매자의 취소요청 승인 — 상태: 취소요청일 때만 허용)
     void approveCancel(Long resultNo, Long sellerNo);
+
+    // 판매자가 취소를 요청 (배송대기 → 판매자취소요청, 구매자 동의 필요)
+    void requestCancelBySeller(Long resultNo, Long sellerNo);
+
+    // 구매자가 판매자의 취소 요청을 승인 (판매자취소요청 → 거래취소, 에스크로 환불)
+    void approveCancelByBuyer(Long resultNo, Long buyerNo);
 
     // 판매자가 채팅에서 받은 배송지 주소를 낙찰 결과에 저장
     void updateDeliveryAddress(Long productNo, Long sellerNo, String addrRoad, String addrDetail);

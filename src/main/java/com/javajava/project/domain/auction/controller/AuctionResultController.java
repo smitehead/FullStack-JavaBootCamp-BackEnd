@@ -60,13 +60,33 @@ public class AuctionResultController {
         return ResponseEntity.ok().build();
     }
 
-    // 판매자 취소 승인 (구매자 요청 승인 or 판매자 직접 취소)
+    // 판매자 취소 승인 (구매자 취소요청 승인 — 상태: 취소요청일 때만)
     @PostMapping("/{resultNo}/cancel-approve")
     public ResponseEntity<Void> approveCancel(
             @PathVariable("resultNo") Long resultNo,
             Authentication authentication) {
         Long sellerNo = (Long) authentication.getPrincipal();
         auctionResultService.approveCancel(resultNo, sellerNo);
+        return ResponseEntity.ok().build();
+    }
+
+    // 판매자 취소 요청 (배송대기 → 판매자취소요청, 구매자 동의 필요)
+    @PostMapping("/{resultNo}/seller-request-cancel")
+    public ResponseEntity<Void> requestCancelBySeller(
+            @PathVariable("resultNo") Long resultNo,
+            Authentication authentication) {
+        Long sellerNo = (Long) authentication.getPrincipal();
+        auctionResultService.requestCancelBySeller(resultNo, sellerNo);
+        return ResponseEntity.ok().build();
+    }
+
+    // 구매자가 판매자 취소 요청 승인 (판매자취소요청 → 거래취소, 에스크로 환불)
+    @PostMapping("/{resultNo}/buyer-approve-cancel")
+    public ResponseEntity<Void> approveCancelByBuyer(
+            @PathVariable("resultNo") Long resultNo,
+            Authentication authentication) {
+        Long buyerNo = (Long) authentication.getPrincipal();
+        auctionResultService.approveCancelByBuyer(resultNo, buyerNo);
         return ResponseEntity.ok().build();
     }
 
