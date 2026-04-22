@@ -170,6 +170,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         // ── 구매 확정 처리 ─────────────────────────────────────────────────────
         result.setStatus("구매확정");
         result.setConfirmedAt(LocalDateTime.now());
+        product.setStatus(1); // COMPLETED
 
         buyer.setMannerTemp(Math.min(100, buyer.getMannerTemp() + 0.2));
         seller.setMannerTemp(Math.min(100, seller.getMannerTemp() + 0.2));
@@ -266,6 +267,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         sseService.sendPointUpdate(buyer.getMemberNo(), buyer.getPoints());
 
         result.setStatus("거래취소");
+        product.setStatus(2); // CANCELED
         log.info("[AuctionResult] 강제승계 낙찰 취소 완료 (패널티 없음): resultNo={}, memberNo={}",
                 resultNo, memberNo);
     }
@@ -429,6 +431,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         sseService.sendPointUpdate(buyer.getMemberNo(), buyer.getPoints());
 
         result.setStatus("거래취소");
+        product.setStatus(2); // CANCELED
 
         // 구매자에게 취소 승인 알림
         try {
@@ -536,6 +539,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         sseService.sendPointUpdate(buyer.getMemberNo(), buyer.getPoints());
 
         result.setStatus("거래취소");
+        product.setStatus(2); // CANCELED
 
         try {
             notificationService.sendAndSaveNotification(

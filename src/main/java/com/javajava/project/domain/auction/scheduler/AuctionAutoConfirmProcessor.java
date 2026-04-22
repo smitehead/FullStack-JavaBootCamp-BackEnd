@@ -110,6 +110,7 @@ public class AuctionAutoConfirmProcessor {
         // ── 4. 구매 확정 처리 ──────────────────────────────────────────────────
         result.setStatus("구매확정");
         result.setConfirmedAt(LocalDateTime.now());
+        product.setStatus(1); // COMPLETED
 
         buyer.setMannerTemp(Math.min(100.0, buyer.getMannerTemp() + 0.2));
         seller.setMannerTemp(Math.min(100.0, seller.getMannerTemp() + 0.2));

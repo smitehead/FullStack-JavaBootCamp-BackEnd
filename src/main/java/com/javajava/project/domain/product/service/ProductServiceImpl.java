@@ -680,8 +680,8 @@ public class ProductServiceImpl implements ProductService {
                                         ? List.of("/api/images/" + mainImg.getUuidName())
                                         : List.of();
 
-                        boolean isFinished = product.getEndTime().isBefore(LocalDateTime.now())
-                                        || product.getStatus() != 0;
+                        boolean isFinished = product.getStatus() != 0
+                                        || product.getEndTime().isBefore(LocalDateTime.now());
 
                         // 입찰 상태 결정: 상위입찰자 / 추월당함 / 낙찰 / 낙찰실패
                         String bidStatus;
@@ -702,7 +702,7 @@ public class ProductServiceImpl implements ProductService {
                                         .currentPrice(product.getCurrentPrice())
                                         .endTime(product.getEndTime())
                                         .participantCount(participantCountMap.getOrDefault(product.getProductNo(), 0L))
-                                        .status(isFinished ? "completed" : "active")
+                                        .status(resolveProductStatus(product))
                                         .images(imageUrls)
                                         .isWishlisted(wishlistedNos.contains(product.getProductNo()))
                                         .bidStatus(bidStatus)
@@ -949,9 +949,6 @@ public class ProductServiceImpl implements ProductService {
                                         ? List.of("/api/images/" + mainImg.getUuidName())
                                         : List.of();
 
-                        boolean isFinished = product.getEndTime().isBefore(LocalDateTime.now())
-                                        || product.getStatus() != 0;
-
                         return ProductListResponseDto.builder()
                                         .id(product.getProductNo())
                                         .title(product.getTitle())
@@ -960,11 +957,21 @@ public class ProductServiceImpl implements ProductService {
                                         .currentPrice(product.getCurrentPrice())
                                         .endTime(product.getEndTime())
                                         .participantCount(participantCountMap.getOrDefault(product.getProductNo(), 0L))
-                                        .status(isFinished ? "completed" : "active")
+                                        .status(resolveProductStatus(product))
                                         .images(imageUrls)
                                         .isWishlisted(wishlistedNos.contains(product.getProductNo()))
                                         .build();
                 }).toList();
+        }
+
+        private String resolveProductStatus(Product product) {
+                return switch (product.getStatus()) {
+                        case 1 -> "completed";
+                        case 2 -> "canceled";
+                        case 3 -> "pending";
+                        case 4 -> "failed";
+                        default -> product.getEndTime().isBefore(LocalDateTime.now()) ? "ended" : "active";
+                };
         }
 
         /**
