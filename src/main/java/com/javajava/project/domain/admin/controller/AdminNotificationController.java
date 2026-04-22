@@ -67,13 +67,15 @@ public class AdminNotificationController {
     }
 
     /**
-     * 최근 발송된 알림 목록 조회 (관리자용, 최근 50건)
-     * GET /api/admin/notifications/recent
+     * 관리자 발송 알림 목록 조회 (중복 제거, 최근 50건)
+     * GET /api/admin/notifications/recent?type=시스템
+     * type 미입력 시 전체 관리자 타입(시스템/활동/입찰) 조회
      */
     @GetMapping("/recent")
-    public ResponseEntity<List<NotificationResponseDto>> getRecentNotifications() {
-        List<NotificationResponseDto> all = notificationService.getAllRecentNotifications(50);
-        return ResponseEntity.ok(all);
+    public ResponseEntity<List<NotificationResponseDto>> getRecentNotifications(
+            @RequestParam(required = false) String type) {
+        List<NotificationResponseDto> result = notificationService.getAdminBroadcasts(type, 50);
+        return ResponseEntity.ok(result);
     }
 
     private Long getAdminNo(Authentication authentication) {

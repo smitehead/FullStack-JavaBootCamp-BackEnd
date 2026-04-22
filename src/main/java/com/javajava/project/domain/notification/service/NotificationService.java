@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
@@ -68,6 +69,23 @@ public class NotificationService {
         return notificationRepository.findAll(
                 PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "createdAt"))
         ).stream()
+                .map(NotificationResponseDto::from)
+                .toList();
+    }
+
+    /**
+     * 관리자 발송 알림 조회 (중복 제거, 타입 필터 지원)
+     * type이 null이거나 "all"이면 전체 관리자 타입 조회
+     */
+    public List<NotificationResponseDto> getAdminBroadcasts(String type, int limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+        List<String> adminTypes = List.of("시스템", "활동", "입찰");
+
+        List<Notification> notifications = (type != null && !type.equals("all") && adminTypes.contains(type))
+                ? notificationRepository.findDistinctAdminBroadcastsByType(type, pageable)
+                : notificationRepository.findDistinctAdminBroadcasts(adminTypes, pageable);
+
+        return notifications.stream()
                 .map(NotificationResponseDto::from)
                 .toList();
     }
