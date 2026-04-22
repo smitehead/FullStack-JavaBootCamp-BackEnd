@@ -675,6 +675,7 @@ public class ProductServiceImpl implements ProductService {
                                         .participantCount(participantCountMap.getOrDefault(product.getProductNo(), 0L))
                                         .endTime(product.getEndTime())
                                         .status(product.getStatus())
+                                        .categoryNo(product.getCategoryNo())
                                         .build();
                 }).toList();
         }
