@@ -180,6 +180,15 @@ public class ChatController {
 
         } catch (Exception e) {
             log.error("[STOMP] 메시지 처리 중 오류 발생: {}", e.getMessage(), e);
+            // 오류 발생 시 발신자에게 FAILED 응답 전송 (clientUuid로 낙관적 메시지 매칭)
+            if (request.getClientUuid() != null) {
+                ChatMessageDto errorMsg = ChatMessageDto.builder()
+                        .clientUuid(request.getClientUuid())
+                        .msgType("ERROR")
+                        .content(e.getMessage())
+                        .build();
+                messagingTemplate.convertAndSend("/sub/chat/room/" + request.getRoomId(), errorMsg);
+            }
         }
     }
 
