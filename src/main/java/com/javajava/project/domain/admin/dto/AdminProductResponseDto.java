@@ -17,6 +17,6 @@ public class AdminProductResponseDto {
     private Long currentPrice;
     private Long participantCount;
     private LocalDateTime endTime;
-    private Integer status; // 0=active, 1=completed, 2=canceled
+    private String status; // "active", "ended", "completed", "canceled"
     private Long categoryNo;
 }

@@ -749,7 +749,7 @@ public class ProductServiceImpl implements ProductService {
                                         .currentPrice(product.getCurrentPrice())
                                         .participantCount(participantCountMap.getOrDefault(product.getProductNo(), 0L))
                                         .endTime(product.getEndTime())
-                                        .status(product.getStatus())
+                                        .status(resolveProductStatus(product))
                                         .categoryNo(product.getCategoryNo())
                                         .build();
                 }).toList();
