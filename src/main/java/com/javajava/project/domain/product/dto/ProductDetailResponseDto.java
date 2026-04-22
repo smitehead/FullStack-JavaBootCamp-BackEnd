@@ -21,7 +21,6 @@ public class ProductDetailResponseDto {
     private LocalDateTime createdAt;
     private LocalDateTime endTime;
     private Long buyoutPrice;
-    private Long shippingFee;
     private Long participantCount;
 
     /**
@@ -38,6 +37,9 @@ public class ProductDetailResponseDto {
     private List<CategoryDto> categoryPath;
     private SellerInfoDto seller;
     private List<BidHistoryDto> bidHistory;
+
+    /** 현재 조회 회원이 최고 입찰자 여부 (memberNo 기반 비교, 비로그인 시 false) */
+    private Boolean isHighestBidder;
 
     @Getter
     @Setter
@@ -63,7 +65,10 @@ public class ProductDetailResponseDto {
     @Getter
     @Setter
     @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class BidHistoryDto {
+        private Long bidNo;
         private String bidderNickname;
         private Long bidPrice;
         private LocalDateTime bidTime;

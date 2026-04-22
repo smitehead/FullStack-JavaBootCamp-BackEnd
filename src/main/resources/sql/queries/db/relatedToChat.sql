@@ -38,3 +38,11 @@ CREATE INDEX IDX_CHATMSG_ROOM_ORDER ON CHAT_MESSAGE (ROOM_NO, SENT_AT DESC, MSG_
 
 -- [메시지] 안 읽은 메시지 카운트용
 CREATE INDEX IDX_CHATMSG_UNREAD ON CHAT_MESSAGE (ROOM_NO, SENDER_NO, IS_READ);
+
+-- ============================================================
+-- 4. 채팅방 개인별 나가기 플래그 컬럼 추가 (상대방 방 유지)
+-- ============================================================
+-- 구매자/판매자 각자의 나가기 여부를 따로 관리
+-- 내가 나가도 상대방은 방에 계속 남아있을 수 있음
+ALTER TABLE CHAT_ROOM ADD (BUYER_LEFT  NUMBER(1) DEFAULT 0 NOT NULL);
+ALTER TABLE CHAT_ROOM ADD (SELLER_LEFT NUMBER(1) DEFAULT 0 NOT NULL);

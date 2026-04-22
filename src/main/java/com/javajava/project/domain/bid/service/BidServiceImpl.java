@@ -1,6 +1,7 @@
 package com.javajava.project.domain.bid.service;
 
 import com.javajava.project.domain.bid.dto.BidRequestDto;
+import com.javajava.project.domain.bid.dto.BidResultDto;
 import com.javajava.project.domain.product.dto.ProductDetailResponseDto;
 import com.javajava.project.domain.auction.entity.AuctionResult;
 import com.javajava.project.domain.auction.repository.AuctionResultRepository;
@@ -47,25 +48,29 @@ public class BidServiceImpl implements BidService {
 
     /**
      * 입찰 프로세스 실행 (검증 + 포인트 환불/차감 + 상품 갱신 + 입찰 기록)
+     * 오류 시 IllegalArgumentException / IllegalStateException 발생
      */
     @Override
     @Transactional
-    public String processBid(BidRequestDto bidDto) {
+    public BidResultDto processBid(BidRequestDto bidDto) {
         // 1. 상품 정보 조회 (비관적 락)
         Product product = productRepository.findByIdWithLock(bidDto.getProductNo())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상품입니다."));
 
-        // 2. 유효성 검증 (락 획득 전 빠른 실패 조건 먼저 체크)
-        // [수정] isActive == 0 → status != 0 (0=active, 1=completed, 2=canceled)
+        // 2. 유효성 검증
         if (product.getStatus() != 0 || product.getEndTime().isBefore(LocalDateTime.now())) {
-            return "이미 종료된 경매입니다.";
+            throw new IllegalStateException("이미 종료된 경매입니다.");
         }
         if (product.getSellerNo().equals(bidDto.getMemberNo())) {
-            return "본인이 등록한 상품에는 입찰할 수 없습니다.";
+            throw new IllegalStateException("본인이 등록한 상품에는 입찰할 수 없습니다.");
+        }
+        if (bidHistoryRepository.existsByProductNoAndMemberNoAndIsCancelled(
+                bidDto.getProductNo(), bidDto.getMemberNo(), 1)) {
+            throw new IllegalStateException("입찰을 취소한 상품에는 다시 입찰할 수 없습니다.");
         }
         long minRequiredBid = product.getCurrentPrice() + product.getMinBidUnit();
         if (bidDto.getBidPrice() < minRequiredBid) {
-            return "최소 입찰 가능 금액은 " + minRequiredBid + "원입니다.";
+            throw new IllegalArgumentException("최소 입찰 가능 금액은 " + minRequiredBid + "원입니다.");
         }
 
         // 3. 기존 최고 입찰 내역 확인
@@ -75,7 +80,7 @@ public class BidServiceImpl implements BidService {
         Long previousBidderNo = lastBidOpt.map(BidHistory::getMemberNo).orElse(null);
 
         if (previousBidderNo != null && previousBidderNo.equals(bidDto.getMemberNo())) {
-            return "현재 최고 입찰자입니다. 추가 입찰이 불가합니다.";
+            throw new IllegalStateException("현재 최고 입찰자입니다. 추가 입찰이 불가합니다.");
         }
 
         // 4. 비관적 락 순서 고정 - memberNo 오름차순으로 항상 같은 순서 락 획득 (데드락 방지)
@@ -83,26 +88,23 @@ public class BidServiceImpl implements BidService {
         Member previousBidder = null;
 
         if (previousBidderNo != null && previousBidderNo < bidDto.getMemberNo()) {
-            // 이전 입찰자 번호가 더 작으면 → 이전 입찰자 먼저 락
             previousBidder = memberRepository.findByIdWithLock(previousBidderNo)
                     .orElseThrow(() -> new IllegalStateException("이전 입찰자 정보를 찾을 수 없습니다."));
             currentBidder = memberRepository.findByIdWithLock(bidDto.getMemberNo())
                     .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
         } else if (previousBidderNo != null) {
-            // 현재 입찰자 번호가 더 작거나 같으면 → 현재 입찰자 먼저 락
             currentBidder = memberRepository.findByIdWithLock(bidDto.getMemberNo())
                     .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
             previousBidder = memberRepository.findByIdWithLock(previousBidderNo)
                     .orElseThrow(() -> new IllegalStateException("이전 입찰자 정보를 찾을 수 없습니다."));
         } else {
-            // 이전 입찰자 없으면 현재 입찰자만 락
             currentBidder = memberRepository.findByIdWithLock(bidDto.getMemberNo())
                     .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
         }
 
         // 5. 포인트 잔액 검증
         if (currentBidder.getPoints() < bidDto.getBidPrice()) {
-            return "보유 포인트가 부족합니다.";
+            throw new IllegalStateException("보유 포인트가 부족합니다.");
         }
 
         // 6. 이전 최고 입찰자 포인트 환불
@@ -183,7 +185,6 @@ public class BidServiceImpl implements BidService {
                 && bidDto.getBidPrice() >= product.getBuyoutPrice();
 
         if (buyoutTriggered) {
-            // 경매 즉시 종료 (비관적 락 유지, 동일 트랜잭션)
             auctionClosingService.closeDueToBuyout(product, newBid);
             auctionExpiryWatchdog.cancel(product.getProductNo());
             try {
@@ -193,13 +194,15 @@ public class BidServiceImpl implements BidService {
             }
             log.info("[BidService] 입찰가 도달로 즉시구매 종료: productNo={}, price={}", product.getProductNo(),
                     bidDto.getBidPrice());
-            return "SUCCESS";
+            return BidResultDto.builder()
+                    .autoBidFired(false)
+                    .finalBidderNo(bidDto.getMemberNo())
+                    .finalPrice(bidDto.getBidPrice())
+                    .build();
         }
 
         // 11. 자동입찰 트리거 (방금 입찰한 사람 제외)
         //     자동입찰이 실행되면 내부에서 SSE를 직접 전송하므로, 수동 입찰의 중간 SSE는 생략한다.
-        //     → 클라이언트가 "수동 입찰자가 1위" SSE를 받은 직후 "자동입찰자가 1위" SSE를 받아
-        //       모달이 순간적으로 flicker 되는 문제를 근본적으로 차단.
         boolean autoBidFired = false;
         try {
             autoBidFired = autoBidService.triggerAutoBids(
@@ -208,7 +211,7 @@ public class BidServiceImpl implements BidService {
             log.warn("[BidService] 자동입찰 트리거 실패: {}", e.getMessage());
         }
 
-        // 12. 자동입찰이 없었을 때만 수동 입찰 SSE 브로드캐스트 (격리)
+        // 12. 자동입찰이 없었을 때만 수동 입찰 SSE 브로드캐스트
         if (!autoBidFired) {
             try {
                 sseService.broadcastPriceUpdate(product.getProductNo(), bidDto.getBidPrice(), bidDto.getMemberNo());
@@ -217,7 +220,23 @@ public class BidServiceImpl implements BidService {
             }
         }
 
-        return "SUCCESS";
+        // 13. 자동입찰 발동 시 DB에서 실제 최종 최고 입찰자 조회 (동일 트랜잭션 내)
+        Long finalBidderNo = bidDto.getMemberNo();
+        Long finalPrice = bidDto.getBidPrice();
+        if (autoBidFired) {
+            Optional<BidHistory> topBidAfterAuto = bidHistoryRepository
+                    .findFirstByProductNoAndIsCancelledOrderByBidPriceDesc(product.getProductNo(), 0);
+            if (topBidAfterAuto.isPresent()) {
+                finalBidderNo = topBidAfterAuto.get().getMemberNo();
+                finalPrice = topBidAfterAuto.get().getBidPrice();
+            }
+        }
+
+        return BidResultDto.builder()
+                .autoBidFired(autoBidFired)
+                .finalBidderNo(finalBidderNo)
+                .finalPrice(finalPrice)
+                .build();
     }
 
     /**
@@ -240,6 +259,10 @@ public class BidServiceImpl implements BidService {
         }
         if (product.getSellerNo().equals(memberNo)) {
             return "본인이 등록한 상품은 즉시 구매할 수 없습니다.";
+        }
+        // 재구매 차단: 이 상품에 취소 이력이 있는 회원은 즉시구매도 차단
+        if (bidHistoryRepository.existsByProductNoAndMemberNoAndIsCancelled(productNo, memberNo, 1)) {
+            return "입찰을 취소한 상품에는 즉시 구매할 수 없습니다.";
         }
 
         long buyoutPrice = product.getBuyoutPrice();
@@ -321,28 +344,16 @@ public class BidServiceImpl implements BidService {
                 .isWinner(1)
                 .build());
 
-        // 9. 상품 상태 업데이트
-        product.setCurrentPrice(buyoutPrice);
-        product.setStatus(1);
-        product.setWinnerNo(memberNo);
-        product.setBidCount(product.getBidCount() + 1);
+        // 9. 상품 및 입찰 상태 최종 업데이트 (AuctionClosingService 위임)
+        // - status=3(PENDING_PAYMENT), endTime=now(), AuctionResult 저장, AuctionClosedEvent 발행 포함
+        auctionClosingService.closeDueToBuyout(product, buyoutBid);
 
-        // 10. 낙찰 결과 저장
-        auctionResultRepository.save(AuctionResult.builder()
-                .bidNo(buyoutBid.getBidNo())
-                .status("배송대기")
-                .build());
-
-        // 11. Watchdog 예약 취소 (즉시구매로 종료됐으므로 endTime 스케줄 불필요)
+        // 10. Watchdog 예약 취소 (즉시구매로 종료됐으므로 endTime 스케줄 불필요)
         auctionExpiryWatchdog.cancel(productNo);
 
         log.info("[Buyout] 즉시구매 완료: productNo={}, buyer={}, price={}", productNo, memberNo, buyoutPrice);
 
-        // 12. 이벤트 발행 (커밋 후 알림 — AuctionNotificationListener 수신)
-        eventPublisher.publishEvent(new AuctionClosedEvent(
-                productNo, product.getTitle(), product.getSellerNo(), memberNo, buyoutBid.getBidNo()));
-
-        // 13. SSE 경매 종료 브로드캐스트
+        // 11. SSE 경매 종료 브로드캐스트
         try {
             sseService.broadcastBuyoutEnded(productNo, buyoutPrice, memberNo);
         } catch (Exception e) {
@@ -363,6 +374,7 @@ public class BidServiceImpl implements BidService {
             String nickname = (String) result[1];
 
             return ProductDetailResponseDto.BidHistoryDto.builder()
+                    .bidNo(bid.getBidNo())
                     .bidderNickname(nickname)
                     .bidPrice(bid.getBidPrice())
                     .bidTime(bid.getBidTime())

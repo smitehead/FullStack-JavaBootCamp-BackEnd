@@ -34,13 +34,22 @@ public class BidCancelNotificationListener {
     public void handleBidCancelled(BidCancelledEvent event) {
         String productLink = "/products/" + event.productNo();
 
-        // 판매자 알림: 위약금 보상 및 마감 시간 유지 안내
+        // 취소한 입찰자 본인 알림: 위약금 차감 사실 고지
         try {
-            String sellerMsg = String.format(
-                    "1등 입찰자의 취소로 인해 위약금 %,d원이 보상금으로 지급되었습니다. 경매 마감 시간은 변동 없이 유지됩니다.",
-                    event.penalty());
             notificationService.sendAndSaveNotification(
-                    event.sellerNo(), "bid", sellerMsg, productLink);
+                    event.cancelledBidderNo(), "bid",
+                    "[" + event.productTitle() + "] 입찰 취소가 완료되었으며, 규정에 따라 위약금 5%가 차감되었습니다.",
+                    productLink);
+        } catch (Exception e) {
+            log.warn("[BidCancelNotification] 취소자 알림 실패 (상품 {}): {}", event.productNo(), e.getMessage());
+        }
+
+        // 판매자 알림: 입찰 취소 사실 + 차순위 승계 안내 (위약금 언급 제거)
+        try {
+            notificationService.sendAndSaveNotification(
+                    event.sellerNo(), "bid",
+                    "최상위 입찰자의 사정으로 [" + event.productTitle() + "] 입찰이 취소되어 차순위 입찰자가 최고 입찰자가 되었습니다.",
+                    productLink);
         } catch (Exception e) {
             log.warn("[BidCancelNotification] 판매자 알림 실패 (상품 {}): {}", event.productNo(), e.getMessage());
         }
@@ -50,7 +59,7 @@ public class BidCancelNotificationListener {
             try {
                 notificationService.sendAndSaveNotification(
                         event.successorBidderNo(), "bid",
-                        "상위 입찰자의 취소로 최고 입찰자 지위가 승계되었습니다. [" + event.productTitle() + "]",
+                        "상위 입찰자의 취소로 [" + event.productTitle() + "] 최고 입찰자 지위가 승계되었습니다.",
                         productLink);
             } catch (Exception e) {
                 log.warn("[BidCancelNotification] 차순위자 알림 실패 (상품 {}): {}", event.productNo(), e.getMessage());

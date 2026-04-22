@@ -12,7 +12,7 @@ public interface ChatService {
     List<ChatRoomListDto> getMyChatRooms(Long myNo);
 
     /** 메시지 저장 후 DTO 반환 (Save-then-Broadcast) */
-    ChatMessageDto saveMessage(ChatMessageRequest request);
+    ChatMessageDto saveMessage(ChatMessageRequest request, Long senderId);
 
     /** 메시지 내역 조회 — 커서 페이징 */
     List<ChatMessageDto> getMessages(Long roomNo, Long lastMsgNo, int size);

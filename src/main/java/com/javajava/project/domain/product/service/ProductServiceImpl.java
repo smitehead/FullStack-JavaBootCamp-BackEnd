@@ -28,11 +28,13 @@ import com.javajava.project.domain.point.entity.PointHistory;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
 import com.javajava.project.domain.bid.entity.AutoBid;
 import com.javajava.project.domain.bid.repository.AutoBidRepository;
+import com.javajava.project.domain.community.repository.ReviewRepository;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -73,6 +75,7 @@ public class ProductServiceImpl implements ProductService {
         private final PointHistoryRepository pointHistoryRepository;
         private final AutoBidRepository autoBidRepository;
         private final SseService sseService;
+        private final ReviewRepository reviewRepository;
 
         @Override
         @Transactional
@@ -90,7 +93,6 @@ public class ProductServiceImpl implements ProductService {
                                 .buyoutPrice(dto.getBuyoutPrice())
                                 .minBidUnit(dto.getMinBidUnit())
                                 .endTime(dto.getEndTime())
-                                .shippingFee(dto.getShippingFee() != null ? dto.getShippingFee() : 0L)
                                 .createdAt(LocalDateTime.now()) // Oracle NOT NULL 제약 조건(ORA-01400) 해결
                                 .viewCount(0L)
                                 .bidCount(0L)
@@ -333,7 +335,16 @@ public class ProductServiceImpl implements ProductService {
                         }
                 }
 
-                // 6. 상세 데이터 조립 및 반환
+                // 6. 현재 최고 입찰자 여부 (memberNo 직접 비교 — 닉네임 비교보다 신뢰성 높음)
+                boolean isHighestBidder = false;
+                if (currentMemberNo != null) {
+                        isHighestBidder = bidHistoryRepository
+                                .findFirstByProductNoAndIsCancelledOrderByBidPriceDesc(productNo, 0)
+                                .map(topBid -> topBid.getMemberNo().equals(currentMemberNo))
+                                .orElse(false);
+                }
+
+                // 7. 상세 데이터 조립 및 반환
                 return ProductDetailResponseDto.builder()
                                 .productNo(product.getProductNo())
                                 .title(product.getTitle())
@@ -347,7 +358,6 @@ public class ProductServiceImpl implements ProductService {
                                 .createdAt(product.getCreatedAt())
                                 .endTime(product.getEndTime())
                                 .buyoutPrice(product.getBuyoutPrice())
-                                .shippingFee(product.getShippingFee())
                                 .status(product.getStatus())
                                 .participantCount(
                                                 bidHistoryRepository.countDistinctParticipants(product.getProductNo()))
@@ -365,6 +375,7 @@ public class ProductServiceImpl implements ProductService {
                                                 .profileImgUrl(seller.getProfileImgUrl())
                                                 .build())
                                 .bidHistory(bidHistory)
+                                .isHighestBidder(isHighestBidder)
                                 .build();
         }
 
@@ -416,16 +427,55 @@ public class ProductServiceImpl implements ProductService {
         }
 
         @Override
-        public List<ProductListResponseDto> getMySellingProducts(Long memberNo) {
+        public Page<ProductListResponseDto> getMySellingProducts(Long memberNo, int page, int size) {
                 List<Product> products = productRepository.findBySellerNoOrderByProductNoDesc(memberNo);
-                return toProductListDtos(products, memberNo);
+                List<ProductListResponseDto> dtos = toProductListDtos(products, memberNo);
+
+                // 판매 완료 상품에 대해 낙찰 결과 상태(auctionResultStatus) 보강
+                List<Long> completedProductNos = dtos.stream()
+                        .filter(dto -> "completed".equals(dto.getStatus()))
+                        .map(ProductListResponseDto::getId)
+                        .toList();
+
+                List<ProductListResponseDto> enriched = dtos;
+                if (!completedProductNos.isEmpty()) {
+                        Map<Long, String> auctionStatusMap = new HashMap<>();
+                        for (Long productNo : completedProductNos) {
+                                bidHistoryRepository
+                                        .findFirstByProductNoAndIsWinnerOrderByBidPriceDesc(productNo, 1)
+                                        .ifPresent(bid ->
+                                                auctionResultRepository.findFirstByBidNo(bid.getBidNo())
+                                                        .ifPresent(result ->
+                                                                auctionStatusMap.put(productNo, result.getStatus())));
+                        }
+                        if (!auctionStatusMap.isEmpty()) {
+                                enriched = dtos.stream().map(dto -> {
+                                        String status = auctionStatusMap.get(dto.getId());
+                                        if (status == null) return dto;
+                                        return ProductListResponseDto.builder()
+                                                .id(dto.getId())
+                                                .title(dto.getTitle())
+                                                .location(dto.getLocation())
+                                                .currentPrice(dto.getCurrentPrice())
+                                                .endTime(dto.getEndTime())
+                                                .participantCount(dto.getParticipantCount())
+                                                .status(dto.getStatus())
+                                                .images(dto.getImages())
+                                                .isWishlisted(dto.getIsWishlisted())
+                                                .bidStatus(dto.getBidStatus())
+                                                .auctionResultStatus(status)
+                                                .build();
+                                }).toList();
+                        }
+                }
+                return toPage(enriched, page, size);
         }
 
         @Override
-        public List<ProductListResponseDto> getMyBiddingProducts(Long memberNo) {
+        public Page<ProductListResponseDto> getMyBiddingProducts(Long memberNo, int page, int size) {
                 List<Long> productNos = bidHistoryRepository.findDistinctProductNosByMemberNo(memberNo);
                 if (productNos.isEmpty())
-                        return List.of();
+                        return Page.empty();
 
                 // findAllById는 순서를 보장하지 않으므로, productNos 순서대로 재정렬 필요
                 List<Product> fetchedProducts = productRepository.findAllById(productNos);
@@ -490,15 +540,15 @@ public class ProductServiceImpl implements ProductService {
                                         .forEach(row -> topBidderMap.putIfAbsent((Long) row[0], (Long) row[1]));
                 }
 
-                return toProductListDtosWithBidStatus(products, memberNo, wonProductNos, topBidderMap, auctionStatusMap);
+                return toPage(toProductListDtosWithBidStatus(products, memberNo, wonProductNos, topBidderMap, auctionStatusMap), page, size);
         }
 
         @Override
-        public List<ProductListResponseDto> getMyPurchasedProducts(Long memberNo) {
+        public Page<ProductListResponseDto> getMyPurchasedProducts(Long memberNo, int page, int size) {
                 // 1. 내가 낙찰받은 상품 번호 목록
                 List<Long> wonProductNos = bidHistoryRepository.findWonProductNosByMemberNo(memberNo);
                 if (wonProductNos.isEmpty())
-                        return List.of();
+                        return Page.empty();
 
                 // 2. 해당 상품들의 낙찰 입찰번호를 찾고, AuctionResult에서 구매확정된 것만 필터
                 List<Product> fetchedProducts = productRepository.findAllById(wonProductNos);
@@ -519,7 +569,7 @@ public class ProductServiceImpl implements ProductService {
 
                 List<Long> bidNos = winnerBids.stream().map(BidHistory::getBidNo).toList();
                 if (bidNos.isEmpty())
-                        return List.of();
+                        return Page.empty();
 
                 // AuctionResult 중 결제완료 또는 구매확정된 것 필터 (결제 완료 시 구매내역으로 이동)
                 List<AuctionResult> results = auctionResultRepository.findByBidNos(bidNos);
@@ -538,14 +588,32 @@ public class ProductServiceImpl implements ProductService {
                                 .filter(p -> confirmedProductNos.contains(p.getProductNo()))
                                 .toList();
 
-                return toProductListDtos(confirmedProducts, memberNo);
+                // 3. resultNo 맵 생성: productNo → resultNo
+                Map<Long, Long> resultNoMap = new HashMap<>();
+                Map<Long, Long> bidNoToProductNo = winnerBids.stream()
+                                .collect(Collectors.toMap(BidHistory::getBidNo, BidHistory::getProductNo, (a, b) -> a));
+                for (AuctionResult ar : results) {
+                        Long pNo = bidNoToProductNo.get(ar.getBidNo());
+                        if (pNo != null && confirmedProductNos.contains(pNo)) {
+                                resultNoMap.put(pNo, ar.getResultNo());
+                        }
+                }
+
+                // 4. 후기 작성 여부 배치 확인
+                Map<Long, Boolean> hasReviewMap = new HashMap<>();
+                for (Map.Entry<Long, Long> entry : resultNoMap.entrySet()) {
+                        hasReviewMap.put(entry.getKey(),
+                                        reviewRepository.findByResultNo(entry.getValue()).isPresent());
+                }
+
+                return toPage(toProductListDtosWithReview(confirmedProducts, memberNo, resultNoMap, hasReviewMap), page, size);
         }
 
         @Override
-        public List<ProductListResponseDto> getMyWishlistProducts(Long memberNo) {
+        public Page<ProductListResponseDto> getMyWishlistProducts(Long memberNo, int page, int size) {
                 List<Long> productNos = wishlistRepository.findProductNosByMemberNo(memberNo);
                 if (productNos.isEmpty())
-                        return List.of();
+                        return Page.empty();
 
                 List<Product> fetchedProducts = productRepository.findAllById(productNos);
                 Map<Long, Product> productMap = fetchedProducts.stream()
@@ -555,7 +623,14 @@ public class ProductServiceImpl implements ProductService {
                                 .filter(Objects::nonNull)
                                 .toList();
 
-                return toProductListDtos(products, memberNo);
+                return toPage(toProductListDtos(products, memberNo), page, size);
+        }
+
+        private Page<ProductListResponseDto> toPage(List<ProductListResponseDto> all, int page, int size) {
+                int total = all.size();
+                int fromIndex = Math.min((page - 1) * size, total);
+                int toIndex = Math.min(fromIndex + size, total);
+                return new PageImpl<>(all.subList(fromIndex, toIndex), PageRequest.of(page - 1, size), total);
         }
 
         @Override
@@ -888,6 +963,55 @@ public class ProductServiceImpl implements ProductService {
                                         .status(isFinished ? "completed" : "active")
                                         .images(imageUrls)
                                         .isWishlisted(wishlistedNos.contains(product.getProductNo()))
+                                        .build();
+                }).toList();
+        }
+
+        /**
+         * 구매 내역 전용: resultNo, hasReview 포함 변환
+         */
+        private List<ProductListResponseDto> toProductListDtosWithReview(
+                        List<Product> products, Long memberNo,
+                        Map<Long, Long> resultNoMap, Map<Long, Boolean> hasReviewMap) {
+                products = products.stream()
+                                .filter(p -> p.getIsDeleted() == 0)
+                                .toList();
+                if (products.isEmpty()) return List.of();
+
+                List<Long> productNos = products.stream().map(Product::getProductNo).toList();
+
+                Map<Long, ProductImage> mainImageMap = productImageRepository.findMainImagesByProductNos(productNos)
+                                .stream()
+                                .collect(Collectors.toMap(ProductImage::getProductNo, Function.identity(),
+                                                (a, b) -> a));
+
+                Set<Long> wishlistedNos = (memberNo != null)
+                                ? Set.copyOf(wishlistRepository.findWishlistedProductNos(memberNo, productNos))
+                                : Set.of();
+
+                Map<Long, Long> participantCountMap = bidHistoryRepository
+                                .countDistinctParticipantsByProductNos(productNos).stream()
+                                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+
+                return products.stream().map(product -> {
+                        ProductImage mainImg = mainImageMap.get(product.getProductNo());
+                        List<String> imageUrls = mainImg != null
+                                        ? List.of("/api/images/" + mainImg.getUuidName())
+                                        : List.of();
+
+                        return ProductListResponseDto.builder()
+                                        .id(product.getProductNo())
+                                        .title(product.getTitle())
+                                        .location(product.getTradeAddrShort() != null ? product.getTradeAddrShort()
+                                                        : product.getTradeAddrDetail())
+                                        .currentPrice(product.getCurrentPrice())
+                                        .endTime(product.getEndTime())
+                                        .participantCount(participantCountMap.getOrDefault(product.getProductNo(), 0L))
+                                        .status("completed")
+                                        .images(imageUrls)
+                                        .isWishlisted(wishlistedNos.contains(product.getProductNo()))
+                                        .resultNo(resultNoMap.get(product.getProductNo()))
+                                        .hasReview(hasReviewMap.getOrDefault(product.getProductNo(), false))
                                         .build();
                 }).toList();
         }

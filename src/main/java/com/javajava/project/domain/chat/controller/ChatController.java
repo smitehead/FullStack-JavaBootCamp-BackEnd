@@ -2,6 +2,7 @@ package com.javajava.project.domain.chat.controller;
 
 import com.javajava.project.domain.chat.dto.*;
 import com.javajava.project.domain.chat.service.ChatService;
+import com.javajava.project.global.util.FileStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -9,8 +10,12 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -20,6 +25,7 @@ public class ChatController {
 
     private final ChatService chatService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final FileStore fileStore;
 
     // ══════════════════════════════════════════════════
     // REST API
@@ -101,6 +107,35 @@ public class ChatController {
     }
 
     /**
+     * 채팅 이미지 업로드 (POST /api/chat/rooms/{roomId}/images)
+     * 여러 파일을 한 번에 업로드하여 URL 배열 반환
+     * STOMP 전송 전에 먼저 호출해야 함
+     */
+    @PostMapping("/rooms/{roomId}/images")
+    public ResponseEntity<?> uploadChatImages(
+            @PathVariable Long roomId,
+            @RequestParam("files") List<MultipartFile> files,
+            Authentication auth) {
+        Long myNo = (Long) auth.getPrincipal();
+        if (!chatService.isParticipant(roomId, myNo)) {
+            return ResponseEntity.status(403).build();
+        }
+
+        try {
+            List<String> urls = new ArrayList<>();
+            for (MultipartFile file : files) {
+                String uuidName = fileStore.storeGenericFile(file);
+                urls.add("/api/images/" + uuidName);
+            }
+            return ResponseEntity.ok(Map.of("urls", urls));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (IOException e) {
+            return ResponseEntity.status(500).body(Map.of("error", "파일 저장 실패"));
+        }
+    }
+
+    /**
      * 채팅방 Soft Delete (DELETE /api/chat/rooms/{roomId})
      */
     @DeleteMapping("/rooms/{roomId}")
@@ -124,13 +159,16 @@ public class ChatController {
      * Payload (Sub): ChatMessageDto (DB PK 포함)
      */
     @MessageMapping("/chat/message")
-    public void handleMessage(ChatMessageRequest request) {
-        log.info("[STOMP] 메시지 수신 시작 - roomId: {}, senderId: {}, uuid: {}, content: {}",
-                request.getRoomId(), request.getSenderId(), request.getClientUuid(), request.getContent());
+    public void handleMessage(ChatMessageRequest request, Authentication auth) {
+        // [Security] 클라이언트가 보낸 senderId 대신 인증 세션(Principal)의 memberNo를 사용
+        Long senderId = (Long) auth.getPrincipal();
+
+        log.info("[STOMP] 메시지 수신 시작 - roomId: {}, senderId(Auth): {}, uuid: {}, content: {}",
+                request.getRoomId(), senderId, request.getClientUuid(), request.getContent());
 
         try {
-            // 1. DB 저장 (Save-then-Broadcast)
-            ChatMessageDto savedMessage = chatService.saveMessage(request);
+            // 1. DB 저장 (Save-then-Broadcast) - 서비스 레벨에서 참여자 검증 수행
+            ChatMessageDto savedMessage = chatService.saveMessage(request, senderId);
             log.info("[STOMP] 메시지 DB 저장 성공 - msgNo: {}", savedMessage.getMsgNo());
 
             // 2. 해당 채팅방 구독자에게 브로드캐스트
@@ -139,10 +177,18 @@ public class ChatController {
                     savedMessage
             );
             log.info("[STOMP] 메시지 브로드캐스트 완료 - roomId: {}", request.getRoomId());
-            
+
         } catch (Exception e) {
             log.error("[STOMP] 메시지 처리 중 오류 발생: {}", e.getMessage(), e);
-            // 에러 상황을 클라이언트에게 별도로 알리고 싶다면 여기서 특정 에러 토픽으로 발송 가능
+            // 오류 발생 시 발신자에게 FAILED 응답 전송 (clientUuid로 낙관적 메시지 매칭)
+            if (request.getClientUuid() != null) {
+                ChatMessageDto errorMsg = ChatMessageDto.builder()
+                        .clientUuid(request.getClientUuid())
+                        .msgType("ERROR")
+                        .content(e.getMessage())
+                        .build();
+                messagingTemplate.convertAndSend("/sub/chat/room/" + request.getRoomId(), errorMsg);
+            }
         }
     }
 

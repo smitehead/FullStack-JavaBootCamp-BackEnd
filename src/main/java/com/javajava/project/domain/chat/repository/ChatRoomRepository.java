@@ -42,7 +42,8 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             NVL(uc.cnt, 0)      AS unreadCount,
             CASE WHEN cr.BUYER_NO = :myNo THEN cr.SELLER_NO ELSE cr.BUYER_NO END AS otherUserNo,
             m.NICKNAME          AS otherUserNickname,
-            m.PROFILE_IMG_URL   AS otherUserProfileImage
+            m.PROFILE_IMG_URL   AS otherUserProfileImage,
+            p.TRADE_TYPE        AS tradeType
         FROM CHAT_ROOM cr
         LEFT JOIN (
             SELECT cm2.ROOM_NO, cm2.CONTENT, cm2.SENT_AT, cm2.SENDER_NO
@@ -64,6 +65,8 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             CASE WHEN cr.BUYER_NO = :myNo THEN cr.SELLER_NO ELSE cr.BUYER_NO END
         WHERE (cr.BUYER_NO = :myNo OR cr.SELLER_NO = :myNo)
           AND cr.STATUS = 'ACTIVE'
+          AND NOT (cr.BUYER_NO = :myNo AND cr.BUYER_LEFT = 1)
+          AND NOT (cr.SELLER_NO = :myNo AND cr.SELLER_LEFT = 1)
         ORDER BY rm.SENT_AT DESC NULLS LAST
         """)
     List<Object[]> findChatRoomListWithLatestMessage(@Param("myNo") Long myNo);

@@ -29,7 +29,17 @@ public class ChatRoom {
 
     @Builder.Default
     @Column(name = "STATUS", nullable = false, length = 20)
-    private String status = "ACTIVE"; // 채팅방 상태 (ACTIVE/DELETED)
+    private String status = "ACTIVE"; // 채팅방 전체 상태 (ACTIVE/DELETED) - 양쪽 모두 나갔을 때만 DELETED
+
+    /** 구매자가 채팅방을 나갔는지 여부 (1 = 나감, 0 = 참여 중) */
+    @Builder.Default
+    @Column(name = "BUYER_LEFT", nullable = false)
+    private Integer buyerLeft = 0;
+
+    /** 판매자가 채팅방을 나갔는지 여부 (1 = 나감, 0 = 참여 중) */
+    @Builder.Default
+    @Column(name = "SELLER_LEFT", nullable = false)
+    private Integer sellerLeft = 0;
 
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
     @Builder.Default

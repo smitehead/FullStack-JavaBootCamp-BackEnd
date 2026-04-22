@@ -18,7 +18,8 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
      */
     @Query(nativeQuery = true, value = """
         SELECT * FROM (
-            SELECT MSG_NO, ROOM_NO, SENDER_NO, CONTENT, SENT_AT, IS_READ
+            SELECT MSG_NO, ROOM_NO, SENDER_NO, CONTENT, SENT_AT, IS_READ,
+                   MSG_TYPE, ADDR_ROAD, ADDR_DETAIL, LATITUDE, LONGITUDE
             FROM CHAT_MESSAGE
             WHERE ROOM_NO = :roomNo AND MSG_NO < :lastMsgNo
             ORDER BY SENT_AT DESC, MSG_NO DESC
@@ -34,7 +35,8 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
      */
     @Query(nativeQuery = true, value = """
         SELECT * FROM (
-            SELECT MSG_NO, ROOM_NO, SENDER_NO, CONTENT, SENT_AT, IS_READ
+            SELECT MSG_NO, ROOM_NO, SENDER_NO, CONTENT, SENT_AT, IS_READ,
+                   MSG_TYPE, ADDR_ROAD, ADDR_DETAIL, LATITUDE, LONGITUDE
             FROM CHAT_MESSAGE
             WHERE ROOM_NO = :roomNo
             ORDER BY SENT_AT DESC, MSG_NO DESC

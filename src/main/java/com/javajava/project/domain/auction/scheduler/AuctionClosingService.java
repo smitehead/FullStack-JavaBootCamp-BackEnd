@@ -2,10 +2,6 @@ package com.javajava.project.domain.auction.scheduler;
 
 import com.javajava.project.domain.auction.entity.AuctionResult;
 import com.javajava.project.domain.bid.entity.BidHistory;
-import com.javajava.project.domain.member.entity.Member;
-import com.javajava.project.domain.member.repository.MemberRepository;
-import com.javajava.project.domain.point.entity.PointHistory;
-import com.javajava.project.domain.point.repository.PointHistoryRepository;
 import com.javajava.project.domain.product.entity.Product;
 import com.javajava.project.domain.auction.repository.AuctionResultRepository;
 import com.javajava.project.domain.bid.repository.BidHistoryRepository;
@@ -17,7 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
 
 /**
  * 경매 종료 단건 처리 서비스.
@@ -32,8 +27,6 @@ public class AuctionClosingService {
     private final ProductRepository productRepository;
     private final BidHistoryRepository bidHistoryRepository;
     private final AuctionResultRepository auctionResultRepository;
-    private final MemberRepository memberRepository;
-    private final PointHistoryRepository pointHistoryRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     /**
@@ -53,7 +46,7 @@ public class AuctionClosingService {
             return;
         }
 
-        Optional<BidHistory> winningBidOpt = bidHistoryRepository
+        java.util.Optional<BidHistory> winningBidOpt = bidHistoryRepository
                 .findFirstByProductNoAndIsCancelledOrderByBidPriceDesc(productNo, 0);
 
         if (winningBidOpt.isPresent()) {
@@ -61,7 +54,7 @@ public class AuctionClosingService {
 
             // DB 처리 (트랜잭션 내)
             winningBid.setIsWinner(1);
-            // status=3 (PENDING_PAYMENT): 낙찰 확정 후 12시간 결제 대기
+            // status=3 (PENDING_PAYMENT): 낙찰 확정, 구매자 수령 확인 대기 (7일 후 자동 구매 확정)
             product.setStatus(3);
             product.setWinnerNo(winningBid.getMemberNo());
 
@@ -76,7 +69,7 @@ public class AuctionClosingService {
             auctionResultRepository.save(AuctionResult.builder()
                     .bidNo(winningBid.getBidNo())
                     .status("배송대기")
-                    .paymentDueDate(LocalDateTime.now().plusHours(12)) // 결제 마감 12시간
+                    .paymentDueDate(LocalDateTime.now().plusDays(7)) // 자동 구매 확정 기준: 낙찰일 +7일
                     .build());
 
             log.info("[Scheduler] 상품 번호 {} 낙찰 완료 (입찰번호: {}, 낙찰자: {})",
@@ -95,34 +88,7 @@ public class AuctionClosingService {
             // 입찰자 없는 유찰 → status=4 (CLOSED_FAILED)
             product.setStatus(4);
             log.info("[Scheduler] 상품 번호 {} 유찰 처리 (입찰자 없음)", productNo);
-
-            // [Fix #5] penaltyPool > 0 이면 판매자에게 전액 지급
-            distributePenaltyPool(product);
         }
-    }
-
-    /**
-     * penaltyPool 전액을 판매자에게 지급하고 풀을 초기화.
-     * 유찰(CLOSED_FAILED) 확정 시점에 호출된다.
-     */
-    private void distributePenaltyPool(Product product) {
-        long pool = product.getPenaltyPool();
-        if (pool <= 0) return;
-
-        Optional<Member> sellerOpt = memberRepository.findByIdWithLock(product.getSellerNo());
-        sellerOpt.ifPresent(seller -> {
-            seller.setPoints(seller.getPoints() + pool);
-            pointHistoryRepository.save(PointHistory.builder()
-                    .memberNo(seller.getMemberNo())
-                    .type("취소보상금")
-                    .amount(pool)
-                    .balance(seller.getPoints())
-                    .reason("[" + product.getTitle() + "] 경매 종료 시 위약금 풀 정산")
-                    .build());
-            log.info("[Scheduler] penaltyPool 판매자 지급: productNo={}, sellerNo={}, amount={}",
-                    product.getProductNo(), seller.getMemberNo(), pool);
-        });
-        product.setPenaltyPool(0L);
     }
 
     /**
@@ -149,14 +115,15 @@ public class AuctionClosingService {
         }
 
         winningBid.setIsWinner(1);
-        // status=3 (PENDING_PAYMENT): 즉시구매도 결제 확인 전까지 대기 상태
+        // status=3 (PENDING_PAYMENT): 즉시구매도 구매자 수령 확인 대기 (7일 후 자동 구매 확정)
         product.setStatus(3);
         product.setWinnerNo(winningBid.getMemberNo());
+        product.setEndTime(LocalDateTime.now()); // [추가] 즉시구매 시 종료 시간 업데이트
 
         auctionResultRepository.save(AuctionResult.builder()
                 .bidNo(winningBid.getBidNo())
                 .status("배송대기")
-                .paymentDueDate(LocalDateTime.now().plusHours(12)) // 결제 마감 12시간
+                .paymentDueDate(LocalDateTime.now().plusDays(7)) // 자동 구매 확정 기준: 낙찰일 +7일
                 .build());
 
         log.info("[Buyout] 즉시구매 경매 종료: productNo={}, winner={}, price={}",

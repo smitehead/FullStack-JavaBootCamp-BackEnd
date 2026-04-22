@@ -22,11 +22,9 @@ public interface AuctionResultRepository extends JpaRepository<AuctionResult, Lo
     List<AuctionResult> findByBidNos(@Param("bidNos") List<Long> bidNos);
 
     /**
-     * Phase2 AuctionPaymentScheduler 전용.
-     * 결제 마감 시간이 지났고 아직 '배송대기' 상태인 AuctionResult 조회.
-     * Oracle NATIVE QUERY 사용 (JPA가 관계 미매핑 엔티티 조인을 지원하지 않으므로).
-     *
-     * BID_HISTORY와 JOIN해서 PRODUCT_NO까지 한 번에 가져옴 → N+1 방지.
+     * 7일 자동 구매 확정 대상 조회 (AuctionAutoConfirmScheduler 전용).
+     * paymentDueDate 가 현재 시각 이전인 '배송대기' 건 — 낙찰일로부터 7일 경과.
+     * (기존 AuctionPaymentScheduler도 이 쿼리를 공유했으나 해당 스케줄러는 비활성화됨)
      */
     @Query(value = """
         SELECT ar.*
@@ -36,4 +34,24 @@ public interface AuctionResultRepository extends JpaRepository<AuctionResult, Lo
         AND    ar.PAYMENT_DUE_DATE  < :now
         """, nativeQuery = true)
     List<AuctionResult> findExpiredPendingPayments(@Param("now") LocalDateTime now);
+
+    /**
+     * 구매 확정 D-1/D-2 리마인더 대상 조회 (AuctionAutoConfirmScheduler 전용).
+     * paymentDueDate 가 [from, to) 구간에 속하는 '배송대기' 건.
+     *
+     * <ul>
+     *   <li>D-2 알림: from=now+24h, to=now+48h (자동 확정 2일 전 구간)</li>
+     *   <li>D-1 알림: from=now,     to=now+24h (자동 확정 1일 전 구간)</li>
+     * </ul>
+     */
+    @Query(value = """
+        SELECT ar.*
+        FROM   AUCTION_RESULT ar
+        WHERE  ar.STATUS           = '배송대기'
+        AND    ar.PAYMENT_DUE_DATE >  :from
+        AND    ar.PAYMENT_DUE_DATE <= :to
+        """, nativeQuery = true)
+    List<AuctionResult> findPendingInWindow(
+            @Param("from") LocalDateTime from,
+            @Param("to")   LocalDateTime to);
 }

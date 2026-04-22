@@ -53,6 +53,11 @@ public class AutoBidServiceImpl implements AutoBidService {
         if (product.getSellerNo().equals(memberNo)) {
             throw new IllegalStateException("본인이 등록한 상품에는 자동입찰을 설정할 수 없습니다.");
         }
+        // 재입찰 차단: 이 상품에 취소 이력이 있는 회원은 영구 차단
+        if (bidHistoryRepository.existsByProductNoAndMemberNoAndIsCancelled(
+                dto.getProductNo(), memberNo, 1)) {
+            throw new IllegalStateException("입찰을 취소한 상품에는 다시 입찰할 수 없습니다.");
+        }
         long minRequired = product.getCurrentPrice() + product.getMinBidUnit();
         if (dto.getMaxPrice() < minRequired) {
             throw new IllegalArgumentException("자동입찰 한도는 최소 " + minRequired + "원 이상이어야 합니다.");

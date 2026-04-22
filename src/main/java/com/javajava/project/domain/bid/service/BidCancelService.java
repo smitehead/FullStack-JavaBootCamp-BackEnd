@@ -1,10 +1,14 @@
 package com.javajava.project.domain.bid.service;
 
+import com.javajava.project.domain.bid.entity.AutoBid;
 import com.javajava.project.domain.bid.entity.BidHistory;
 import com.javajava.project.domain.bid.event.BidCancelledEvent;
+import com.javajava.project.domain.bid.repository.AutoBidRepository;
 import com.javajava.project.domain.bid.repository.BidHistoryRepository;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.member.repository.MemberRepository;
+import com.javajava.project.domain.platform.entity.PlatformRevenue;
+import com.javajava.project.domain.platform.repository.PlatformRevenueRepository;
 import com.javajava.project.domain.point.entity.PointHistory;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
 import com.javajava.project.domain.product.entity.Product;
@@ -51,14 +55,17 @@ import java.util.List;
 public class BidCancelService {
 
     /** 입찰 취소 가능 최소 잔여 시간 (시간 단위). 이 시간 이내이면 서버에서도 차단. */
-    private static final long CANCEL_BLOCK_HOURS = 12L;
+    // TODO: QA 완료 후 12L 로 복구
+    private static final long CANCEL_BLOCK_HOURS = 0L;
 
     private static final double PENALTY_RATE = 0.05; // 위약금 5%
 
     private final ProductRepository productRepository;
     private final BidHistoryRepository bidHistoryRepository;
+    private final AutoBidRepository autoBidRepository;
     private final MemberRepository memberRepository;
     private final PointHistoryRepository pointHistoryRepository;
+    private final PlatformRevenueRepository platformRevenueRepository;
     private final SseService sseService;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -165,9 +172,18 @@ public class BidCancelService {
                     penalty, bidder.getPoints() + bidPrice));
         }
 
-        // ── 7. Soft Delete: 취소 입찰 논리 삭제 ────────────────────────────────
-        topBid.setIsCancelled(1);
-        topBid.setCancelReason("입찰자 본인 취소 (위약금 " + penalty + "P 차감, 5%)");
+        // ── 7. 취소자의 해당 상품 모든 활성 입찰 일괄 무효화 ─────────────────────
+        //   단건(topBid)만 무효화하면 낮은 가격의 과거 입찰이 차순위로 다시 부상하는 버그 발생.
+        //   취소자의 모든 isCancelled=0 입찰을 한꺼번에 Soft-Delete한다.
+        List<BidHistory> allActiveBids = bidHistoryRepository
+                .findByProductNoAndMemberNoAndIsCancelled(productNo, requestingMemberNo, 0);
+        String cancelReason = "입찰자 본인 취소 (위약금 " + penalty + "P 차감, 5%)";
+        for (BidHistory bid : allActiveBids) {
+            bid.setIsCancelled(1);
+            bid.setCancelReason(cancelReason);
+        }
+        log.info("[BidCancel] 취소자 활성 입찰 {}건 일괄 무효화: memberNo={}, productNo={}",
+                allActiveBids.size(), requestingMemberNo, productNo);
 
         // ── 8. 포인트 처리 ────────────────────────────────────────────────────────
         // 8-1. 입찰가 환불
@@ -190,13 +206,29 @@ public class BidCancelService {
                 .reason("[" + product.getTitle() + "] 입찰 취소 위약금 (입찰가의 5%)")
                 .build());
 
-        // 8-3. 위약금 → penaltyPool 적립 (판매자 즉시 지급 아님)
-        product.setPenaltyPool(product.getPenaltyPool() + penalty);
-        log.info("[BidCancel] 위약금 풀 적립: productNo={}, +{}P, totalPool={}P",
-                productNo, penalty, product.getPenaltyPool());
+        // 8-3. 위약금 → 플랫폼 수익 테이블에 즉시 INSERT
+        platformRevenueRepository.save(PlatformRevenue.builder()
+                .amount(penalty)
+                .reason("[" + product.getTitle() + "] 입찰 취소 위약금 (입찰가의 5%)")
+                .sourceMemberNo(requestingMemberNo)
+                .relatedProductNo(productNo)
+                .build());
+        log.info("[BidCancel] 플랫폼 수익 귀속: productNo={}, amount={}P (입찰가의 5%)", productNo, penalty);
 
         // seller 변수 미사용 경고 방지 (데드락 방지를 위해 락 획득은 필수, 실제 포인트 변경은 없음)
         log.debug("[BidCancel] 판매자 락 획득 확인: sellerNo={}", seller.getMemberNo());
+
+        // ── 8-4. 취소자 자동입찰 강제 비활성화 ──────────────────────────────────
+        //   수동 입찰 취소 후 자동입찰이 살아있으면 즉시 차순위 스캔에서 재발동,
+        //   → 취소자가 다시 최고입찰자가 되어 SSE 상태 충돌 및 프론트 오류 발생.
+        autoBidRepository
+                .findByMemberNoAndProductNoAndIsActive(requestingMemberNo, productNo, 1)
+                .ifPresent(autoBid -> {
+                    autoBid.setIsActive(0);
+                    autoBid.setUpdatedAt(java.time.LocalDateTime.now());
+                    log.info("[BidCancel] 취소자 자동입찰 강제 비활성화: memberNo={}, productNo={}",
+                            requestingMemberNo, productNo);
+                });
 
         // ── 9. 차순위 후보 스캔 ────────────────────────────────────────────────
         //   취소자의 모든 입찰을 제외 (memberNo 전체 제외).
@@ -279,7 +311,7 @@ public class BidCancelService {
                 productNo, product.getTitle(), sellerNo,
                 requestingMemberNo, finalSuccessorNo, penalty));
 
-        log.info("[BidCancel] 취소 완료: productNo={}, cancelledBy={}, penalty={}P(5%), newPrice={}P, penaltyPool={}P",
-                productNo, requestingMemberNo, penalty, newPrice, product.getPenaltyPool());
+        log.info("[BidCancel] 취소 완료: productNo={}, cancelledBy={}, penalty={}P(5%→플랫폼수익), newPrice={}P",
+                productNo, requestingMemberNo, penalty, newPrice);
     }
 }

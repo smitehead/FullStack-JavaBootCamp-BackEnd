@@ -19,24 +19,51 @@ public interface BidHistoryRepository extends JpaRepository<BidHistory, Long> {
     // 회원이 입찰한 내역 조회
     List<BidHistory> findByMemberNo(Long memberNo);
 
-    //입찰 내역(b)과 회원(m)의 닉네임을 조인하여 한 번에 가져옵니다.
+    // 상세 페이지 입찰 기록 조회: 취소된 입찰 제외 + 취소 이력이 있는 회원의 모든 입찰 제외
     @Query("SELECT b, m.nickname FROM BidHistory b " +
            "JOIN Member m ON b.memberNo = m.memberNo " +
-           "WHERE b.productNo = :productNo " +
+           "WHERE b.productNo = :productNo AND b.isCancelled = 0 " +
+           "AND b.memberNo NOT IN (" +
+           "  SELECT b2.memberNo FROM BidHistory b2 " +
+           "  WHERE b2.productNo = :productNo AND b2.isCancelled = 1" +
+           ") " +
            "ORDER BY b.bidTime DESC")
     List<Object[]> findBidHistoryWithNickname(@Param("productNo") Long productNo);
 
-    // 특정 상품에 입찰한 고유 회원 수 조회
-    @Query("SELECT COUNT(DISTINCT b.memberNo) FROM BidHistory b WHERE b.productNo = :productNo AND b.isCancelled = 0")
+    // 특정 회원의 특정 상품 활성 입찰 전체 조회 (일괄 무효화용)
+    List<BidHistory> findByProductNoAndMemberNoAndIsCancelled(Long productNo, Long memberNo, Integer isCancelled);
+
+    // 재입찰 차단 검증: 해당 상품에 취소 이력이 있는지 확인
+    boolean existsByProductNoAndMemberNoAndIsCancelled(Long productNo, Long memberNo, Integer isCancelled);
+
+    // 특정 상품에 입찰한 고유 회원 수 조회 (취소 이력 있는 회원 전체 제외 — bidHistory 표시 기준과 동일)
+    @Query("SELECT COUNT(DISTINCT b.memberNo) FROM BidHistory b " +
+           "WHERE b.productNo = :productNo AND b.isCancelled = 0 " +
+           "AND b.memberNo NOT IN (" +
+           "  SELECT b2.memberNo FROM BidHistory b2 " +
+           "  WHERE b2.productNo = :productNo AND b2.isCancelled = 1" +
+           ")")
     Long countDistinctParticipants(@Param("productNo") Long productNo);
 
-    // 여러 상품의 참여자 수를 한 번에 조회 (N+1 방지)
-    @Query("SELECT b.productNo, COUNT(DISTINCT b.memberNo) FROM BidHistory b WHERE b.productNo IN :productNos AND b.isCancelled = 0 GROUP BY b.productNo")
+    // 여러 상품의 참여자 수를 한 번에 조회 (N+1 방지, 취소 이력 있는 회원 전체 제외)
+    // b2.productNo = b.productNo 로 상품별 상관 서브쿼리 — IN :productNos 사용 시 다른 상품 취소자가 교차 제외되는 버그 방지
+    @Query("SELECT b.productNo, COUNT(DISTINCT b.memberNo) FROM BidHistory b " +
+           "WHERE b.productNo IN :productNos AND b.isCancelled = 0 " +
+           "AND b.memberNo NOT IN (" +
+           "  SELECT b2.memberNo FROM BidHistory b2 " +
+           "  WHERE b2.productNo = b.productNo AND b2.isCancelled = 1" +
+           ") " +
+           "GROUP BY b.productNo")
     List<Object[]> countDistinctParticipantsByProductNos(@Param("productNos") List<Long> productNos);
 
     // 마이페이지: 특정 회원이 입찰한 고유 상품 번호 목록
+    // 취소 이력(isCancelled=1)이 있는 상품은 아예 제외 — 취소한 경매가 마이페이지에 노출되는 버그 방지
     @Query("SELECT b.productNo FROM BidHistory b " +
            "WHERE b.memberNo = :memberNo AND b.isCancelled = 0 " +
+           "AND b.productNo NOT IN (" +
+           "  SELECT b2.productNo FROM BidHistory b2 " +
+           "  WHERE b2.memberNo = :memberNo AND b2.isCancelled = 1" +
+           ") " +
            "GROUP BY b.productNo " +
            "ORDER BY MAX(b.bidTime) DESC")
     List<Long> findDistinctProductNosByMemberNo(@Param("memberNo") Long memberNo);
@@ -79,4 +106,7 @@ public interface BidHistoryRepository extends JpaRepository<BidHistory, Long> {
            "AND b.bidPrice = (SELECT MAX(b2.bidPrice) FROM BidHistory b2 " +
            "                  WHERE b2.productNo = b.productNo AND b2.isCancelled = 0)")
     List<Object[]> findTopBidderByProductNos(@Param("productNos") List<Long> productNos);
+
+    // 특정 회원의 특정 상품 리스트에 대한 모든 입찰 내역 조회
+    List<BidHistory> findByMemberNoAndProductNoIn(Long memberNo, List<Long> productNos);
 }

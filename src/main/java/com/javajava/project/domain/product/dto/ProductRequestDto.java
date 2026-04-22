@@ -19,5 +19,4 @@ public class ProductRequestDto {
     private Long buyoutPrice;
     private Long minBidUnit;
     private LocalDateTime endTime;
-    private Long shippingFee;
 }

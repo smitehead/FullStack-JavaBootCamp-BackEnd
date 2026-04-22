@@ -10,6 +10,9 @@ import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.domain.member.repository.BlockedUserRepository;
 import com.javajava.project.domain.product.repository.ProductImageRepository;
 import com.javajava.project.domain.product.repository.ProductRepository;
+import com.javajava.project.domain.auction.repository.AuctionResultRepository;
+import com.javajava.project.domain.auction.entity.AuctionResult;
+import com.javajava.project.domain.bid.entity.BidHistory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -18,9 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -36,6 +37,7 @@ public class MemberServiceImpl implements MemberService {
     private final ProductRepository productRepository;
     private final ProductImageRepository productImageRepository;
     private final BidHistoryRepository bidHistoryRepository;
+    private final AuctionResultRepository auctionResultRepository;
 
     @Override
     @Transactional
@@ -52,6 +54,7 @@ public class MemberServiceImpl implements MemberService {
                 .nickname(dto.getNickname())
                 .email(dto.getEmail())
                 .phoneNum(dto.getPhoneNum())
+                .addrRoad(dto.getAddrRoad())
                 .addrDetail(dto.getAddrDetail())
                 .addrShort(dto.getAddrShort())
                 .birthDate(dto.getBirthDate())
@@ -105,7 +108,7 @@ public class MemberServiceImpl implements MemberService {
     }
 
     @Override
-    public SellerProfileResponseDto getSellerProfile(Long memberNo) {
+    public SellerProfileResponseDto getSellerProfile(Long memberNo, Long viewerNo) {
         Member member = memberRepository.findById(memberNo)
                 .orElseThrow(() -> new IllegalArgumentException("판매자를 찾을 수 없습니다."));
 
@@ -130,6 +133,40 @@ public class MemberServiceImpl implements MemberService {
                     bidHistoryRepository.countDistinctParticipantsByProductNos(productNos).stream()
                             .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
 
+            // 입찰 상태 정보 조회 (조회자가 있는 경우)
+            Map<Long, String> viewerBidStatusMap = new HashMap<>();
+            if (viewerNo != null) {
+                // 1. 해당 상품들에 대한 조회자의 모든 입찰 조회
+                List<BidHistory> viewerBids = bidHistoryRepository.findByMemberNoAndProductNoIn(viewerNo, productNos);
+                Set<Long> bidProductNos = viewerBids.stream().map(BidHistory::getProductNo).collect(Collectors.toSet());
+                
+                // 2. 낙찰 결과 직접 조회 (viewerNo가 낙찰자인 경우)
+                // bidHistoryNos 추출
+                List<Long> bidHistoryNos = viewerBids.stream().map(BidHistory::getBidNo).toList();
+                Set<Long> wonBidNos = auctionResultRepository.findByBidNos(bidHistoryNos).stream()
+                        .map(AuctionResult::getBidNo)
+                        .collect(Collectors.toSet());
+                
+                Map<Long, Long> bidNoToProductNo = viewerBids.stream()
+                        .collect(Collectors.toMap(BidHistory::getBidNo, BidHistory::getProductNo, (a, b) -> a));
+
+                Set<Long> wonProductNos = wonBidNos.stream()
+                        .map(bidNoToProductNo::get)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toSet());
+
+                for (Long pNo : productNos) {
+                    if (wonProductNos.contains(pNo)) {
+                        viewerBidStatusMap.put(pNo, "won");
+                    } else if (bidProductNos.contains(pNo)) {
+                        // 경매 종료 여부에 따라 lost 또는 bidding
+                        Product p = products.stream().filter(prod -> prod.getProductNo().equals(pNo)).findFirst().orElse(null);
+                        boolean isFinished = p != null && (p.getEndTime().isBefore(LocalDateTime.now()) || p.getStatus() != 0);
+                        viewerBidStatusMap.put(pNo, isFinished ? "lost" : "bidding");
+                    }
+                }
+            }
+
             productDtos = products.stream().map(product -> {
                 ProductImage mainImg = mainImageMap.get(product.getProductNo());
                 List<String> imageUrls = mainImg != null
@@ -147,6 +184,7 @@ public class MemberServiceImpl implements MemberService {
                         .status(isFinished ? "completed" : "active")
                         .images(imageUrls)
                         .isWishlisted(false)
+                        .bidStatus(viewerBidStatusMap.get(product.getProductNo()))
                         .build();
             }).toList();
         }
