@@ -36,13 +36,14 @@ public class StompChannelInterceptor implements ChannelInterceptor {
         if (memberNo == null) return message;
 
         // SUBSCRIBE 인가: /sub/chat/room/{roomId}
+        // throw 대신 null 반환으로 조용히 거부 — throw 시 STOMP ERROR 프레임 → 연결 종료 → 재연결 루프 발생
         if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
             String destination = accessor.getDestination();
             if (destination != null && destination.startsWith("/sub/chat/room/")) {
                 Long roomId = extractRoomId(destination);
                 if (roomId != null && !chatService.isParticipant(roomId, memberNo)) {
                     log.warn("[STOMP] 구독 거부 - memberNo: {}, roomId: {}", memberNo, roomId);
-                    throw new IllegalArgumentException("해당 채팅방의 참여자가 아닙니다.");
+                    return null; // 구독을 조용히 차단 (연결은 유지)
                 }
             }
         }
