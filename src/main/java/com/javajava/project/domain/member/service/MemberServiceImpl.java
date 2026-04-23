@@ -167,12 +167,30 @@ public class MemberServiceImpl implements MemberService {
                 }
             }
 
+            // 판매 완료 상품들에 대해 낙찰 결과 상태 보강
+            List<Long> completedProductNos = products.stream()
+                    .filter(p -> p.getEndTime().isBefore(LocalDateTime.now()) || p.getStatus() != 0)
+                    .map(Product::getProductNo)
+                    .toList();
+
+            Map<Long, AuctionResult> auctionResultMap = new HashMap<>();
+            if (!completedProductNos.isEmpty()) {
+                for (Long pNo : completedProductNos) {
+                    bidHistoryRepository.findFirstByProductNoAndIsWinnerOrderByBidPriceDesc(pNo, 1)
+                            .ifPresent(bid -> {
+                                auctionResultRepository.findFirstByBidNo(bid.getBidNo())
+                                        .ifPresent(res -> auctionResultMap.put(pNo, res));
+                            });
+                }
+            }
+
             productDtos = products.stream().map(product -> {
                 ProductImage mainImg = mainImageMap.get(product.getProductNo());
                 List<String> imageUrls = mainImg != null
                         ? List.of("/api/images/" + mainImg.getUuidName())
                         : List.of();
                 boolean isFinished = product.getEndTime().isBefore(LocalDateTime.now()) || product.getStatus() != 0;
+                AuctionResult ar = auctionResultMap.get(product.getProductNo());
 
                 return ProductListResponseDto.builder()
                         .id(product.getProductNo())
@@ -185,6 +203,8 @@ public class MemberServiceImpl implements MemberService {
                         .images(imageUrls)
                         .isWishlisted(false)
                         .bidStatus(viewerBidStatusMap.get(product.getProductNo()))
+                        .auctionResultStatus(ar != null ? ar.getStatus() : null)
+                        .resultNo(ar != null ? ar.getResultNo() : null)
                         .build();
             }).toList();
         }
