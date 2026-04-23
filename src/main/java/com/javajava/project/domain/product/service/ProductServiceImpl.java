@@ -498,7 +498,8 @@ public class ProductServiceImpl implements ProductService {
                                 } else if ("completed".equals(filter)) {
                                         return isCompleted && hasConfirm;
                                 } else if ("ended".equals(filter)) {
-                                        return !"active".equals(dto.getStatus()) && !(isCompleted && hasConfirm);
+                                        String s = dto.getStatus();
+                                        return "failed".equals(s) || "canceled".equals(s) || "ended".equals(s);
                                 }
                                 return true;
                         }).toList();
