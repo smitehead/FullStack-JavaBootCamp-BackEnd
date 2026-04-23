@@ -50,6 +50,19 @@ public class ReviewController {
         return ResponseEntity.ok(reviewService.getMyReviews(memberNo));
     }
 
+    /**
+     * 리뷰 숨김 처리 (삭제)
+     * PUT /api/reviews/{reviewNo}/hide
+     */
+    @PutMapping("/{reviewNo}/hide")
+    public ResponseEntity<Void> hideReview(
+            Authentication authentication,
+            @PathVariable("reviewNo") Long reviewNo) {
+        Long memberNo = getMemberNo(authentication);
+        reviewService.hideReview(memberNo, reviewNo);
+        return ResponseEntity.ok().build();
+    }
+
     private Long getMemberNo(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new IllegalArgumentException("로그인이 필요합니다.");

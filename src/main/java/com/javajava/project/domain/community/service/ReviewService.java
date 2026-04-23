@@ -148,4 +148,20 @@ public class ReviewService {
                 }).toList();
     }
 
+    /**
+     * 리뷰 숨김 처리
+     * 수신자(판매자) 본인만 가능
+     */
+    @Transactional
+    public void hideReview(Long memberNo, Long reviewNo) {
+        Review review = reviewRepository.findById(reviewNo)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 리뷰입니다."));
+
+        if (!review.getTargetNo().equals(memberNo)) {
+            throw new IllegalStateException("본인이 받은 후기만 숨길 수 있습니다.");
+        }
+
+        review.setIsHidden(1);
+    }
+
 }
