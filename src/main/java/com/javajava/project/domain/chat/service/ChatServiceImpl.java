@@ -114,7 +114,7 @@ public class ChatServiceImpl implements ChatService {
             throw new IllegalArgumentException("메시지는 4000자를 초과할 수 없습니다.");
         }
 
-        ChatRoom room = chatRoomRepository.findById(request.getRoomId())
+        ChatRoom room = chatRoomRepository.findById(request.getRoomNo())
                 .orElseThrow(() -> new IllegalArgumentException("채팅방을 찾을 수 없습니다."));
 
         // [Security] 발신자가 해당 채팅방의 참여자인지 검증
@@ -135,7 +135,7 @@ public class ChatServiceImpl implements ChatService {
                 ? request.getContent() : " ";
 
         ChatMessage message = ChatMessage.builder()
-                .roomNo(request.getRoomId())
+                .roomNo(request.getRoomNo())
                 .senderNo(senderId)
                 .content(content)
                 .msgType(request.getMsgType() != null ? request.getMsgType() : "TEXT")
