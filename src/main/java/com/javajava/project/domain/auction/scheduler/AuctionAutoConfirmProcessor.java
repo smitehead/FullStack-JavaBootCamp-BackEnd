@@ -136,10 +136,10 @@ public class AuctionAutoConfirmProcessor {
         try {
             notificationService.sendAndSaveNotification(
                     buyer.getMemberNo(), "activity",
-                    "[" + product.getTitle() + "] 구매가 자동으로 확정되었습니다.",
-                    "/won/" + product.getProductNo());
+                    "상품을 받으셨나요? [" + product.getTitle() + "] 거래에 대한 후기를 남겨주세요!",
+                    "/review/" + resultNo);
         } catch (Exception e) {
-            log.warn("[AutoConfirm] 구매자 알림 실패 (resultNo={}): {}", resultNo, e.getMessage());
+            log.warn("[AutoConfirm] 구매자 후기 권장 알림 실패 (resultNo={}): {}", resultNo, e.getMessage());
         }
 
         log.info("[AutoConfirm] 자동 구매 확정 완료: resultNo={}, buyerNo={}, sellerNo={}, price={}P, settlement={}P",

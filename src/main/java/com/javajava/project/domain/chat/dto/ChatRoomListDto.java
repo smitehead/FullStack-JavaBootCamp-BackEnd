@@ -28,4 +28,7 @@ public class ChatRoomListDto {
 
     // 거래 유형 (택배 / 직거래 / 혼합)
     private String tradeType;
+
+    // 상품 현재가
+    private Long productPrice;
 }

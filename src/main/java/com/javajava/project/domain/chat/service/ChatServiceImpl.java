@@ -98,6 +98,7 @@ public class ChatServiceImpl implements ChatService {
                         toLong(row[1]).equals(myNo) ? "seller" : "buyer"
                 )
                 .tradeType((String) row[13])
+                .productPrice(toLong(row[14]))
                 .build()
         ).collect(Collectors.toList());
     }

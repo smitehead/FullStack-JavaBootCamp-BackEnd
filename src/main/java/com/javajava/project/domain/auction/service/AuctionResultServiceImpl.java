@@ -189,6 +189,16 @@ public class AuctionResultServiceImpl implements AuctionResultService {
 
         log.info("[AuctionResult] 구매 확정 완료: resultNo={}, memberNo={}, price={}P, settlement={}P",
                 resultNo, memberNo, bid.getBidPrice(), settlementForNotif);
+
+        // ── 구매자 후기 권장 알림 ───────────────────────────────────────────
+        try {
+            notificationService.sendAndSaveNotification(
+                    memberNo, "activity",
+                    "상품을 받으셨나요? [" + product.getTitle() + "] 거래에 대한 후기를 남겨주세요!",
+                    "/review/" + resultNo);
+        } catch (Exception e) {
+            log.warn("[AuctionResult] 구매자 후기 권장 알림 전송 실패: {}", e.getMessage());
+        }
     }
 
     @Override
