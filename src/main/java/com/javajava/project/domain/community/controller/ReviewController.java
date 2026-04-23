@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/reviews")
@@ -48,6 +49,19 @@ public class ReviewController {
     public ResponseEntity<List<ReviewResponseDto>> getMyReviews(Authentication authentication) {
         Long memberNo = getMemberNo(authentication);
         return ResponseEntity.ok(reviewService.getMyReviews(memberNo));
+    }
+
+    /**
+     * 내가 이미 후기를 작성했는지 확인
+     * GET /api/reviews/exists/{resultNo}
+     */
+    @GetMapping("/exists/{resultNo}")
+    public ResponseEntity<Map<String, Boolean>> checkExists(
+            Authentication authentication,
+            @PathVariable("resultNo") Long resultNo) {
+        Long memberNo = getMemberNo(authentication);
+        boolean exists = reviewService.existsByResultNoAndWriterNo(resultNo, memberNo);
+        return ResponseEntity.ok(Map.of("exists", exists));
     }
 
     /**

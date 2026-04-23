@@ -160,6 +160,17 @@ public class ChatController {
      */
     @MessageMapping("/chat/message")
     public void handleMessage(ChatMessageRequest request, Authentication auth) {
+        // 인증 정보 없으면 즉시 거부 (NullPointerException 방지)
+        if (auth == null || auth.getPrincipal() == null) {
+            log.warn("[STOMP] 인증 정보 없음 - 메시지 처리 거부 (uuid: {})", request.getClientUuid());
+            if (request.getClientUuid() != null && request.getRoomId() != null) {
+                messagingTemplate.convertAndSend("/sub/chat/room/" + request.getRoomId(),
+                        ChatMessageDto.builder().clientUuid(request.getClientUuid())
+                                .msgType("ERROR").content("인증 정보가 없습니다.").build());
+            }
+            return;
+        }
+
         // [Security] 클라이언트가 보낸 senderId 대신 인증 세션(Principal)의 memberNo를 사용
         Long senderId = (Long) auth.getPrincipal();
 

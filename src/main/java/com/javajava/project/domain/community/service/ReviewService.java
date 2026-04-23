@@ -46,23 +46,31 @@ public class ReviewService {
             throw new IllegalStateException("구매 확정된 거래만 리뷰를 작성할 수 있습니다.");
         }
 
-        // 2. 중복 리뷰 방지
-        if (reviewRepository.findByResultNo(dto.getResultNo()).isPresent()) {
-            throw new IllegalStateException("이미 리뷰를 작성한 거래입니다.");
+        // 2. 작성자 단위 중복 리뷰 방지 (구매자·판매자 각자 1회)
+        if (reviewRepository.existsByResultNoAndWriterNo(dto.getResultNo(), writerNo)) {
+            throw new IllegalStateException("이미 작성된 후기입니다.");
         }
 
-        // 3. 낙찰자(구매자) 본인 확인
+        // 3. 작성자가 구매자 또는 판매자인지 확인 후 대상(targetNo) 결정
         BidHistory bid = bidHistoryRepository.findById(result.getBidNo())
                 .orElseThrow(() -> new IllegalArgumentException("입찰 기록을 찾을 수 없습니다."));
 
-        if (!bid.getMemberNo().equals(writerNo)) {
-            throw new IllegalStateException("낙찰자 본인만 리뷰를 작성할 수 있습니다.");
-        }
-
-        // 4. 리뷰 대상 = 판매자
         Product product = productRepository.findById(bid.getProductNo())
                 .orElseThrow(() -> new IllegalArgumentException("상품 정보를 찾을 수 없습니다."));
-        Long targetNo = product.getSellerNo();
+
+        Long buyerNo  = bid.getMemberNo();
+        Long sellerNo = product.getSellerNo();
+
+        Long targetNo;
+        if (writerNo.equals(buyerNo)) {
+            // 구매자 → 판매자에게 후기
+            targetNo = sellerNo;
+        } else if (writerNo.equals(sellerNo)) {
+            // 판매자 → 구매자에게 후기
+            targetNo = buyerNo;
+        } else {
+            throw new IllegalStateException("해당 거래의 구매자 또는 판매자만 후기를 작성할 수 있습니다.");
+        }
 
         // 5. 태그 → 콤마 구분 문자열 변환
         String tagsStr = (dto.getTags() != null && !dto.getTags().isEmpty())
@@ -146,6 +154,13 @@ public class ReviewService {
                     } catch (Exception ignored) {}
                     return ReviewResponseDto.from(review, writer.getNickname(), productNo, productTitle);
                 }).toList();
+    }
+
+    /**
+     * 작성자가 해당 거래에 이미 후기를 작성했는지 확인
+     */
+    public boolean existsByResultNoAndWriterNo(Long resultNo, Long writerNo) {
+        return reviewRepository.existsByResultNoAndWriterNo(resultNo, writerNo);
     }
 
     /**

@@ -17,6 +17,12 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     // 특정 낙찰 결과에 대한 리뷰 조회 (거래 1건당 리뷰 1개 원칙)
     Optional<Review> findByResultNo(Long resultNo);
 
+    // 특정 작성자가 해당 거래에 이미 후기를 작성했는지 확인
+    boolean existsByResultNoAndWriterNo(Long resultNo, Long writerNo);
+
+    // 특정 작성자의 해당 거래 후기 조회
+    Optional<Review> findByResultNoAndWriterNo(Long resultNo, Long writerNo);
+
     // 회원의 공개 리뷰만 조회
     List<Review> findByTargetNoAndIsHidden(Long targetNo, Integer isHidden);
 

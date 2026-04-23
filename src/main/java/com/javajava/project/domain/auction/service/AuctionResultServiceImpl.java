@@ -13,6 +13,7 @@ import com.javajava.project.domain.product.entity.ProductImage;
 import com.javajava.project.domain.auction.repository.AuctionResultRepository;
 import com.javajava.project.domain.bid.repository.BidHistoryRepository;
 import com.javajava.project.domain.member.repository.MemberRepository;
+import com.javajava.project.domain.community.repository.ReviewRepository;
 import com.javajava.project.domain.notification.service.NotificationService;
 import com.javajava.project.global.sse.SseService;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
@@ -41,6 +42,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
     private final PlatformRevenueRepository platformRevenueRepository;
     private final NotificationService notificationService;
     private final SseService sseService;
+    private final ReviewRepository reviewRepository;
 
     @Override
     public AuctionResultResponseDto getAuctionResultByProductNo(Long productNo, Long memberNo) {
@@ -326,6 +328,8 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                         .build())
                 .deliveryAddrRoad(result.getDeliveryAddrRoad())
                 .deliveryAddrDetail(result.getDeliveryAddrDetail())
+                .hasSellerReview(reviewRepository.existsByResultNoAndWriterNo(result.getResultNo(), sellerNo))
+                .hasBuyerReview(reviewRepository.existsByResultNoAndWriterNo(result.getResultNo(), winnerBid.getMemberNo()))
                 .build();
     }
 

@@ -31,6 +31,10 @@ public class SellerAuctionResultResponseDto {
     private String deliveryAddrRoad;
     private String deliveryAddrDetail;
 
+    // 후기 작성 여부
+    private Boolean hasSellerReview; // 판매자가 구매자에게 후기 작성 여부
+    private Boolean hasBuyerReview;  // 구매자가 판매자에게 후기 작성 여부
+
     @Getter
     @Builder
     public static class BuyerInfo {
