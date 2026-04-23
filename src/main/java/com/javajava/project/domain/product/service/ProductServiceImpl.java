@@ -261,8 +261,9 @@ public class ProductServiceImpl implements ProductService {
                 Map<Long, Long> participantCountMap = productNos.isEmpty() ? Map.of()
                                 : bidHistoryRepository.countDistinctParticipantsByProductNos(productNos).stream()
                                                 .collect(Collectors.toMap(
-                                                                row -> (Long) row[0],
-                                                                row -> (Long) row[1]));
+                                                                row -> toLong(row[0]),
+                                                                row -> toLong(row[1]),
+                                                                (a, b) -> a)); // 중복 방지
 
                 return productPage.map(product -> {
                         ProductImage mainImg = mainImageMap.get(product.getProductNo());
@@ -439,19 +440,32 @@ public class ProductServiceImpl implements ProductService {
 
                 List<ProductListResponseDto> enriched = dtos;
                 if (!completedProductNos.isEmpty()) {
-                        Map<Long, String> auctionStatusMap = new HashMap<>();
+                        // 정보 조회를 위한 Map 준비 (productNo -> 데이터)
+                        Map<Long, AuctionResult> auctionResultMap = new HashMap<>();
+                        Map<Long, Member> winnerMap = new HashMap<>();
+
                         for (Long productNo : completedProductNos) {
                                 bidHistoryRepository
                                         .findFirstByProductNoAndIsWinnerOrderByBidPriceDesc(productNo, 1)
-                                        .ifPresent(bid ->
+                                        .ifPresent(bid -> {
                                                 auctionResultRepository.findFirstByBidNo(bid.getBidNo())
-                                                        .ifPresent(result ->
-                                                                auctionStatusMap.put(productNo, result.getStatus())));
+                                                        .ifPresent(result -> auctionResultMap.put(productNo, result));
+                                                memberRepository.findById(bid.getMemberNo())
+                                                        .ifPresent(m -> winnerMap.put(productNo, m));
+                                        });
                         }
-                        if (!auctionStatusMap.isEmpty()) {
+
+                        if (!auctionResultMap.isEmpty()) {
                                 enriched = dtos.stream().map(dto -> {
-                                        String status = auctionStatusMap.get(dto.getId());
-                                        if (status == null) return dto;
+                                        AuctionResult ar = auctionResultMap.get(dto.getId());
+                                        if (ar == null) return dto;
+
+                                        Member winner = winnerMap.get(dto.getId());
+                                        boolean hasSellerReview = reviewRepository.existsByResultNoAndWriterNo(ar.getResultNo(), memberNo);
+                                        boolean hasBuyerReview = (winner != null) 
+                                                ? reviewRepository.existsByResultNoAndWriterNo(ar.getResultNo(), winner.getMemberNo())
+                                                : false;
+
                                         return ProductListResponseDto.builder()
                                                 .id(dto.getId())
                                                 .title(dto.getTitle())
@@ -463,7 +477,13 @@ public class ProductServiceImpl implements ProductService {
                                                 .images(dto.getImages())
                                                 .isWishlisted(dto.getIsWishlisted())
                                                 .bidStatus(dto.getBidStatus())
-                                                .auctionResultStatus(status)
+                                                .auctionResultStatus(ar.getStatus())
+                                                .resultNo(ar.getResultNo())
+                                                .hasSellerReview(hasSellerReview)
+                                                .hasBuyerReview(hasBuyerReview)
+                                                .hasReview(hasSellerReview) // 기존 필드 호환
+                                                .winnerNo(winner != null ? winner.getMemberNo() : null)
+                                                .winnerNickname(winner != null ? winner.getNickname() : null)
                                                 .build();
                                 }).toList();
                         }
@@ -561,15 +581,17 @@ public class ProductServiceImpl implements ProductService {
 
         @Override
         public Page<ProductListResponseDto> getMyPurchasedProducts(Long memberNo, int page, int size) {
-                // 1. 내가 낙찰받은 상품 번호 목록
-                List<Long> wonProductNos = bidHistoryRepository.findWonProductNosByMemberNo(memberNo);
+                // 1. 내가 낙찰받은 상품 번호 목록 (중복 제거)
+                List<Long> wonProductNos = bidHistoryRepository.findWonProductNosByMemberNo(memberNo).stream()
+                                .distinct()
+                                .toList();
                 if (wonProductNos.isEmpty())
                         return Page.empty();
 
                 // 2. 해당 상품들의 낙찰 입찰번호를 찾고, AuctionResult에서 구매확정된 것만 필터
                 List<Product> fetchedProducts = productRepository.findAllById(wonProductNos);
                 Map<Long, Product> productMap = fetchedProducts.stream()
-                                .collect(Collectors.toMap(Product::getProductNo, Function.identity()));
+                                .collect(Collectors.toMap(Product::getProductNo, Function.identity(), (a, b) -> a));
                 List<Product> products = wonProductNos.stream()
                                 .map(productMap::get)
                                 .filter(Objects::nonNull)
@@ -688,7 +710,7 @@ public class ProductServiceImpl implements ProductService {
 
                 Map<Long, Long> participantCountMap = bidHistoryRepository
                                 .countDistinctParticipantsByProductNos(productNos).stream()
-                                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+                                .collect(Collectors.toMap(row -> toLong(row[0]), row -> toLong(row[1]), (a, b) -> a));
 
                 return products.stream().map(product -> {
                         ProductImage mainImg = mainImageMap.get(product.getProductNo());
@@ -957,7 +979,7 @@ public class ProductServiceImpl implements ProductService {
                 // 참여자 수 배치 조회
                 Map<Long, Long> participantCountMap = bidHistoryRepository
                                 .countDistinctParticipantsByProductNos(productNos).stream()
-                                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+                                .collect(Collectors.toMap(row -> toLong(row[0]), row -> toLong(row[1]), (a, b) -> a));
 
                 return products.stream().map(product -> {
                         ProductImage mainImg = mainImageMap.get(product.getProductNo());
@@ -1014,7 +1036,7 @@ public class ProductServiceImpl implements ProductService {
 
                 Map<Long, Long> participantCountMap = bidHistoryRepository
                                 .countDistinctParticipantsByProductNos(productNos).stream()
-                                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+                                .collect(Collectors.toMap(row -> toLong(row[0]), row -> toLong(row[1]), (a, b) -> a));
 
                 return products.stream().map(product -> {
                         ProductImage mainImg = mainImageMap.get(product.getProductNo());
@@ -1038,4 +1060,10 @@ public class ProductServiceImpl implements ProductService {
                                         .build();
                 }).toList();
         }
+	private Long toLong(Object val) {
+		if (val == null) return null;
+		if (val instanceof Number) return ((Number) val).longValue();
+		if (val instanceof String) return Long.parseLong((String) val);
+		return null;
+	}
 }

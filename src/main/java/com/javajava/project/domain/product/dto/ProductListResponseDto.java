@@ -28,4 +28,8 @@ public class ProductListResponseDto {
 
     private Long resultNo;            // 낙찰 결과 번호 (구매내역 후기 작성용)
     private Boolean hasReview;        // 후기 작성 여부 (구매내역용)
+    private Boolean hasBuyerReview;   // 구매자가 작성한 후기 존재 여부
+    private Boolean hasSellerReview;  // 판매자가 작성한 후기 존재 여부
+    private Long winnerNo;            // 낙찰자 회원번호 (판매자용)
+    private String winnerNickname;    // 낙찰자 닉네임 (판매자용)
 }
