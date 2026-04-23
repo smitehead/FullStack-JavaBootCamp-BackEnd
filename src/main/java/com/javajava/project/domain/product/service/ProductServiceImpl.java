@@ -427,7 +427,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         @Override
-        public Page<ProductListResponseDto> getMySellingProducts(Long memberNo, int page, int size) {
+        public Page<ProductListResponseDto> getMySellingProducts(Long memberNo, int page, int size, String filter) {
                 List<Product> products = productRepository.findBySellerNoOrderByProductNoDesc(memberNo);
                 List<ProductListResponseDto> dtos = toProductListDtos(products, memberNo);
 
@@ -468,6 +468,22 @@ public class ProductServiceImpl implements ProductService {
                                 }).toList();
                         }
                 }
+
+                if (filter != null && !filter.equals("all")) {
+                        enriched = enriched.stream().filter(dto -> {
+                                boolean isCompleted = "completed".equals(dto.getStatus());
+                                boolean hasConfirm = "구매확정".equals(dto.getAuctionResultStatus());
+                                if ("active".equals(filter)) {
+                                        return "active".equals(dto.getStatus());
+                                } else if ("completed".equals(filter)) {
+                                        return isCompleted && hasConfirm;
+                                } else if ("ended".equals(filter)) {
+                                        return !"active".equals(dto.getStatus()) && !(isCompleted && hasConfirm);
+                                }
+                                return true;
+                        }).toList();
+                }
+
                 return toPage(enriched, page, size);
         }
 

@@ -79,9 +79,10 @@ public class ProductController {
     public ResponseEntity<Page<ProductListResponseDto>> getMySellingProducts(
             Authentication authentication,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "6") int size) {
+            @RequestParam(defaultValue = "6") int size,
+            @RequestParam(defaultValue = "all") String filter) {
         Long memberNo = (Long) authentication.getPrincipal();
-        return ResponseEntity.ok(productService.getMySellingProducts(memberNo, page, size));
+        return ResponseEntity.ok(productService.getMySellingProducts(memberNo, page, size, filter));
     }
 
     // 마이페이지: 내가 입찰한 상품 목록 (입찰상태 포함)
