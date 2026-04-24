@@ -582,6 +582,7 @@ public class ProductServiceImpl implements ProductService {
                 if (filter != null && !filter.equals("all")) {
                         String targetStatus = switch (filter) {
                                 case "leader" -> "bidding";
+                                case "trading" -> "won";
                                 case "outbid" -> "outbid";
                                 case "lost" -> "lost";
                                 default -> null;
