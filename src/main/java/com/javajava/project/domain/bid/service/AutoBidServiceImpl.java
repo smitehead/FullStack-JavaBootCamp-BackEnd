@@ -280,7 +280,7 @@ public class AutoBidServiceImpl implements AutoBidService {
             return true;
         }
 
-        try { sseService.broadcastPriceUpdate(productNo, finalPrice, winnerNo); }
+        try { sseService.broadcastPriceUpdate(productNo, finalPrice, winnerNo, product.getBidCount()); }
         catch (Exception e) { log.warn("[AutoBid] 브로드캐스트 실패: {}", e.getMessage()); }
 
         log.info("[AutoBid] 완료: productNo={}, winner={}, finalPrice={}", productNo, winnerNo, finalPrice);

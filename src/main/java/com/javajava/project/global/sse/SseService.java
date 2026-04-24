@@ -98,12 +98,15 @@ public class SseService {
     /**
      * 모든 연결된 클라이언트에게 실시간 입찰가 갱신 브로드캐스트.
      * 각 emitter 별로 synchronized → 동시 입찰 시 동일 emitter에 concurrent send 방지.
+     *
+     * @param participantCount 입찰 후 갱신된 bidCount — 프론트 참가자 수 뱃지 즉시 갱신용
      */
-    public void broadcastPriceUpdate(Long productNo, Long currentPrice, Long bidderNo) {
+    public void broadcastPriceUpdate(Long productNo, Long currentPrice, Long bidderNo, long participantCount) {
         Map<String, Object> data = Map.of(
             "productNo", productNo,
             "currentPrice", currentPrice,
-            "bidderNo", bidderNo
+            "bidderNo", bidderNo,
+            "participantCount", participantCount
         );
         emitterMap.forEach((clientId, emitter) ->
             sendSafe(clientId, emitter, SseEmitter.event().name("priceUpdate").data(data))

@@ -199,31 +199,23 @@ public class BidServiceImpl implements BidService {
                     .build();
         }
 
-        // ── Step 12. 수동 입찰 SSE 브로드캐스트 (자동입찰은 커밋 후 별도 SSE 전송) ─
-        try {
-            sseService.broadcastPriceUpdate(product.getProductNo(), bidDto.getBidPrice(), bidDto.getMemberNo());
-        } catch (Exception e) {
-            log.warn("[BidService] 브로드캐스트 실패: {}", e.getMessage());
-        }
-
-        // ── Step 13. 자동입찰 트리거 이벤트 발행 ──────────────────────────────
-        // [핵심 수정] triggerAutoBids 를 동일 트랜잭션 내에서 직접 호출하지 않는다.
+        // ── Step 12-13. AFTER_COMMIT 이벤트 발행 (SSE 브로드캐스트 + 자동입찰 처리) ─
+        // [핵심 수정] broadcastPriceUpdate를 커밋 전에 호출하지 않는다.
         //
         // 기존 방식의 문제:
-        //   autoBidService.triggerAutoBids() 는 @Transactional(REQUIRED) → 현재 TX에 JOIN.
-        //   JOIN된 메서드 내부에서 RuntimeException 발생 시, Spring TransactionInterceptor 가
-        //   공유 트랜잭션 전체를 rollback-only 로 마킹한다.
-        //   processBid 의 try-catch 가 예외를 삼켜도 rollback-only 플래그는 남아,
-        //   processBid 커밋 시 UnexpectedRollbackException → 수동 입찰 전체 롤백.
+        //   ① 커밋 전에 SSE를 발송하면 프론트가 SSE를 받고 fetchProduct()를 호출할 때
+        //      DB는 아직 이전 상태 → 화면이 되돌아가는 레이스 컨디션 발생.
+        //   ② autoBidService.triggerAutoBids() 는 @Transactional(REQUIRED) → 현재 TX에 JOIN.
+        //      JOIN된 메서드 내부에서 RuntimeException 발생 시 공유 트랜잭션이 rollback-only 마킹.
+        //      processBid 의 try-catch 가 예외를 삼켜도 커밋 시 UnexpectedRollbackException 발생.
         //
         // 해결책:
         //   TransactionPhase.AFTER_COMMIT 리스너가 수신하는 이벤트를 발행한다.
-        //   이 이벤트는 현재 트랜잭션이 성공적으로 커밋된 뒤에만 처리되므로:
-        //   ① 자동입찰 실패가 수동 입찰에 영향을 주지 않는다.
-        //   ② 자동입찰은 커밋 후 새 트랜잭션에서 Product 락을 재획득해 안전하게 처리된다.
-        //   ③ 커밋 전에는 이벤트가 발행되지 않아 자동입찰이 구 가격을 볼 위험이 없다.
+        //   리스너가 ① 자동입찰 없을 때 수동 입찰 SSE, ② 자동입찰 있을 때 자동입찰 SSE를 발송.
+        //   커밋이 보장된 이후에 SSE가 발송되므로 priceUpdate와 DB 상태가 항상 일치한다.
         eventPublisher.publishEvent(
-                new AutoBidTriggerEvent(product.getProductNo(), bidDto.getBidPrice(), bidDto.getMemberNo()));
+                new AutoBidTriggerEvent(product.getProductNo(), bidDto.getBidPrice(),
+                        bidDto.getMemberNo(), product.getBidCount()));
 
         log.info("[BidService] 입찰 완료 (자동입찰 이벤트 예약): productNo={}, memberNo={}, price={}",
                 product.getProductNo(), bidDto.getMemberNo(), bidDto.getBidPrice());
