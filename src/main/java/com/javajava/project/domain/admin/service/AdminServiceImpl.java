@@ -155,8 +155,6 @@ public class AdminServiceImpl implements AdminService {
                 .details(member.getNickname() + "님 정지 해제")
                 .build());
 
-        // 알림 발송
-        notificationService.sendAndSaveNotification(memberNo, "제재해제", "계정 정지가 해제되었습니다.", null);
     }
 
     @Override
