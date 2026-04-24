@@ -33,7 +33,7 @@ public interface ProductService {
     org.springframework.data.domain.Page<ProductListResponseDto> getMySellingProducts(Long memberNo, int page, int size, String filter);
 
     // 마이페이지: 내가 입찰한 상품 목록 (입찰상태 포함)
-    org.springframework.data.domain.Page<ProductListResponseDto> getMyBiddingProducts(Long memberNo, int page, int size);
+    org.springframework.data.domain.Page<ProductListResponseDto> getMyBiddingProducts(Long memberNo, int page, int size, String filter);
 
     // 마이페이지: 구매 완료(구매확정) 상품 목록
     org.springframework.data.domain.Page<ProductListResponseDto> getMyPurchasedProducts(Long memberNo, int page, int size);

@@ -509,7 +509,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         @Override
-        public Page<ProductListResponseDto> getMyBiddingProducts(Long memberNo, int page, int size) {
+        public Page<ProductListResponseDto> getMyBiddingProducts(Long memberNo, int page, int size, String filter) {
                 List<Long> productNos = bidHistoryRepository.findDistinctProductNosByMemberNo(memberNo);
                 if (productNos.isEmpty())
                         return Page.empty();
@@ -577,7 +577,24 @@ public class ProductServiceImpl implements ProductService {
                                         .forEach(row -> topBidderMap.putIfAbsent((Long) row[0], (Long) row[1]));
                 }
 
-                return toPage(toProductListDtosWithBidStatus(products, memberNo, wonProductNos, topBidderMap, auctionStatusMap), page, size);
+                List<ProductListResponseDto> dtos = toProductListDtosWithBidStatus(products, memberNo, wonProductNos, topBidderMap, auctionStatusMap);
+
+                if (filter != null && !filter.equals("all")) {
+                        String targetStatus = switch (filter) {
+                                case "leader" -> "bidding";
+                                case "outbid" -> "outbid";
+                                case "lost" -> "lost";
+                                default -> null;
+                        };
+                        if (targetStatus != null) {
+                                final String finalTarget = targetStatus;
+                                dtos = dtos.stream()
+                                                .filter(dto -> finalTarget.equals(dto.getBidStatus()))
+                                                .toList();
+                        }
+                }
+
+                return toPage(dtos, page, size);
         }
 
         @Override
