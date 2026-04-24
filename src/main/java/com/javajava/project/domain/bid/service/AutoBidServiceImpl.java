@@ -4,6 +4,7 @@ import com.javajava.project.domain.bid.dto.AutoBidRequestDto;
 import com.javajava.project.domain.bid.dto.AutoBidResponseDto;
 import com.javajava.project.domain.bid.entity.AutoBid;
 import com.javajava.project.domain.bid.entity.BidHistory;
+import com.javajava.project.domain.bid.event.AutoBidTriggerEvent;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.point.entity.PointHistory;
 import com.javajava.project.domain.product.entity.Product;
@@ -18,6 +19,7 @@ import com.javajava.project.global.sse.SseService;
 import com.javajava.project.domain.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +30,6 @@ import java.util.Optional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class AutoBidServiceImpl implements AutoBidService {
 
     private final AutoBidRepository autoBidRepository;
@@ -40,6 +41,7 @@ public class AutoBidServiceImpl implements AutoBidService {
     private final NotificationService notificationService;
     private final AuctionClosingService auctionClosingService;
     private final AuctionExpiryWatchdog auctionExpiryWatchdog;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -96,8 +98,11 @@ public class AutoBidServiceImpl implements AutoBidService {
         }
         autoBidRepository.save(autoBid);
 
-        // 등록 즉시 경쟁 해소 (triggerMemberNo=null → 모든 자동입찰자 포함)
-        triggerAutoBids(dto.getProductNo(), product.getCurrentPrice(), null);
+        // 등록 즉시 경쟁 해소 — 커밋 후 AFTER_COMMIT 리스너가 실행.
+        // 동일 트랜잭션에서 triggerAutoBids 를 직접 호출하면:
+        // ① 내부 예외 시 registerAutoBid 트랜잭션 전체 롤백(rollback-only 오염)
+        // ② Product 재락 시 1차 캐시 오염 위험
+        eventPublisher.publishEvent(new AutoBidTriggerEvent(dto.getProductNo(), product.getCurrentPrice(), null));
 
         return toDto(autoBid);
     }
@@ -283,6 +288,7 @@ public class AutoBidServiceImpl implements AutoBidService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<AutoBidResponseDto> getActiveAutoBid(Long memberNo, Long productNo) {
         return autoBidRepository
                 .findByMemberNoAndProductNoAndIsActive(memberNo, productNo, 1)

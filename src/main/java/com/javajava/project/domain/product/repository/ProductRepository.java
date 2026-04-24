@@ -3,12 +3,14 @@ package com.javajava.project.domain.product.repository;
 import com.javajava.project.domain.product.entity.Product;
 
 import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
@@ -17,8 +19,21 @@ import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
 
-    // 입찰 중 다른 사용자가 가격을 수정하지 못하도록 락 적용
+    /**
+     * 입찰 트랜잭션 전용 비관적 락 조회.
+     *
+     * <p>{@code SELECT ... FOR UPDATE} 를 발행하여 동일 행에 대한 경쟁 트랜잭션을
+     * 직렬화한다. 락 대기 타임아웃은 3 초로 제한하여 무한 블로킹을 방지한다.
+     *
+     * <p><b>주의:</b> 반드시 활성 읽기-쓰기 트랜잭션 내에서 호출해야 하며,
+     * 이 메서드가 트랜잭션의 <em>첫 번째 쿼리</em>여야 한다.
+     * 다른 쿼리 실행 후 호출하면 MVCC 스냅샷이 이미 설정되어
+     * 락 획득 시점과 가격 검증 시점 사이에 불일치가 생길 수 있다.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints({
+        @QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000")
+    })
     @Query("SELECT p FROM Product p WHERE p.productNo = :productNo")
     Optional<Product> findByIdWithLock(@Param("productNo") Long productNo);
 
