@@ -93,6 +93,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 .deliveryAddrRoad(result.getDeliveryAddrRoad())
                 .deliveryAddrDetail(result.getDeliveryAddrDetail())
                 .isForcePromoted(result.getIsForcePromoted())
+                .hasBuyerReview(reviewRepository.existsByResultNoAndWriterNo(result.getResultNo(), memberNo))
                 .build();
     }
 
