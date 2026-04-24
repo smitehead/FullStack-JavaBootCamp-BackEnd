@@ -114,4 +114,12 @@ public class NotificationService {
     public void markAllAsRead(Long memberNo) {
         notificationRepository.markAllAsRead(memberNo);
     }
+
+    /**
+     * 알림 삭제
+     */
+    @Transactional
+    public void deleteNotification(Long notiNo) {
+        notificationRepository.deleteById(notiNo);
+    }
 }

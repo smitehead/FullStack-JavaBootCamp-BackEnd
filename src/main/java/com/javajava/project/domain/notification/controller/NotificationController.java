@@ -64,6 +64,17 @@ public class NotificationController {
     }
 
     /**
+     * 알림 삭제
+     * DELETE /api/notifications/{notiNo}
+     * Header: Authorization: Bearer {token}
+     */
+    @DeleteMapping("/{notiNo}")
+    public ResponseEntity<Void> deleteNotification(@PathVariable("notiNo") Long notiNo) {
+        notificationService.deleteNotification(notiNo);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
      * SecurityContext에서 memberNo 추출
      * JwtAuthenticationFilter에서 principal에 memberNo(Long)를 저장해둠
      */
