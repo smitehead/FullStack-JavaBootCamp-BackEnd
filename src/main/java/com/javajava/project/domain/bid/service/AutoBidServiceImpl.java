@@ -102,7 +102,7 @@ public class AutoBidServiceImpl implements AutoBidService {
         // 동일 트랜잭션에서 triggerAutoBids 를 직접 호출하면:
         // ① 내부 예외 시 registerAutoBid 트랜잭션 전체 롤백(rollback-only 오염)
         // ② Product 재락 시 1차 캐시 오염 위험
-        eventPublisher.publishEvent(new AutoBidTriggerEvent(dto.getProductNo(), product.getCurrentPrice(), null));
+        eventPublisher.publishEvent(new AutoBidTriggerEvent(dto.getProductNo(), product.getCurrentPrice(), null, product.getBidCount()));
 
         return toDto(autoBid);
     }
