@@ -72,11 +72,22 @@ public class InquiryServiceImpl implements InquiryService {
     }
 
     @Override
-    public Page<InquiryResponseDto> getMyInquiries(Long memberNo, String type, int page, int size) {
+    public Page<InquiryResponseDto> getMyInquiries(Long memberNo, String type, String keyword, int page, int size) {
         Pageable pageable = PageRequest.of(page - 1, size);
-        Page<Inquiry> result = (type == null || type.isBlank())
-                ? inquiryRepository.findByMemberNoOrderByCreatedAtDesc(memberNo, pageable)
-                : inquiryRepository.findByMemberNoAndTypeOrderByCreatedAtDesc(memberNo, type, pageable);
+        boolean hasType = type != null && !type.isBlank();
+        boolean hasKeyword = keyword != null && !keyword.isBlank();
+
+        Page<Inquiry> result;
+        if (hasType && hasKeyword) {
+            result = inquiryRepository.findByMemberNoAndTypeAndTitleContainingOrderByCreatedAtDesc(memberNo, type, keyword, pageable);
+        } else if (hasType) {
+            result = inquiryRepository.findByMemberNoAndTypeOrderByCreatedAtDesc(memberNo, type, pageable);
+        } else if (hasKeyword) {
+            result = inquiryRepository.findByMemberNoAndTitleContainingOrderByCreatedAtDesc(memberNo, keyword, pageable);
+        } else {
+            result = inquiryRepository.findByMemberNoOrderByCreatedAtDesc(memberNo, pageable);
+        }
+
         return result.map(i -> enrichWithImages(InquiryResponseDto.from(i,
                 memberRepository.findById(i.getMemberNo())
                         .map(Member::getNickname).orElse("알 수 없음"))));

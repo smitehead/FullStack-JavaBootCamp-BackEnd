@@ -10,7 +10,7 @@ import java.util.List;
 
 public interface InquiryService {
     Long create(Long memberNo, InquiryRequestDto dto, List<MultipartFile> images);
-    Page<InquiryResponseDto> getMyInquiries(Long memberNo, String type, int page, int size);
+    Page<InquiryResponseDto> getMyInquiries(Long memberNo, String type, String keyword, int page, int size);
     InquiryResponseDto getDetail(Long inquiryNo, Long memberNo);
     // 관리자
     Page<InquiryResponseDto> getAll(Integer status, int page, int size);
