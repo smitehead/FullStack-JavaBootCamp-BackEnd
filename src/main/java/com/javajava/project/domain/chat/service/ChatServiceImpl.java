@@ -190,6 +190,7 @@ public class ChatServiceImpl implements ChatService {
                 .latitude(message.getLatitude())
                 .longitude(message.getLongitude())
                 .clientUuid(request.getClientUuid()) // DB 미저장, 응답에만 포함
+                .apptAt("APPOINTMENT".equals(message.getMsgType()) ? request.getApptAt() : null)
                 .build();
     }
 
