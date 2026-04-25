@@ -130,4 +130,22 @@ public class Member {
     // 현재 유효한 JWT 토큰 (동시 로그인 방지용 - 새 로그인 시 기존 토큰 무효화)
     @Column(name = "CURRENT_TOKEN", length = 500)
     private String currentToken;
+
+    /* ─── 포인트 도메인 메서드 ─── */
+
+    public void usePoints(long amount) {
+        if (amount <= 0) throw new IllegalArgumentException("차감 금액은 0보다 커야 합니다.");
+        if (this.points < amount) throw new IllegalStateException("보유 포인트가 부족합니다.");
+        this.points -= amount;
+    }
+
+    public void refundPoints(long amount) {
+        if (amount <= 0) throw new IllegalArgumentException("환불 금액은 0보다 커야 합니다.");
+        this.points += amount;
+    }
+
+    public void chargePoints(long amount) {
+        if (amount <= 0) throw new IllegalArgumentException("충전 금액은 0보다 커야 합니다.");
+        this.points += amount;
+    }
 }

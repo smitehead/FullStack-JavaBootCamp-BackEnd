@@ -3,6 +3,7 @@ package com.javajava.project.global.config;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.point.entity.PointCharge;
 import com.javajava.project.domain.point.entity.PointHistory;
+import com.javajava.project.domain.point.entity.PointHistoryType;
 import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.domain.point.repository.PointChargeRepository;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
@@ -83,7 +84,7 @@ public class PaymentReconciliationScheduler {
 
                     pointHistoryRepository.save(PointHistory.builder()
                             .memberNo(charge.getMemberNo())
-                            .type("충전")
+                            .type(PointHistoryType.CHARGE)
                             .amount(charge.getChargeAmount())
                             .balance(newBalance)
                             .reason("카드 충전 (보정 처리)")

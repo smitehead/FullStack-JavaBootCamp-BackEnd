@@ -1,6 +1,7 @@
 package com.javajava.project.domain.auction.scheduler;
 
 import com.javajava.project.domain.auction.entity.AuctionResult;
+import com.javajava.project.domain.auction.entity.AuctionResultStatus;
 import com.javajava.project.domain.bid.entity.BidHistory;
 import com.javajava.project.domain.product.entity.Product;
 import com.javajava.project.domain.auction.repository.AuctionResultRepository;
@@ -54,8 +55,8 @@ public class AuctionClosingService {
 
             // DB 처리 (트랜잭션 내)
             winningBid.setIsWinner(1);
-            // status=3 (PENDING_PAYMENT): 낙찰 확정, 구매자 수령 확인 대기 (7일 후 자동 구매 확정)
-            product.setStatus(3);
+            // PENDING_PAYMENT: 낙찰 확정, 구매자 수령 확인 대기 (7일 후 자동 구매 확정)
+            product.markPending();
             product.setWinnerNo(winningBid.getMemberNo());
 
             // 멱등성 보장: AuctionResult 중복 생성 방지 (Watchdog+Scheduler 동시 실행 race condition 대비)
@@ -68,7 +69,7 @@ public class AuctionClosingService {
 
             auctionResultRepository.save(AuctionResult.builder()
                     .bidNo(winningBid.getBidNo())
-                    .status("배송대기")
+                    .status(AuctionResultStatus.AWAITING_SHIPMENT)
                     .paymentDueDate(LocalDateTime.now().plusDays(7)) // 자동 구매 확정 기준: 낙찰일 +7일
                     .build());
 
@@ -85,8 +86,8 @@ public class AuctionClosingService {
                     winningBid.getBidNo()));
 
         } else {
-            // 입찰자 없는 유찰 → status=4 (CLOSED_FAILED)
-            product.setStatus(4);
+            // 입찰자 없는 유찰 → CLOSED_FAILED
+            product.markFailed();
             log.info("[Scheduler] 상품 번호 {} 유찰 처리 (입찰자 없음)", productNo);
         }
     }
@@ -115,14 +116,14 @@ public class AuctionClosingService {
         }
 
         winningBid.setIsWinner(1);
-        // status=3 (PENDING_PAYMENT): 즉시구매도 구매자 수령 확인 대기 (7일 후 자동 구매 확정)
-        product.setStatus(3);
+        // PENDING_PAYMENT: 즉시구매도 구매자 수령 확인 대기 (7일 후 자동 구매 확정)
+        product.markPending();
         product.setWinnerNo(winningBid.getMemberNo());
         product.setEndTime(LocalDateTime.now()); // [추가] 즉시구매 시 종료 시간 업데이트
 
         auctionResultRepository.save(AuctionResult.builder()
                 .bidNo(winningBid.getBidNo())
-                .status("배송대기")
+                .status(AuctionResultStatus.AWAITING_SHIPMENT)
                 .paymentDueDate(LocalDateTime.now().plusDays(7)) // 자동 구매 확정 기준: 낙찰일 +7일
                 .build());
 

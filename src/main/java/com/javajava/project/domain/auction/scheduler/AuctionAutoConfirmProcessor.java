@@ -1,6 +1,10 @@
 package com.javajava.project.domain.auction.scheduler;
 
 import com.javajava.project.domain.auction.entity.AuctionResult;
+import com.javajava.project.domain.auction.entity.AuctionResultStatus;
+import com.javajava.project.domain.auction.service.FeePolicy;
+import com.javajava.project.domain.point.entity.PointHistoryType;
+import com.javajava.project.domain.product.entity.TradeType;
 import com.javajava.project.domain.auction.repository.AuctionResultRepository;
 import com.javajava.project.domain.bid.entity.BidHistory;
 import com.javajava.project.domain.bid.repository.BidHistoryRepository;
@@ -65,7 +69,7 @@ public class AuctionAutoConfirmProcessor {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "AuctionResult를 찾을 수 없습니다: " + resultNo));
 
-        if (!"배송대기".equals(result.getStatus())) {
+        if (!AuctionResultStatus.AWAITING_SHIPMENT.equals(result.getStatus())) {
             log.info("[AutoConfirm] resultNo={} 이미 처리됨 (status={}), 건너뜁니다.",
                     resultNo, result.getStatus());
             return;
@@ -86,15 +90,15 @@ public class AuctionAutoConfirmProcessor {
                         "구매자를 찾을 수 없습니다. memberNo=" + bid.getMemberNo()));
 
         // ── 3. 에스크로 정산: 수수료 차감 후 판매자에게 정산금 지급 ──────────
-        double feeRate = "직거래".equals(product.getTradeType()) ? 0.01 : 0.02;
-        String feeLabel = "직거래".equals(product.getTradeType()) ? "1%" : "2%";
+        double feeRate = FeePolicy.rateFor(product.getTradeType());
+        String feeLabel = FeePolicy.labelFor(product.getTradeType());
         long fee = Math.round(bid.getBidPrice() * feeRate);
         long settlementAmount = bid.getBidPrice() - fee;
 
-        seller.setPoints(seller.getPoints() + settlementAmount);
+        seller.chargePoints(settlementAmount);
         pointHistoryRepository.save(PointHistory.builder()
                 .memberNo(seller.getMemberNo())
-                .type("낙찰대금수령")
+                .type(PointHistoryType.SETTLEMENT)
                 .amount(settlementAmount)
                 .balance(seller.getPoints())
                 .reason("[" + product.getTitle() + "] 판매 정산금 (수수료 " + feeLabel + " 제외) — 7일 자동 구매 확정")
@@ -108,9 +112,9 @@ public class AuctionAutoConfirmProcessor {
                 .build());
 
         // ── 4. 구매 확정 처리 ──────────────────────────────────────────────────
-        result.setStatus("구매확정");
+        result.setStatus(AuctionResultStatus.PURCHASE_CONFIRMED);
         result.setConfirmedAt(LocalDateTime.now());
-        product.setStatus(1); // COMPLETED
+        product.markCompleted();
 
         buyer.setMannerTemp(Math.min(100.0, buyer.getMannerTemp() + 0.2));
         seller.setMannerTemp(Math.min(100.0, seller.getMannerTemp() + 0.2));

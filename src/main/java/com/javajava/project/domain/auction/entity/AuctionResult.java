@@ -1,5 +1,6 @@
 package com.javajava.project.domain.auction.entity;
 
+import com.javajava.project.domain.auction.entity.AuctionResultStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -29,7 +30,7 @@ public class AuctionResult {
 
     @Builder.Default
     @Column(name = "STATUS", nullable = false, length = 20)
-    private String status = "배송대기";
+    private String status = AuctionResultStatus.AWAITING_SHIPMENT;
 
     @Column(name = "CONFIRMED_AT")
     private LocalDateTime confirmedAt;

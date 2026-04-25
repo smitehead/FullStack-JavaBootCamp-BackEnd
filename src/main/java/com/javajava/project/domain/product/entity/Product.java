@@ -100,4 +100,19 @@ public class Product {
     @Builder.Default
     @Column(name = "PENALTY_POOL", nullable = false)
     private Long penaltyPool = 0L;
+
+    /* ─── 상태 도메인 메서드 ─── */
+
+    public ProductStatus currentStatus() {
+        return ProductStatus.fromCode(this.status);
+    }
+
+    public void markCompleted() { this.status = ProductStatus.COMPLETED.code(); }
+    public void markCanceled()  { this.status = ProductStatus.CANCELED.code();  }
+    public void markPending()   { this.status = ProductStatus.PENDING.code();   }
+    public void markFailed()    { this.status = ProductStatus.FAILED.code();    }
+
+    public boolean isFinished() {
+        return currentStatus() != ProductStatus.ACTIVE;
+    }
 }

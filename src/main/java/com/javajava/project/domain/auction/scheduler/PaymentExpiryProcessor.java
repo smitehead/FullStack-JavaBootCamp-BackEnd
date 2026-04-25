@@ -1,6 +1,8 @@
 package com.javajava.project.domain.auction.scheduler;
 
 import com.javajava.project.domain.auction.entity.AuctionResult;
+import com.javajava.project.domain.auction.entity.AuctionResultStatus;
+import com.javajava.project.domain.point.entity.PointHistoryType;
 import com.javajava.project.domain.auction.repository.AuctionResultRepository;
 import com.javajava.project.domain.bid.entity.BidHistory;
 import com.javajava.project.domain.bid.repository.BidHistoryRepository;
@@ -71,7 +73,7 @@ public class PaymentExpiryProcessor {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "AuctionResult를 찾을 수 없습니다: " + resultNo));
 
-        if (!"배송대기".equals(expiredResult.getStatus())) {
+        if (!AuctionResultStatus.AWAITING_SHIPMENT.equals(expiredResult.getStatus())) {
             log.info("[PaymentExpiry] resultNo={} 이미 처리됨 (status={}), 건너뜁니다.",
                     resultNo, expiredResult.getStatus());
             return;
@@ -99,7 +101,7 @@ public class PaymentExpiryProcessor {
         expiredBid.setIsCancelled(1);
         expiredBid.setCancelReason("결제 기한 만료 (12시간)" +
                 (wasForcePromoted ? " [강제 승계 — 매너 패널티 없음]" : ""));
-        expiredResult.setStatus("결제기한만료");
+        expiredResult.setStatus(AuctionResultStatus.PAYMENT_EXPIRED);
 
         if (wasForcePromoted) {
             log.info("[PaymentExpiry] 강제 승계 대상 결제 불이행 → 매너 패널티 없음: memberNo={}",
@@ -117,7 +119,7 @@ public class PaymentExpiryProcessor {
             // ── Phase 2: 차순위 강제 승계 ────────────────────────────────────────
             AuctionResult newResult = AuctionResult.builder()
                     .bidNo(successor.getBidNo())
-                    .status("배송대기")
+                    .status(AuctionResultStatus.AWAITING_SHIPMENT)
                     .paymentDueDate(LocalDateTime.now().plusHours(PAYMENT_HOURS))
                     .isForcePromoted(1) // 강제 승계 → 결제 불이행 시 매너 패널티 면제
                     .build();
@@ -135,7 +137,7 @@ public class PaymentExpiryProcessor {
 
         } else {
             // ── Phase 3: 최종 유찰 (탈출구) ──────────────────────────────────────
-            product.setStatus(4); // CLOSED_FAILED
+            product.markFailed();
             product.setWinnerNo(null);
 
             log.info("[PaymentExpiry] Phase3 최종 유찰: productNo={}", productNo);
@@ -158,10 +160,10 @@ public class PaymentExpiryProcessor {
 
             if (candidateMember.getPoints() >= candidate.getBidPrice()) {
                 // 포인트 충분 → 즉시 차감 후 승계
-                candidateMember.setPoints(candidateMember.getPoints() - candidate.getBidPrice());
+                candidateMember.usePoints(candidate.getBidPrice());
                 pointHistoryRepository.save(PointHistory.builder()
                         .memberNo(candidateMember.getMemberNo())
-                        .type("입찰차감")
+                        .type(PointHistoryType.BID_DEDUCT)
                         .amount(-candidate.getBidPrice())
                         .balance(candidateMember.getPoints())
                         .reason("[" + product.getTitle() + "] 스케줄러 강제 승계 입찰 차감")

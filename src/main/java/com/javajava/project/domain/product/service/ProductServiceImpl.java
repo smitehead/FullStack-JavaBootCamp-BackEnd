@@ -8,6 +8,10 @@ import com.javajava.project.domain.product.dto.ProductListResponseDto;
 import com.javajava.project.domain.bid.entity.BidHistory;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.product.entity.Product;
+import com.javajava.project.domain.product.entity.ProductStatus;
+import com.javajava.project.domain.product.entity.TradeType;
+import com.javajava.project.domain.auction.entity.AuctionResultStatus;
+import com.javajava.project.domain.point.entity.PointHistoryType;
 import com.javajava.project.domain.bid.repository.BidHistoryRepository;
 import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.domain.product.repository.ProductRepository;
@@ -230,11 +234,11 @@ public class ProductServiceImpl implements ProductService {
 
                         // 거래 방식 필터 (AND: 둘 다 체크 시 혼합만)
                         if (Boolean.TRUE.equals(delivery) && Boolean.TRUE.equals(face))
-                                predicates.add(cb.equal(root.get("tradeType"), "혼합"));
+                                predicates.add(cb.equal(root.get("tradeType"), TradeType.BOTH));
                         else if (Boolean.TRUE.equals(delivery))
-                                predicates.add(cb.in(root.get("tradeType")).value(Arrays.asList("택배거래", "혼합")));
+                                predicates.add(cb.in(root.get("tradeType")).value(Arrays.asList(TradeType.SHIPPING, TradeType.BOTH)));
                         else if (Boolean.TRUE.equals(face))
-                                predicates.add(cb.in(root.get("tradeType")).value(Arrays.asList("직거래", "혼합")));
+                                predicates.add(cb.in(root.get("tradeType")).value(Arrays.asList(TradeType.DIRECT, TradeType.BOTH)));
 
                         return cb.and(predicates.toArray(new Predicate[0]));
                 };
@@ -492,7 +496,7 @@ public class ProductServiceImpl implements ProductService {
                 if (filter != null && !filter.equals("all")) {
                         enriched = enriched.stream().filter(dto -> {
                                 boolean isCompleted = "completed".equals(dto.getStatus());
-                                boolean hasConfirm = "구매확정".equals(dto.getAuctionResultStatus());
+                                boolean hasConfirm = AuctionResultStatus.PURCHASE_CONFIRMED.equals(dto.getAuctionResultStatus());
                                 if ("active".equals(filter)) {
                                         return "active".equals(dto.getStatus());
                                 } else if ("completed".equals(filter)) {
@@ -542,7 +546,7 @@ public class ProductServiceImpl implements ProductService {
                                 
                                 // "구매확정"된 상품만 입찰내역에서 완전히 제외 (결제완료는 남아있음)
                                 Set<Long> confirmedBidNos = results.stream()
-                                                .filter(ar -> "구매확정".equals(ar.getStatus()))
+                                                .filter(ar -> AuctionResultStatus.PURCHASE_CONFIRMED.equals(ar.getStatus()))
                                                 .map(AuctionResult::getBidNo)
                                                 .collect(Collectors.toSet());
                                 
@@ -631,7 +635,7 @@ public class ProductServiceImpl implements ProductService {
                 // AuctionResult 중 결제완료 또는 구매확정된 것 필터 (결제 완료 시 구매내역으로 이동)
                 List<AuctionResult> results = auctionResultRepository.findByBidNos(bidNos);
                 Set<Long> confirmedBidNos = results.stream()
-                                .filter(ar -> "구매확정".equals(ar.getStatus()))
+                                .filter(ar -> AuctionResultStatus.PURCHASE_CONFIRMED.equals(ar.getStatus()))
                                 .map(AuctionResult::getBidNo)
                                 .collect(Collectors.toSet());
 
@@ -699,7 +703,7 @@ public class ProductServiceImpl implements ProductService {
                         throw new IllegalStateException("본인의 상품만 삭제할 수 있습니다.");
                 }
                 product.setIsDeleted(1);
-                product.setStatus(2);
+                product.markCanceled();
                 auctionExpiryWatchdog.cancel(productNo);
         }
 
@@ -759,7 +763,7 @@ public class ProductServiceImpl implements ProductService {
                                         .currentPrice(product.getCurrentPrice())
                                         .endTime(product.getEndTime())
                                         .participantCount(participantCountMap.getOrDefault(product.getProductNo(), 0L))
-                                        .status(resolveProductStatus(product))
+                                        .status(resolveStatusLabel(product))
                                         .images(imageUrls)
                                         .isWishlisted(wishlistedNos.contains(product.getProductNo()))
                                         .bidStatus(bidStatus)
@@ -806,7 +810,7 @@ public class ProductServiceImpl implements ProductService {
                                         .currentPrice(product.getCurrentPrice())
                                         .participantCount(participantCountMap.getOrDefault(product.getProductNo(), 0L))
                                         .endTime(product.getEndTime())
-                                        .status(resolveProductStatus(product))
+                                        .status(resolveStatusLabel(product))
                                         .categoryNo(product.getCategoryNo())
                                         .build();
                 }).toList();
@@ -820,7 +824,7 @@ public class ProductServiceImpl implements ProductService {
                 if (product.getStatus() != 0) {
                         throw new IllegalStateException("진행 중인 경매만 강제 종료할 수 있습니다.");
                 }
-                product.setStatus(2);
+                product.markCanceled();
                 auctionExpiryWatchdog.cancel(productNo);
 
                 // 입찰자 전원에게 경매 취소 알림
@@ -893,10 +897,10 @@ public class ProductServiceImpl implements ProductService {
                                         "포인트가 부족하여 취소할 수 없습니다. " +
                                         "(필요 패널티: " + penalty + "원, 보유: " + seller.getPoints() + "원)");
                         }
-                        seller.setPoints(seller.getPoints() - penalty);
+                        seller.usePoints(penalty);
                         pointHistoryRepository.save(PointHistory.builder()
                                         .memberNo(memberNo)
-                                        .type("취소패널티")
+                                        .type(PointHistoryType.CANCEL_PENALTY)
                                         .amount(-penalty)
                                         .balance(seller.getPoints())
                                         .reason("[" + product.getTitle() + "] 경매 취소 패널티")
@@ -912,10 +916,10 @@ public class ProductServiceImpl implements ProductService {
                                 Member topBidder = memberRepository.findByIdWithLock(topBid.getMemberNo())
                                                 .orElse(null);
                                 if (topBidder != null) {
-                                        topBidder.setPoints(topBidder.getPoints() + topBid.getBidPrice());
+                                        topBidder.refundPoints(topBid.getBidPrice());
                                         pointHistoryRepository.save(PointHistory.builder()
                                                         .memberNo(topBidder.getMemberNo())
-                                                        .type("입찰환불")
+                                                        .type(PointHistoryType.BID_REFUND)
                                                         .amount(topBid.getBidPrice())
                                                         .balance(topBidder.getPoints())
                                                         .reason("[" + product.getTitle() + "] 판매자 경매 취소로 인한 환불")
@@ -934,8 +938,8 @@ public class ProductServiceImpl implements ProductService {
                         autoBidRepository.save(autoBid);
                 }
 
-                // ── 공통: 상품 상태를 취소(2)로 변경 + 스케줄러 취소 ────────────────────
-                product.setStatus(2);
+                // ── 공통: 상품 상태를 취소로 변경 + 스케줄러 취소 ────────────────────────
+                product.markCanceled();
                 auctionExpiryWatchdog.cancel(productNo);
 
                 // ── 공통: 입찰자 전원에게 알림 발송 (취소 알림) ─────────────────────────
@@ -1014,21 +1018,19 @@ public class ProductServiceImpl implements ProductService {
                                         .currentPrice(product.getCurrentPrice())
                                         .endTime(product.getEndTime())
                                         .participantCount(participantCountMap.getOrDefault(product.getProductNo(), 0L))
-                                        .status(resolveProductStatus(product))
+                                        .status(resolveStatusLabel(product))
                                         .images(imageUrls)
                                         .isWishlisted(wishlistedNos.contains(product.getProductNo()))
                                         .build();
                 }).toList();
         }
 
-        private String resolveProductStatus(Product product) {
-                return switch (product.getStatus()) {
-                        case 1 -> "completed";
-                        case 2 -> "canceled";
-                        case 3 -> "pending";
-                        case 4 -> "failed";
-                        default -> product.getEndTime().isBefore(LocalDateTime.now()) ? "ended" : "active";
-                };
+        private String resolveStatusLabel(Product product) {
+                ProductStatus s = product.currentStatus();
+                if (s == ProductStatus.ACTIVE) {
+                        return product.getEndTime().isBefore(LocalDateTime.now()) ? "ended" : "active";
+                }
+                return s.label();
         }
 
         /**

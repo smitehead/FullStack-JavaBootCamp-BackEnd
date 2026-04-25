@@ -10,6 +10,7 @@ import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.domain.platform.entity.PlatformRevenue;
 import com.javajava.project.domain.platform.repository.PlatformRevenueRepository;
 import com.javajava.project.domain.point.entity.PointHistory;
+import com.javajava.project.domain.point.entity.PointHistoryType;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
 import com.javajava.project.domain.product.entity.Product;
 import com.javajava.project.domain.product.repository.ProductRepository;
@@ -187,20 +188,20 @@ public class BidCancelService {
 
         // ── 8. 포인트 처리 ────────────────────────────────────────────────────────
         // 8-1. 입찰가 환불
-        bidder.setPoints(bidder.getPoints() + bidPrice);
+        bidder.refundPoints(bidPrice);
         pointHistoryRepository.save(PointHistory.builder()
                 .memberNo(bidder.getMemberNo())
-                .type("입찰환불")
+                .type(PointHistoryType.BID_REFUND)
                 .amount(bidPrice)
                 .balance(bidder.getPoints())
                 .reason("[" + product.getTitle() + "] 입찰 취소 환불")
                 .build());
 
         // 8-2. 위약금 차감 (5%)
-        bidder.setPoints(bidder.getPoints() - penalty);
+        bidder.usePoints(penalty);
         pointHistoryRepository.save(PointHistory.builder()
                 .memberNo(bidder.getMemberNo())
-                .type("위약금차감")
+                .type(PointHistoryType.PENALTY_DEDUCT)
                 .amount(-penalty)
                 .balance(bidder.getPoints())
                 .reason("[" + product.getTitle() + "] 입찰 취소 위약금 (입찰가의 5%)")
@@ -247,10 +248,10 @@ public class BidCancelService {
             if (candidateMember.getPoints() >= candidate.getBidPrice()) {
                 // 포인트 충분 → 즉시 차감 후 승계
                 // (이전에 상위 입찰자에게 밀렸을 때 환불된 금액이 현재 잔액에 포함되어 있음)
-                candidateMember.setPoints(candidateMember.getPoints() - candidate.getBidPrice());
+                candidateMember.usePoints(candidate.getBidPrice());
                 pointHistoryRepository.save(PointHistory.builder()
                         .memberNo(candidateMember.getMemberNo())
-                        .type("입찰차감")
+                        .type(PointHistoryType.BID_DEDUCT)
                         .amount(-candidate.getBidPrice())
                         .balance(candidateMember.getPoints())
                         .reason("[" + product.getTitle() + "] 차순위 승계 입찰 확정 차감")

@@ -4,6 +4,7 @@ import com.javajava.project.domain.point.dto.ChargeResponseDto;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.point.entity.PointCharge;
 import com.javajava.project.domain.point.entity.PointHistory;
+import com.javajava.project.domain.point.entity.PointHistoryType;
 import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.domain.point.repository.PointChargeRepository;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
@@ -104,7 +105,7 @@ public class PointTransactionHelper {
         // 포인트 이력 저장
         pointHistoryRepository.save(PointHistory.builder()
                 .memberNo(memberNo)
-                .type("충전")
+                .type(PointHistoryType.CHARGE)
                 .amount(amount)
                 .balance(newBalance)
                 .reason("카드 충전" + (cardCompany != null ? " (" + cardCompany + ")" : ""))

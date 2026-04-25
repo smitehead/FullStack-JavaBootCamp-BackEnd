@@ -1,6 +1,7 @@
 package com.javajava.project.domain.community.service;
 
 import com.javajava.project.domain.auction.entity.AuctionResult;
+import com.javajava.project.domain.auction.entity.AuctionResultStatus;
 import com.javajava.project.domain.auction.repository.AuctionResultRepository;
 import com.javajava.project.domain.bid.entity.BidHistory;
 import com.javajava.project.domain.bid.repository.BidHistoryRepository;
@@ -42,7 +43,7 @@ public class ReviewService {
         AuctionResult result = auctionResultRepository.findById(dto.getResultNo())
                 .orElseThrow(() -> new IllegalArgumentException("낙찰 결과를 찾을 수 없습니다."));
 
-        if (!"구매확정".equals(result.getStatus())) {
+        if (!AuctionResultStatus.PURCHASE_CONFIRMED.equals(result.getStatus())) {
             throw new IllegalStateException("구매 확정된 거래만 리뷰를 작성할 수 있습니다.");
         }
 

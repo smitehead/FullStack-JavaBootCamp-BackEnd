@@ -7,6 +7,7 @@ import com.javajava.project.domain.bid.entity.BidHistory;
 import com.javajava.project.domain.bid.event.AutoBidTriggerEvent;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.point.entity.PointHistory;
+import com.javajava.project.domain.point.entity.PointHistoryType;
 import com.javajava.project.domain.product.entity.Product;
 import com.javajava.project.domain.auction.scheduler.AuctionClosingService;
 import com.javajava.project.domain.auction.scheduler.AuctionExpiryWatchdog;
@@ -226,10 +227,10 @@ public class AutoBidServiceImpl implements AutoBidService {
         // 이전 최고 입찰자 환불
         if (previousBidder != null && lastBidOpt.isPresent()) {
             BidHistory lastBid = lastBidOpt.get();
-            previousBidder.setPoints(previousBidder.getPoints() + lastBid.getBidPrice());
+            previousBidder.refundPoints(lastBid.getBidPrice());
             pointHistoryRepository.save(PointHistory.builder()
                     .memberNo(previousBidder.getMemberNo())
-                    .type("입찰환불")
+                    .type(PointHistoryType.BID_REFUND)
                     .amount(lastBid.getBidPrice())
                     .balance(previousBidder.getPoints())
                     .reason("[" + product.getTitle() + "] 자동입찰 발생으로 인한 환불")
@@ -239,10 +240,10 @@ public class AutoBidServiceImpl implements AutoBidService {
         }
 
         // 승자 포인트 차감
-        winnerMember.setPoints(winnerMember.getPoints() - finalPrice);
+        winnerMember.usePoints(finalPrice);
         pointHistoryRepository.save(PointHistory.builder()
                 .memberNo(winnerNo)
-                .type("입찰차감")
+                .type(PointHistoryType.BID_DEDUCT)
                 .amount(-finalPrice)
                 .balance(winnerMember.getPoints())
                 .reason("[" + product.getTitle() + "] 자동입찰 참여")

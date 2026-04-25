@@ -3,6 +3,9 @@ package com.javajava.project.domain.auction.service;
 import com.javajava.project.domain.auction.dto.AuctionResultResponseDto;
 import com.javajava.project.domain.auction.dto.SellerAuctionResultResponseDto;
 import com.javajava.project.domain.auction.entity.AuctionResult;
+import com.javajava.project.domain.auction.entity.AuctionResultStatus;
+import com.javajava.project.domain.point.entity.PointHistoryType;
+import com.javajava.project.domain.product.entity.TradeType;
 import com.javajava.project.domain.bid.entity.BidHistory;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.platform.entity.PlatformRevenue;
@@ -113,10 +116,10 @@ public class AuctionResultServiceImpl implements AuctionResultService {
     public void confirmPurchase(Long resultNo, Long memberNo, String address, String addressDetail) {
         AuctionResult result = getResultAndValidateOwner(resultNo, memberNo);
 
-        if ("구매확정".equals(result.getStatus())) {
+        if (AuctionResultStatus.PURCHASE_CONFIRMED.equals(result.getStatus())) {
             throw new IllegalStateException("이미 구매 확정된 거래입니다.");
         }
-        if ("거래취소".equals(result.getStatus())) {
+        if (AuctionResultStatus.TRADE_CANCELED.equals(result.getStatus())) {
             throw new IllegalStateException("취소된 거래는 구매 확정할 수 없습니다.");
         }
 
@@ -138,18 +141,17 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
 
         // ── 배송대기 상태: 에스크로 정산 (구버전 결제완료 상태는 이미 정산 완료) ──
-        if ("배송대기".equals(result.getStatus())) {
-            // 수수료율: 직거래 1%, 택배거래·혼합 2%
-            double feeRate = "직거래".equals(product.getTradeType()) ? 0.01 : 0.02;
-            String feeLabel = "직거래".equals(product.getTradeType()) ? "1%" : "2%";
+        if (AuctionResultStatus.AWAITING_SHIPMENT.equals(result.getStatus())) {
+            double feeRate = FeePolicy.rateFor(product.getTradeType());
+            String feeLabel = FeePolicy.labelFor(product.getTradeType());
             long fee = Math.round(bid.getBidPrice() * feeRate);
             long settlementAmount = bid.getBidPrice() - fee;
 
             // 판매자에게 정산금(낙찰가 - 수수료) 지급
-            seller.setPoints(seller.getPoints() + settlementAmount);
+            seller.chargePoints(settlementAmount);
             pointHistoryRepository.save(PointHistory.builder()
                     .memberNo(seller.getMemberNo())
-                    .type("낙찰대금수령")
+                    .type(PointHistoryType.SETTLEMENT)
                     .amount(settlementAmount)
                     .balance(seller.getPoints())
                     .reason("[" + product.getTitle() + "] 판매 정산금 (수수료 " + feeLabel + " 제외)")
@@ -171,14 +173,14 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         }
 
         // ── 구매 확정 처리 ─────────────────────────────────────────────────────
-        result.setStatus("구매확정");
+        result.setStatus(AuctionResultStatus.PURCHASE_CONFIRMED);
         result.setConfirmedAt(LocalDateTime.now());
-        product.setStatus(1); // COMPLETED
+        product.markCompleted();
 
         buyer.setMannerTemp(Math.min(100, buyer.getMannerTemp() + 0.2));
         seller.setMannerTemp(Math.min(100, seller.getMannerTemp() + 0.2));
 
-        double feeRateForNotif = "직거래".equals(product.getTradeType()) ? 0.01 : 0.02;
+        double feeRateForNotif = FeePolicy.rateFor(product.getTradeType());
         long settlementForNotif = bid.getBidPrice() - Math.round(bid.getBidPrice() * feeRateForNotif);
         try {
             notificationService.sendAndSaveNotification(
@@ -209,10 +211,10 @@ public class AuctionResultServiceImpl implements AuctionResultService {
     public void cancelTransaction(Long resultNo, Long memberNo) {
         AuctionResult result = getResultAndValidateOwner(resultNo, memberNo);
 
-        if ("구매확정".equals(result.getStatus())) {
+        if (AuctionResultStatus.PURCHASE_CONFIRMED.equals(result.getStatus())) {
             throw new IllegalStateException("이미 구매 확정된 거래는 취소할 수 없습니다.");
         }
-        if ("거래취소".equals(result.getStatus())) {
+        if (AuctionResultStatus.TRADE_CANCELED.equals(result.getStatus())) {
             throw new IllegalStateException("이미 취소된 거래입니다.");
         }
 
@@ -246,12 +248,12 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                     .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
         }
 
-        if ("결제완료".equals(result.getStatus())) {
+        if (AuctionResultStatus.PAYMENT_COMPLETED.equals(result.getStatus())) {
             // 결제완료 → 판매자에게서 낙찰 대금 회수 후 구매자 환불
-            seller.setPoints(seller.getPoints() - bid.getBidPrice());
+            seller.usePoints(bid.getBidPrice());
             pointHistoryRepository.save(PointHistory.builder()
                     .memberNo(seller.getMemberNo())
-                    .type("거래취소회수")
+                    .type(PointHistoryType.TRADE_CANCEL_RECOVERY)
                     .amount(-bid.getBidPrice())
                     .balance(seller.getPoints())
                     .reason("[" + product.getTitle() + "] 강제 승계 낙찰 취소 — 낙찰 대금 회수")
@@ -269,18 +271,18 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         }
 
         // 구매자 포인트 전액 환불 (에스크로 반환, 패널티 없음)
-        buyer.setPoints(buyer.getPoints() + bid.getBidPrice());
+        buyer.refundPoints(bid.getBidPrice());
         pointHistoryRepository.save(PointHistory.builder()
                 .memberNo(buyer.getMemberNo())
-                .type("거래취소환불")
+                .type(PointHistoryType.TRADE_CANCEL_REFUND)
                 .amount(bid.getBidPrice())
                 .balance(buyer.getPoints())
                 .reason("[" + product.getTitle() + "] 강제 승계 낙찰 취소 — 패널티 없는 전액 환불")
                 .build());
         sseService.sendPointUpdate(buyer.getMemberNo(), buyer.getPoints());
 
-        result.setStatus("거래취소");
-        product.setStatus(2); // CANCELED
+        result.setStatus(AuctionResultStatus.TRADE_CANCELED);
+        product.markCanceled();
         log.info("[AuctionResult] 강제승계 낙찰 취소 완료 (패널티 없음): resultNo={}, memberNo={}",
                 resultNo, memberNo);
     }
@@ -342,10 +344,10 @@ public class AuctionResultServiceImpl implements AuctionResultService {
     public void requestCancel(Long resultNo, Long memberNo) {
         AuctionResult result = getResultAndValidateOwner(resultNo, memberNo);
 
-        if ("구매확정".equals(result.getStatus())) {
+        if (AuctionResultStatus.PURCHASE_CONFIRMED.equals(result.getStatus())) {
             throw new IllegalStateException("이미 구매 확정된 거래는 취소할 수 없습니다.");
         }
-        if ("거래취소".equals(result.getStatus())) {
+        if (AuctionResultStatus.TRADE_CANCELED.equals(result.getStatus())) {
             throw new IllegalStateException("이미 취소된 거래입니다.");
         }
         if ("취소요청".equals(result.getStatus())) {
@@ -385,10 +387,10 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         AuctionResult result = auctionResultRepository.findById(resultNo)
                 .orElseThrow(() -> new IllegalArgumentException("낙찰 결과를 찾을 수 없습니다."));
 
-        if ("구매확정".equals(result.getStatus())) {
+        if (AuctionResultStatus.PURCHASE_CONFIRMED.equals(result.getStatus())) {
             throw new IllegalStateException("이미 구매 확정된 거래는 취소할 수 없습니다.");
         }
-        if ("거래취소".equals(result.getStatus())) {
+        if (AuctionResultStatus.TRADE_CANCELED.equals(result.getStatus())) {
             throw new IllegalStateException("이미 취소된 거래입니다.");
         }
         if (!"취소요청".equals(result.getStatus())) {
@@ -422,11 +424,11 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         }
 
         // '결제완료' 상태면 이미 판매자에게 정산 완료 → 회수 후 환불
-        if ("결제완료".equals(result.getStatus())) {
-            seller.setPoints(seller.getPoints() - bid.getBidPrice());
+        if (AuctionResultStatus.PAYMENT_COMPLETED.equals(result.getStatus())) {
+            seller.usePoints(bid.getBidPrice());
             pointHistoryRepository.save(PointHistory.builder()
                     .memberNo(seller.getMemberNo())
-                    .type("거래취소회수")
+                    .type(PointHistoryType.TRADE_CANCEL_RECOVERY)
                     .amount(-bid.getBidPrice())
                     .balance(seller.getPoints())
                     .reason("[" + product.getTitle() + "] 상호 합의 취소 — 낙찰 대금 회수")
@@ -435,18 +437,18 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         }
 
         // 구매자 전액 환불 (에스크로 반환)
-        buyer.setPoints(buyer.getPoints() + bid.getBidPrice());
+        buyer.refundPoints(bid.getBidPrice());
         pointHistoryRepository.save(PointHistory.builder()
                 .memberNo(buyer.getMemberNo())
-                .type("거래취소환불")
+                .type(PointHistoryType.TRADE_CANCEL_REFUND)
                 .amount(bid.getBidPrice())
                 .balance(buyer.getPoints())
                 .reason("[" + product.getTitle() + "] 상호 합의 취소 — 전액 환불")
                 .build());
         sseService.sendPointUpdate(buyer.getMemberNo(), buyer.getPoints());
 
-        result.setStatus("거래취소");
-        product.setStatus(2); // CANCELED
+        result.setStatus(AuctionResultStatus.TRADE_CANCELED);
+        product.markCanceled();
 
         // 구매자에게 취소 승인 알림
         try {
@@ -470,10 +472,10 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         AuctionResult result = auctionResultRepository.findById(resultNo)
                 .orElseThrow(() -> new IllegalArgumentException("낙찰 결과를 찾을 수 없습니다."));
 
-        if ("구매확정".equals(result.getStatus())) {
+        if (AuctionResultStatus.PURCHASE_CONFIRMED.equals(result.getStatus())) {
             throw new IllegalStateException("이미 구매 확정된 거래는 취소할 수 없습니다.");
         }
-        if ("거래취소".equals(result.getStatus())) {
+        if (AuctionResultStatus.TRADE_CANCELED.equals(result.getStatus())) {
             throw new IllegalStateException("이미 취소된 거래입니다.");
         }
         if ("판매자취소요청".equals(result.getStatus())) {
@@ -482,7 +484,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         if ("취소요청".equals(result.getStatus())) {
             throw new IllegalStateException("구매자가 먼저 취소를 요청한 상태입니다. 취소 승인을 사용해주세요.");
         }
-        if (!"배송대기".equals(result.getStatus())) {
+        if (!AuctionResultStatus.AWAITING_SHIPMENT.equals(result.getStatus())) {
             throw new IllegalStateException("현재 상태에서는 취소를 요청할 수 없습니다.");
         }
 
@@ -543,18 +545,18 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         }
 
         // 에스크로 반환 (배송대기 상태였으므로 판매자에게 정산된 금액 없음)
-        buyer.setPoints(buyer.getPoints() + bid.getBidPrice());
+        buyer.refundPoints(bid.getBidPrice());
         pointHistoryRepository.save(PointHistory.builder()
                 .memberNo(buyer.getMemberNo())
-                .type("거래취소환불")
+                .type(PointHistoryType.TRADE_CANCEL_REFUND)
                 .amount(bid.getBidPrice())
                 .balance(buyer.getPoints())
                 .reason("[" + product.getTitle() + "] 상호 합의 취소 — 전액 환불")
                 .build());
         sseService.sendPointUpdate(buyer.getMemberNo(), buyer.getPoints());
 
-        result.setStatus("거래취소");
-        product.setStatus(2); // CANCELED
+        result.setStatus(AuctionResultStatus.TRADE_CANCELED);
+        product.markCanceled();
 
         try {
             notificationService.sendAndSaveNotification(

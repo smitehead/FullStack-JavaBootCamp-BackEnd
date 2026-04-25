@@ -3,6 +3,7 @@ package com.javajava.project.domain.admin.service;
 import com.javajava.project.domain.admin.dto.WithdrawAdminResponseDto;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.point.entity.PointHistory;
+import com.javajava.project.domain.point.entity.PointHistoryType;
 import com.javajava.project.domain.point.entity.PointWithdraw;
 import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
@@ -71,7 +72,7 @@ public class WithdrawAdminServiceImpl implements WithdrawAdminService {
 
         pointHistoryRepository.save(PointHistory.builder()
                 .memberNo(withdraw.getMemberNo())
-                .type("출금")
+                .type(PointHistoryType.WITHDRAW)
                 .amount(-withdraw.getAmount())
                 .balance(newBalance)
                 .reason("포인트 출금 완료 (" + withdraw.getBankName() + " " + withdraw.getAccountNumber() + ")")
