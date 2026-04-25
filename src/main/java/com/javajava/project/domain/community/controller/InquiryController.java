@@ -43,8 +43,9 @@ public class InquiryController {
     @GetMapping("/my")
     public ResponseEntity<Page<InquiryResponseDto>> getMyInquiries(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(inquiryService.getMyInquiries(getCurrentMemberNo(), page, size));
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String type) {
+        return ResponseEntity.ok(inquiryService.getMyInquiries(getCurrentMemberNo(), type, page, size));
     }
 
     /** 문의 상세 조회 */

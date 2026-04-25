@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface InquiryRepository extends JpaRepository<Inquiry, Long> {
     Page<Inquiry> findByMemberNoOrderByCreatedAtDesc(Long memberNo, Pageable pageable);
+    Page<Inquiry> findByMemberNoAndTypeOrderByCreatedAtDesc(Long memberNo, String type, Pageable pageable);
     Page<Inquiry> findByStatusOrderByCreatedAtDesc(Integer status, Pageable pageable);
     Page<Inquiry> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }

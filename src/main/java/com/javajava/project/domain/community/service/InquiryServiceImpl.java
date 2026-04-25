@@ -72,12 +72,14 @@ public class InquiryServiceImpl implements InquiryService {
     }
 
     @Override
-    public Page<InquiryResponseDto> getMyInquiries(Long memberNo, int page, int size) {
+    public Page<InquiryResponseDto> getMyInquiries(Long memberNo, String type, int page, int size) {
         Pageable pageable = PageRequest.of(page - 1, size);
-        return inquiryRepository.findByMemberNoOrderByCreatedAtDesc(memberNo, pageable)
-                .map(i -> enrichWithImages(InquiryResponseDto.from(i,
-                        memberRepository.findById(i.getMemberNo())
-                                .map(Member::getNickname).orElse("알 수 없음"))));
+        Page<Inquiry> result = (type == null || type.isBlank())
+                ? inquiryRepository.findByMemberNoOrderByCreatedAtDesc(memberNo, pageable)
+                : inquiryRepository.findByMemberNoAndTypeOrderByCreatedAtDesc(memberNo, type, pageable);
+        return result.map(i -> enrichWithImages(InquiryResponseDto.from(i,
+                memberRepository.findById(i.getMemberNo())
+                        .map(Member::getNickname).orElse("알 수 없음"))));
     }
 
     @Override
