@@ -52,7 +52,9 @@ public class AdminNotificationController {
                 .toList();
 
         for (Long memberNo : memberNos) {
-            notificationService.sendAndSaveNotification(memberNo, type, content, linkUrl);
+            // "이벤트" 타입은 마케팅 수신 설정 확인, "시스템"은 전체 알림 마스터 스위치만 확인
+            String settingKey = "이벤트".equals(type) ? "marketing" : "system";
+            notificationService.sendAndSaveNotification(memberNo, type, content, linkUrl, settingKey);
         }
 
         // 활동 로그 기록

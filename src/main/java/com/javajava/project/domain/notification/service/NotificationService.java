@@ -102,7 +102,7 @@ public class NotificationService {
      */
     public List<NotificationResponseDto> getAdminBroadcasts(String type, int limit) {
         Pageable pageable = PageRequest.of(0, limit);
-        List<String> adminTypes = List.of("시스템", "활동", "입찰");
+        List<String> adminTypes = List.of("시스템", "이벤트", "활동", "입찰");
 
         List<Notification> notifications = (type != null && !type.equals("all") && adminTypes.contains(type))
                 ? notificationRepository.findDistinctAdminBroadcastsByType(type, pageable)
