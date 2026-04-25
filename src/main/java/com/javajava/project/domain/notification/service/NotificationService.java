@@ -1,5 +1,7 @@
 package com.javajava.project.domain.notification.service;
 
+import com.javajava.project.domain.member.entity.Member;
+import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.domain.notification.dto.NotificationResponseDto;
 import com.javajava.project.domain.notification.entity.Notification;
 import com.javajava.project.domain.notification.repository.NotificationRepository;
@@ -22,6 +24,7 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final SseService sseService;
+    private final MemberRepository memberRepository;
 
     /**
      * 알림을 생성하여 DB에 저장하고, 사용자가 접속 중이라면 SSE로 실시간 전송합니다.
@@ -50,6 +53,26 @@ public class NotificationService {
                 "isRead",    0,
                 "createdAt", saved.getCreatedAt().toString()
         ));
+    }
+
+    /**
+     * 알림 설정을 확인한 후 조건을 만족할 때만 알림을 발송합니다.
+     * settingKey: "auctionEnd" | "newBid" | "chat" | "marketing"
+     */
+    @Transactional
+    public void sendAndSaveNotification(Long memberNo, String type, String content, String linkUrl, String settingKey) {
+        Member member = memberRepository.findById(memberNo).orElse(null);
+        if (member == null) return;
+        if (Integer.valueOf(0).equals(member.getNotifyOn())) return;
+        boolean allowed = switch (settingKey) {
+            case "auctionEnd" -> !Integer.valueOf(0).equals(member.getNotifyAuctionEnd());
+            case "newBid"     -> !Integer.valueOf(0).equals(member.getNotifyNewBid());
+            case "chat"       -> !Integer.valueOf(0).equals(member.getNotifyChat());
+            case "marketing"  ->  Integer.valueOf(1).equals(member.getNotifyMarketing());
+            default           -> true;
+        };
+        if (!allowed) return;
+        sendAndSaveNotification(memberNo, type, content, linkUrl);
     }
 
     /**

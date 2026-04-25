@@ -139,7 +139,7 @@ public class BidServiceImpl implements BidService {
                 notificationService.sendAndSaveNotification(
                         prevMemberNo, "bid",
                         String.format("상위 입찰 발생: %s에 더 높은 입찰가가 등록되었습니다.", product.getTitle()),
-                        "/products/" + product.getProductNo());
+                        "/products/" + product.getProductNo(), "newBid");
             } catch (Exception e) {
                 log.warn("[BidService] 알림 전송 실패: {}", e.getMessage());
             }
@@ -177,7 +177,7 @@ public class BidServiceImpl implements BidService {
             notificationService.sendAndSaveNotification(
                     product.getSellerNo(), "bid",
                     String.format("새로운 입찰: 등록하신 %s에 새로운 입찰자가 등장했습니다.", product.getTitle()),
-                    "/products/" + product.getProductNo());
+                    "/products/" + product.getProductNo(), "newBid");
         } catch (Exception e) {
             log.warn("[BidService] 알림 전송 실패: {}", e.getMessage());
         }
@@ -304,7 +304,7 @@ public class BidServiceImpl implements BidService {
             try {
                 notificationService.sendAndSaveNotification(prevNo, "bid",
                         "[" + product.getTitle() + "] 즉시구매로 경매가 종료되어 입찰금이 환불되었습니다.",
-                        "/products/" + productNo);
+                        "/products/" + productNo, "auctionEnd");
             } catch (Exception e) { log.warn("[Buyout] 환불 알림 실패: {}", e.getMessage()); }
         }
 

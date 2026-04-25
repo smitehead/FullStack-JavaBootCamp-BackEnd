@@ -42,10 +42,10 @@ public class AuctionNotificationListener {
         try {
             notificationService.sendAndSaveNotification(
                     event.winnerMemberNo(), "bid",
-                    "축하합니다! [" + event.productTitle() + "] 경매에 최종 낙찰되었습니다.", wonLink);
+                    "축하합니다! [" + event.productTitle() + "] 경매에 최종 낙찰되었습니다.", wonLink, "auctionEnd");
             notificationService.sendAndSaveNotification(
                     event.winnerMemberNo(), "bid",
-                    "낙찰받으신 [" + event.productTitle() + "]의 결제를 진행해 주세요. (24시간 내 미결제 시 취소 가능)", wonLink);
+                    "낙찰받으신 [" + event.productTitle() + "]의 결제를 진행해 주세요. (24시간 내 미결제 시 취소 가능)", wonLink, "auctionEnd");
         } catch (Exception e) {
             log.warn("[Notification] 낙찰자 알림 전송 실패 (상품 {}): {}", event.productNo(), e.getMessage());
         }
@@ -54,7 +54,7 @@ public class AuctionNotificationListener {
         try {
             notificationService.sendAndSaveNotification(
                     event.sellerNo(), "bid",
-                    "판매 중인 [" + event.productTitle() + "]이 최종 낙찰되었습니다.", productLink);
+                    "판매 중인 [" + event.productTitle() + "]이 최종 낙찰되었습니다.", productLink, "auctionEnd");
         } catch (Exception e) {
             log.warn("[Notification] 판매자 알림 전송 실패 (상품 {}): {}", event.productNo(), e.getMessage());
         }
@@ -66,7 +66,7 @@ public class AuctionNotificationListener {
             for (Long loserNo : loserMemberNos) {
                 notificationService.sendAndSaveNotification(
                         loserNo, "bid",
-                        "아쉽게도 [" + event.productTitle() + "] 경매가 종료되었습니다. 다음 기회를 노려보세요!", productLink);
+                        "아쉽게도 [" + event.productTitle() + "] 경매가 종료되었습니다. 다음 기회를 노려보세요!", productLink, "auctionEnd");
             }
         } catch (Exception e) {
             log.warn("[Notification] 낙찰 실패자 알림 전송 실패 (상품 {}): {}", event.productNo(), e.getMessage());

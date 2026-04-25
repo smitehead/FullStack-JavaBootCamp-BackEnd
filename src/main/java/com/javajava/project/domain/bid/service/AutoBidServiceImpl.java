@@ -306,7 +306,7 @@ public class AutoBidServiceImpl implements AutoBidService {
             notificationService.sendAndSaveNotification(
                     autoBid.getMemberNo(), "bid",
                     "[" + product.getTitle() + "] " + message,
-                    "/products/" + product.getProductNo());
+                    "/products/" + product.getProductNo(), "newBid");
         } catch (Exception e) {
             log.warn("[AutoBid] 알림 전송 오류: {}", e.getMessage());
         }

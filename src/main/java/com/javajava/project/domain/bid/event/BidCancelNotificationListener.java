@@ -39,7 +39,7 @@ public class BidCancelNotificationListener {
             notificationService.sendAndSaveNotification(
                     event.cancelledBidderNo(), "bid",
                     "[" + event.productTitle() + "] 입찰 취소가 완료되었으며, 규정에 따라 위약금 5%가 차감되었습니다.",
-                    productLink);
+                    productLink, "newBid");
         } catch (Exception e) {
             log.warn("[BidCancelNotification] 취소자 알림 실패 (상품 {}): {}", event.productNo(), e.getMessage());
         }
@@ -49,7 +49,7 @@ public class BidCancelNotificationListener {
             notificationService.sendAndSaveNotification(
                     event.sellerNo(), "bid",
                     "최상위 입찰자의 사정으로 [" + event.productTitle() + "] 입찰이 취소되어 차순위 입찰자가 최고 입찰자가 되었습니다.",
-                    productLink);
+                    productLink, "newBid");
         } catch (Exception e) {
             log.warn("[BidCancelNotification] 판매자 알림 실패 (상품 {}): {}", event.productNo(), e.getMessage());
         }
@@ -60,7 +60,7 @@ public class BidCancelNotificationListener {
                 notificationService.sendAndSaveNotification(
                         event.successorBidderNo(), "bid",
                         "상위 입찰자의 취소로 [" + event.productTitle() + "] 최고 입찰자 지위가 승계되었습니다.",
-                        productLink);
+                        productLink, "newBid");
             } catch (Exception e) {
                 log.warn("[BidCancelNotification] 차순위자 알림 실패 (상품 {}): {}", event.productNo(), e.getMessage());
             }

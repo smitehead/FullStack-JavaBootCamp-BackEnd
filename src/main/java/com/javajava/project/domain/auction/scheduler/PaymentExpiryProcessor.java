@@ -190,7 +190,7 @@ public class PaymentExpiryProcessor {
                     memberNo, "bid",
                     "상위 낙찰자의 결제 불이행으로 [" + productTitle + "] 낙찰 권한이 승계되었습니다. " +
                             "12시간 내 결제를 완료해 주세요.",
-                    "/won/" + productNo);
+                    "/won/" + productNo, "auctionEnd");
         } catch (Exception e) {
             log.warn("[PaymentExpiry] 차순위자 알림 실패 (상품 {}): {}", productNo, e.getMessage());
         }
@@ -199,7 +199,7 @@ public class PaymentExpiryProcessor {
     private void notifySeller(Long sellerNo, String productTitle, Long productNo, String message) {
         try {
             notificationService.sendAndSaveNotification(
-                    sellerNo, "bid", message, "/products/" + productNo);
+                    sellerNo, "bid", message, "/products/" + productNo, "auctionEnd");
         } catch (Exception e) {
             log.warn("[PaymentExpiry] 판매자 알림 실패 (상품 {}): {}", productNo, e.getMessage());
         }
