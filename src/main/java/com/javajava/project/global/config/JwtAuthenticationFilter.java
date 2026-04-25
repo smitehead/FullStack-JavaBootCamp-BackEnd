@@ -75,20 +75,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    /**
-     * 토큰 추출 우선순위:
-     * 1. Authorization 헤더 (일반 API 요청)
-     * 2. ?token= 쿼리 파라미터 (EventSource는 커스텀 헤더를 지원하지 않으므로 SSE 전용 fallback)
-     */
     private String extractToken(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
             return header.substring(7);
-        }
-        // SSE 연결용 fallback: ?token=<jwt>
-        String queryToken = request.getParameter("token");
-        if (queryToken != null && !queryToken.isBlank()) {
-            return queryToken;
         }
         return null;
     }

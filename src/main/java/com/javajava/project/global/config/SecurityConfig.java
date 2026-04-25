@@ -103,6 +103,24 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").authenticated()
                         .anyRequest().permitAll())
 
+                // 4-1. 보안 헤더 설정
+                // X-Frame-Options: 클릭재킹 방지 (iframe 삽입 차단)
+                // X-Content-Type-Options: MIME 스니핑 방지 (브라우저가 Content-Type 무시하는 것 차단)
+                // Content-Security-Policy: XSS 방지 - 허용된 출처의 스크립트만 실행
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.deny())
+                        .contentTypeOptions(cto -> {})
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(
+                                "default-src 'self'; " +
+                                "script-src 'self' 'unsafe-inline'; " +
+                                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+                                "font-src 'self' https://fonts.gstatic.com; " +
+                                "img-src 'self' data: blob:; " +
+                                "connect-src 'self'; " +
+                                "frame-ancestors 'none'"
+                        ))
+                )
+
                 // 5. JWT 필터 등록
                 // Spring Security 기본 로그인 필터(UsernamePasswordAuthenticationFilter) 앞에 삽입.
                 // 요청이 들어오면 JWT 필터가 먼저 실행됨:
