@@ -35,6 +35,8 @@ public class AuctionResultResponseDto {
      */
     private Integer isForcePromoted;
 
+    private Boolean hasBuyerReview;
+
     @Getter
     @Builder
     public static class SellerInfo {
