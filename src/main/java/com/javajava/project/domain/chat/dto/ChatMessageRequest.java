@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter
@@ -26,4 +27,7 @@ public class ChatMessageRequest {
     private String addrDetail;
     private Double latitude;
     private Double longitude;
+
+    // 약속 일시 (msgType = APPOINTMENT)
+    private LocalDateTime apptAt;
 }

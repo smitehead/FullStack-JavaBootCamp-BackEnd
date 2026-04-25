@@ -41,6 +41,15 @@ public class ChatRoom {
     @Column(name = "SELLER_LEFT", nullable = false)
     private Integer sellerLeft = 0;
 
+    /** 약속 상태 (1 = 약속중, 0 = 없음) */
+    @Builder.Default
+    @Column(name = "APPOINTMENT_STATUS", nullable = false)
+    private Integer appointmentStatus = 0;
+
+    /** 약속 일시 */
+    @Column(name = "APPOINTMENT_AT")
+    private LocalDateTime appointmentAt;
+
     @Column(name = "CREATED_AT", nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

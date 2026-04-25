@@ -31,4 +31,10 @@ public class ChatRoomListDto {
 
     // 상품 현재가
     private Long productPrice;
+
+    // 약속 상태 (1 = 약속중, 0 = 없음)
+    private Integer appointmentStatus;
+
+    // 약속 일시
+    private LocalDateTime appointmentAt;
 }
