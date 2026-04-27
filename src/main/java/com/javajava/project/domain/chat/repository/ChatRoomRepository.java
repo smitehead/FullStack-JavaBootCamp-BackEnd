@@ -44,7 +44,9 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             m.NICKNAME          AS otherUserNickname,
             m.PROFILE_IMG_URL   AS otherUserProfileImage,
             p.TRADE_TYPE        AS tradeType,
-            p.CURRENT_PRICE     AS currentPrice
+            p.CURRENT_PRICE     AS currentPrice,
+            CASE WHEN cr.APPOINTMENT_STATUS = 1 AND (cr.APPOINTMENT_AT IS NULL OR cr.APPOINTMENT_AT >= CURRENT_TIMESTAMP) THEN 1 ELSE 0 END AS appointmentStatus,
+            cr.APPOINTMENT_AT    AS appointmentAt
         FROM CHAT_ROOM cr
         LEFT JOIN (
             SELECT cm2.ROOM_NO, cm2.CONTENT, cm2.SENT_AT, cm2.SENDER_NO

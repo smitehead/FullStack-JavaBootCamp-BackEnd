@@ -99,6 +99,8 @@ public class ChatServiceImpl implements ChatService {
                 )
                 .tradeType((String) row[13])
                 .productPrice(toLong(row[14]))
+                .appointmentStatus(toInt(row[15]))
+                .appointmentAt(toLocalDateTime(row[16]))
                 .build()
         ).collect(Collectors.toList());
     }
@@ -146,6 +148,12 @@ public class ChatServiceImpl implements ChatService {
                 .build();
         chatMessageRepository.save(message);
 
+        // 1-1. 메시지 타입이 APPOINTMENT인 경우 채팅방 상태 업데이트
+        if ("APPOINTMENT".equals(message.getMsgType())) {
+            room.setAppointmentStatus(1);
+            room.setAppointmentAt(request.getApptAt());
+        }
+
         // 2. 이미지가 있으면 CHAT_IMAGE에 bulk 저장 (순서 유지)
         List<String> savedImageUrls = new ArrayList<>();
         if ("IMAGE".equals(request.getMsgType())
@@ -182,6 +190,7 @@ public class ChatServiceImpl implements ChatService {
                 .latitude(message.getLatitude())
                 .longitude(message.getLongitude())
                 .clientUuid(request.getClientUuid()) // DB 미저장, 응답에만 포함
+                .apptAt("APPOINTMENT".equals(message.getMsgType()) ? request.getApptAt() : null)
                 .build();
     }
 
@@ -313,6 +322,8 @@ public class ChatServiceImpl implements ChatService {
                 .otherUserNo(otherNo)
                 .otherUserRole(room.getBuyerNo().equals(myNo) ? "seller" : "buyer")
                 .unreadCount(0L)
+                .appointmentStatus(room.getAppointmentStatus())
+                .appointmentAt(room.getAppointmentAt())
                 .build();
     }
 

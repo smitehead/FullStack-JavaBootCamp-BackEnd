@@ -28,4 +28,7 @@ public class ChatMessageDto {
     private String addrDetail;
     private Double latitude;
     private Double longitude;
+
+    // 약속 일시 (msgType = APPOINTMENT)
+    private LocalDateTime apptAt;
 }

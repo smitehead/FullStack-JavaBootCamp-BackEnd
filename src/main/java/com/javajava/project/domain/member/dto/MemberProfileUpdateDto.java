@@ -7,7 +7,7 @@ import lombok.Getter;
 
 @Getter
 public class MemberProfileUpdateDto {
-    @NotBlank @Size(min=2, max=15)
+    @NotBlank @Size(min=2, max=10)
     private String nickname;
     @Pattern(regexp = "^01[0-9]-\\d{3,4}-\\d{4}$")
     private String phoneNum;

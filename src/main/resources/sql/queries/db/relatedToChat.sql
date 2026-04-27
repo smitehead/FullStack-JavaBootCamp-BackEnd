@@ -46,3 +46,11 @@ CREATE INDEX IDX_CHATMSG_UNREAD ON CHAT_MESSAGE (ROOM_NO, SENDER_NO, IS_READ);
 -- 내가 나가도 상대방은 방에 계속 남아있을 수 있음
 ALTER TABLE CHAT_ROOM ADD (BUYER_LEFT  NUMBER(1) DEFAULT 0 NOT NULL);
 ALTER TABLE CHAT_ROOM ADD (SELLER_LEFT NUMBER(1) DEFAULT 0 NOT NULL);
+
+-- ============================================================
+-- 5. 약속 기능 컬럼 추가
+-- ============================================================
+-- 약속 상태 (1 = 약속중, 0 = 없음)
+ALTER TABLE CHAT_ROOM ADD (APPOINTMENT_STATUS NUMBER(1) DEFAULT 0 NOT NULL);
+-- 약속 일시
+ALTER TABLE CHAT_ROOM ADD (APPOINTMENT_AT TIMESTAMP);

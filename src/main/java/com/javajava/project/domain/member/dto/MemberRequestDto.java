@@ -25,7 +25,7 @@ public class MemberRequestDto {
     private String password;
 
     @NotBlank(message = "닉네임은 필수입니다.")
-    @Size(min = 2, max = 15, message = "닉네임은 2~15자여야 합니다.")
+    @Size(min = 2, max = 10, message = "닉네임은 2~10자여야 합니다.")
     private String nickname;
 
     @NotBlank(message = "이메일은 필수입니다.")
