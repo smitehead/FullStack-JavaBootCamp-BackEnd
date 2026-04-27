@@ -746,13 +746,15 @@ public class ProductServiceImpl implements ProductService {
 
                         // 입찰 상태 결정: 상위입찰자 / 추월당함 / 낙찰 / 낙찰실패
                         String bidStatus;
+                        boolean isCanceled = product.getStatus() == ProductStatus.CANCELED.code();
                         if (!isFinished) {
                                 Long topBidder = topBidderMap.get(product.getProductNo());
                                 bidStatus = (topBidder != null && topBidder.equals(memberNo)) ? "bidding" : "outbid";
-                        } else if (wonProductNos.contains(product.getProductNo())) {
-                                bidStatus = "won"; // 낙찰
+                        } else if (wonProductNos.contains(product.getProductNo()) && !isCanceled) {
+                                // CANCELED(2) 상품은 경매 취소이므로 낙찰이 아닌 낙찰실패로 간주
+                                bidStatus = "won";
                         } else {
-                                bidStatus = "lost"; // 낙찰실패
+                                bidStatus = "lost"; // 낙찰실패 또는 경매 취소
                         }
 
                         return ProductListResponseDto.builder()
