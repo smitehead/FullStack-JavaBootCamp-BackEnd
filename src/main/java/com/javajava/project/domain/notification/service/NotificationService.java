@@ -56,23 +56,13 @@ public class NotificationService {
     }
 
     /**
-     * 알림 설정을 확인한 후 조건을 만족할 때만 알림을 발송합니다.
+     * settingKey를 실제 type으로 저장하여 프론트엔드에서 설정별 독립 필터링이 가능하도록 합니다.
+     * 알림은 설정 여부와 무관하게 항상 저장/전송되며, 배지 표시 여부는 프론트엔드가 제어합니다.
      * settingKey: "auctionEnd" | "newBid" | "chat" | "marketing"
      */
     @Transactional
     public void sendAndSaveNotification(Long memberNo, String type, String content, String linkUrl, String settingKey) {
-        Member member = memberRepository.findById(memberNo).orElse(null);
-        if (member == null) return;
-        if (Integer.valueOf(0).equals(member.getNotifyOn())) return;
-        boolean allowed = switch (settingKey) {
-            case "auctionEnd" -> !Integer.valueOf(0).equals(member.getNotifyAuctionEnd());
-            case "newBid"     -> !Integer.valueOf(0).equals(member.getNotifyNewBid());
-            case "chat"       -> !Integer.valueOf(0).equals(member.getNotifyChat());
-            case "marketing"  ->  Integer.valueOf(1).equals(member.getNotifyMarketing());
-            default           -> true;
-        };
-        if (!allowed) return;
-        sendAndSaveNotification(memberNo, type, content, linkUrl);
+        sendAndSaveNotification(memberNo, settingKey, content, linkUrl);
     }
 
     /**
