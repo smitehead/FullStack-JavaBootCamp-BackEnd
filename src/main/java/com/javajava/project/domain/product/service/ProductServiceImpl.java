@@ -584,19 +584,22 @@ public class ProductServiceImpl implements ProductService {
                 List<ProductListResponseDto> dtos = toProductListDtosWithBidStatus(products, memberNo, wonProductNos, topBidderMap, auctionStatusMap);
 
                 if (filter != null && !filter.equals("all")) {
-                        String targetStatus = switch (filter) {
-                                case "leader" -> "bidding";
-                                case "trading" -> "won";
-                                case "outbid" -> "outbid";
-                                case "lost" -> "lost";
-                                default -> null;
-                        };
-                        if (targetStatus != null) {
-                                final String finalTarget = targetStatus;
-                                dtos = dtos.stream()
-                                                .filter(dto -> finalTarget.equals(dto.getBidStatus()))
+                        dtos = switch (filter) {
+                                // 경매 진행 중(ACTIVE) 또는 정산 대기(PENDING) — "lost" 제외 = bidding+outbid+won
+                                case "trading" -> dtos.stream()
+                                                .filter(dto -> !"lost".equals(dto.getBidStatus()))
                                                 .toList();
-                        }
+                                case "leader"  -> dtos.stream()
+                                                .filter(dto -> "bidding".equals(dto.getBidStatus()))
+                                                .toList();
+                                case "outbid"  -> dtos.stream()
+                                                .filter(dto -> "outbid".equals(dto.getBidStatus()))
+                                                .toList();
+                                case "lost"    -> dtos.stream()
+                                                .filter(dto -> "lost".equals(dto.getBidStatus()))
+                                                .toList();
+                                default        -> dtos;
+                        };
                 }
 
                 return toPage(dtos, page, size);
