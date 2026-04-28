@@ -140,7 +140,7 @@ public class Member {
     private static final double MANNER_TEMP_MAX = 100.0;
 
     public void updateMannerTemp(double newTemp) {
-        this.mannerTemp = Math.max(MANNER_TEMP_MIN, Math.min(MANNER_TEMP_MAX, newTemp));
+        setMannerTemp(newTemp);
     }
 
     /* ─── 포인트 도메인 메서드 ─── */
