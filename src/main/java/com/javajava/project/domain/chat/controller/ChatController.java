@@ -107,6 +107,28 @@ public class ChatController {
     }
 
     /**
+     * REST 메시지 전송 (POST /api/chat/rooms/{roomId}/messages)
+     * WonProductDetail 등 REST 흐름에서 사용. STOMP 대신 HTTP로 저장 후 브로드캐스트.
+     */
+    @PostMapping("/rooms/{roomId}/messages")
+    public ResponseEntity<ChatMessageDto> sendMessage(
+            @PathVariable Long roomId,
+            @RequestBody ChatMessageRequest body,
+            Authentication auth) {
+        Long myNo = (Long) auth.getPrincipal();
+        ChatMessageRequest request = new ChatMessageRequest(
+                roomId, myNo,
+                body.getContent(), body.getClientUuid(),
+                body.getMsgType(), body.getImageUrls(),
+                body.getAddrRoad(), body.getAddrDetail(),
+                body.getLatitude(), body.getLongitude(),
+                body.getApptAt());
+        ChatMessageDto saved = chatService.saveMessage(request, myNo);
+        messagingTemplate.convertAndSend("/sub/chat/room/" + roomId, saved);
+        return ResponseEntity.ok(saved);
+    }
+
+    /**
      * 채팅 이미지 업로드 (POST /api/chat/rooms/{roomId}/images)
      * 여러 파일을 한 번에 업로드하여 URL 배열 반환
      * STOMP 전송 전에 먼저 호출해야 함
