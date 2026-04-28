@@ -165,12 +165,13 @@ public class AdminServiceImpl implements AdminService {
 
         Double previousTemp = member.getMannerTemp();
         member.setMannerTemp(newTemp);
+        Double appliedTemp = member.getMannerTemp();
 
         // 매너온도 변동 이력 저장
         mannerHistoryRepository.save(MannerHistory.builder()
                 .memberNo(memberNo)
                 .previousTemp(previousTemp)
-                .newTemp(newTemp)
+                .newTemp(appliedTemp)
                 .reason(reason)
                 .adminNo(adminNo)
                 .build());

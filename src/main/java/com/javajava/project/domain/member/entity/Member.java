@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 @Entity
 @Table(name = "MEMBER")
@@ -55,6 +57,7 @@ public class Member {
     @Column(name = "PROFILE_IMG_URL", length = 500)
     private String profileImgUrl;
 
+    @Setter(AccessLevel.NONE)
     @Builder.Default
     @Column(name = "MANNER_TEMP", nullable = false)
     private Double mannerTemp = 36.5;
@@ -147,5 +150,15 @@ public class Member {
     public void chargePoints(long amount) {
         if (amount <= 0) throw new IllegalArgumentException("충전 금액은 0보다 커야 합니다.");
         this.points += amount;
+    }
+
+    /* ─── 매너온도 도메인 메서드 ─── */
+
+    public void setMannerTemp(Double value) {
+        if (value == null) return;
+        double clamped = Math.max(0.0, Math.min(100.0, value));
+        this.mannerTemp = BigDecimal.valueOf(clamped)
+                .setScale(1, RoundingMode.HALF_UP)
+                .doubleValue();
     }
 }
