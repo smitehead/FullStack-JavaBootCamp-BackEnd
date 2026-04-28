@@ -134,6 +134,15 @@ public class Member {
     @Column(name = "CURRENT_TOKEN", length = 500)
     private String currentToken;
 
+    /* ─── 매너온도 도메인 메서드 ─── */
+
+    private static final double MANNER_TEMP_MIN = 0.0;
+    private static final double MANNER_TEMP_MAX = 100.0;
+
+    public void updateMannerTemp(double newTemp) {
+        this.mannerTemp = Math.max(MANNER_TEMP_MIN, Math.min(MANNER_TEMP_MAX, newTemp));
+    }
+
     /* ─── 포인트 도메인 메서드 ─── */
 
     public void usePoints(long amount) {

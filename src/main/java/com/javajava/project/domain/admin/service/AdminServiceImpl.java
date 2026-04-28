@@ -164,8 +164,8 @@ public class AdminServiceImpl implements AdminService {
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
         Double previousTemp = member.getMannerTemp();
-        member.setMannerTemp(newTemp);
-        Double appliedTemp = member.getMannerTemp();
+        member.updateMannerTemp(newTemp);
+        Double appliedTemp = member.getMannerTemp(); // clamping 후 실제 저장값
 
         // 매너온도 변동 이력 저장
         mannerHistoryRepository.save(MannerHistory.builder()
