@@ -89,6 +89,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/members/**").permitAll()
+                        .requestMatchers("/api/products/my-selling").authenticated()
+                        .requestMatchers("/api/products/my-bidding").authenticated()
+                        .requestMatchers("/api/products/my-purchased").authenticated()
                         .requestMatchers("/api/products/**").permitAll()
                         .requestMatchers("/api/sse/**").permitAll()
                         .requestMatchers("/api/images/**").permitAll()
