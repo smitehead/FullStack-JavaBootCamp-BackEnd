@@ -80,4 +80,18 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
                 END
             """, nativeQuery = true)
     List<Object[]> countProductsByRootCategory();
+
+    // --- 연관 상품 추천용 단계별 조회 ---
+
+    // 1순위: 소분류 일치
+    @Query("SELECT p FROM Product p WHERE p.categoryNo = :categoryNo AND p.productNo NOT IN :excludeIds AND p.isDeleted = 0 ORDER BY p.productNo DESC")
+    List<Product> findRelatedBySmallCategory(@Param("categoryNo") Long categoryNo, @Param("excludeIds") java.util.Collection<Long> excludeIds, org.springframework.data.domain.Pageable pageable);
+
+    // 2순위: 중분류 일치 (범위 검색 포함)
+    @Query("SELECT p FROM Product p WHERE (p.categoryNo = :medium OR (p.categoryNo >= :mediumMin AND p.categoryNo < :mediumMax)) AND p.productNo NOT IN :excludeIds AND p.isDeleted = 0 ORDER BY p.productNo DESC")
+    List<Product> findRelatedByMediumCategory(@Param("medium") Long medium, @Param("mediumMin") Long mediumMin, @Param("mediumMax") Long mediumMax, @Param("excludeIds") java.util.Collection<Long> excludeIds, org.springframework.data.domain.Pageable pageable);
+
+    // 3순위: 대분류 일치 (범위 검색 포함)
+    @Query("SELECT p FROM Product p WHERE (p.categoryNo = :large OR (p.categoryNo >= :mediumMin AND p.categoryNo < :mediumMax) OR (p.categoryNo >= :smallMin AND p.categoryNo < :smallMax)) AND p.productNo NOT IN :excludeIds AND p.isDeleted = 0 ORDER BY p.productNo DESC")
+    List<Product> findRelatedByLargeCategory(@Param("large") Long large, @Param("mediumMin") Long mediumMin, @Param("mediumMax") Long mediumMax, @Param("smallMin") Long smallMin, @Param("smallMax") Long smallMax, @Param("excludeIds") java.util.Collection<Long> excludeIds, org.springframework.data.domain.Pageable pageable);
 }

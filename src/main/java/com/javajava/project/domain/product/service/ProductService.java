@@ -55,4 +55,7 @@ public interface ProductService {
 
     // 관리자 대시보드: 대분류별 상품 건수
     List<Map<String, Object>> getCategoryStats();
+
+    // 연관 상품 추천 조회 (최대 12개)
+    List<ProductListResponseDto> getRelatedProducts(Long productNo, Long memberNo);
 }

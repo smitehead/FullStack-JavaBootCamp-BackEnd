@@ -979,6 +979,59 @@ public class ProductServiceImpl implements ProductService {
                 }).toList();
         }
 
+        @Override
+        public List<ProductListResponseDto> getRelatedProducts(Long productNo, Long memberNo) {
+                Product product = productRepository.findById(productNo)
+                                .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다."));
+                Long catNo = product.getCategoryNo();
+                Category category = categoryRepository.findById(catNo)
+                                .orElseThrow(() -> new IllegalArgumentException("카테고리를 찾을 수 없습니다."));
+
+                Long small = null, medium = null, large = null;
+                if (category.getDepth() == 3) {
+                        small = catNo;
+                        medium = category.getParentNo();
+                        large = categoryRepository.findById(medium).map(Category::getParentNo).orElse(null);
+                } else if (category.getDepth() == 2) {
+                        medium = catNo;
+                        large = category.getParentNo();
+                } else {
+                        large = catNo;
+                }
+
+                List<Product> relatedProducts = new ArrayList<>();
+                java.util.Set<Long> excludeIds = new java.util.HashSet<>();
+                excludeIds.add(productNo);
+
+                int targetSize = 12;
+
+                // 1순위: 소분류 일치
+                if (small != null) {
+                        List<Product> list = productRepository.findRelatedBySmallCategory(small, excludeIds, org.springframework.data.domain.PageRequest.of(0, targetSize));
+                        relatedProducts.addAll(list);
+                        list.forEach(p -> excludeIds.add(p.getProductNo()));
+                }
+
+                // 2순위: 중분류 일치 (범위 검색)
+                if (medium != null && relatedProducts.size() < targetSize) {
+                        int remain = targetSize - relatedProducts.size();
+                        List<Product> list = productRepository.findRelatedByMediumCategory(
+                                        medium, medium * 100L, (medium + 1) * 100L, excludeIds, org.springframework.data.domain.PageRequest.of(0, remain));
+                        relatedProducts.addAll(list);
+                        list.forEach(p -> excludeIds.add(p.getProductNo()));
+                }
+
+                // 3순위: 대분류 일치 (범위 검색)
+                if (large != null && relatedProducts.size() < targetSize) {
+                        int remain = targetSize - relatedProducts.size();
+                        List<Product> list = productRepository.findRelatedByLargeCategory(
+                                        large, large * 100L, (large + 1) * 100L, large * 10000L, (large + 1) * 10000L, excludeIds, org.springframework.data.domain.PageRequest.of(0, remain));
+                        relatedProducts.addAll(list);
+                }
+
+                return toProductListDtos(relatedProducts, memberNo);
+        }
+
         /**
          * Product 엔티티 리스트를 ProductListResponseDto 리스트로 변환 (배치 쿼리 사용)
          */

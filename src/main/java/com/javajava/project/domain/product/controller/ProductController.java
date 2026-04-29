@@ -43,6 +43,15 @@ public class ProductController {
         return ResponseEntity.ok(productService.getProductDetail(productNo, currentMemberNo));
     }
 
+    // 연관 상품 추천 API
+    @GetMapping("/{id}/related")
+    public ResponseEntity<List<ProductListResponseDto>> getRelatedProducts(
+            @PathVariable("id") Long productNo,
+            Authentication authentication) {
+        Long memberNo = getMemberNoOrNull(authentication);
+        return ResponseEntity.ok(productService.getRelatedProducts(productNo, memberNo));
+    }
+
     // 상품 목록 API (프론트엔드 필터링 및 페이징 파라미터 수신)
     @GetMapping
     public ResponseEntity<Page<ProductListResponseDto>> getProductList(
