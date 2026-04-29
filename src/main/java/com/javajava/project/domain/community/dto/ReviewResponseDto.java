@@ -5,8 +5,6 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 @Getter
@@ -18,26 +16,26 @@ public class ReviewResponseDto {
     private Long writerNo;
     private String writerNickname;
     private Long targetNo;
+    private String writerRole;
     private Long productNo;
     private String productTitle;
     private List<String> tags;
     private String content;
     private LocalDateTime createdAt;
 
-    public static ReviewResponseDto from(Review review, String writerNickname, Long productNo, String productTitle) {
-        List<String> tagList = (review.getTags() != null && !review.getTags().isBlank())
-                ? Arrays.asList(review.getTags().split(","))
-                : Collections.emptyList();
-
+    public static ReviewResponseDto from(Review review, String writerNickname,
+                                         Long productNo, String productTitle,
+                                         List<String> tagNames) {
         return ReviewResponseDto.builder()
                 .reviewNo(review.getReviewNo())
                 .resultNo(review.getResultNo())
                 .writerNo(review.getWriterNo())
                 .writerNickname(writerNickname)
                 .targetNo(review.getTargetNo())
+                .writerRole(review.getWriterRole())
                 .productNo(productNo)
                 .productTitle(productTitle)
-                .tags(tagList)
+                .tags(tagNames)
                 .content(review.getContent())
                 .createdAt(review.getCreatedAt())
                 .build();

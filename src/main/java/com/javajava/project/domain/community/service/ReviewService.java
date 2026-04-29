@@ -7,8 +7,12 @@ import com.javajava.project.domain.bid.entity.BidHistory;
 import com.javajava.project.domain.bid.repository.BidHistoryRepository;
 import com.javajava.project.domain.community.dto.ReviewRequestDto;
 import com.javajava.project.domain.community.dto.ReviewResponseDto;
+import com.javajava.project.domain.community.dto.ReviewTagDefResponseDto;
 import com.javajava.project.domain.community.entity.Review;
+import com.javajava.project.domain.community.entity.ReviewTag;
 import com.javajava.project.domain.community.repository.ReviewRepository;
+import com.javajava.project.domain.community.repository.ReviewTagDefRepository;
+import com.javajava.project.domain.community.repository.ReviewTagRepository;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.domain.notification.service.NotificationService;
@@ -28,6 +32,8 @@ import java.util.List;
 public class ReviewService {
 
     private final ReviewRepository reviewRepository;
+    private final ReviewTagDefRepository reviewTagDefRepository;
+    private final ReviewTagRepository reviewTagRepository;
     private final AuctionResultRepository auctionResultRepository;
     private final BidHistoryRepository bidHistoryRepository;
     private final MemberRepository memberRepository;
@@ -35,11 +41,10 @@ public class ReviewService {
     private final NotificationService notificationService;
 
     /**
-     * 리뷰 작성 + 매너온도 자동 반영
+     * 리뷰 작성 + 태그 저장
      */
     @Transactional
     public ReviewResponseDto createReview(Long writerNo, ReviewRequestDto dto) {
-        // 1. 낙찰 결과 확인
         AuctionResult result = auctionResultRepository.findById(dto.getResultNo())
                 .orElseThrow(() -> new IllegalArgumentException("낙찰 결과를 찾을 수 없습니다."));
 
@@ -47,12 +52,10 @@ public class ReviewService {
             throw new IllegalStateException("구매 확정된 거래만 리뷰를 작성할 수 있습니다.");
         }
 
-        // 2. 작성자 단위 중복 리뷰 방지 (구매자·판매자 각자 1회)
         if (reviewRepository.existsByResultNoAndWriterNo(dto.getResultNo(), writerNo)) {
             throw new IllegalStateException("이미 작성된 후기입니다.");
         }
 
-        // 3. 작성자가 구매자 또는 판매자인지 확인 후 대상(targetNo) 결정
         BidHistory bid = bidHistoryRepository.findById(result.getBidNo())
                 .orElseThrow(() -> new IllegalArgumentException("입찰 기록을 찾을 수 없습니다."));
 
@@ -63,32 +66,38 @@ public class ReviewService {
         Long sellerNo = product.getSellerNo();
 
         Long targetNo;
+        String writerRole;
         if (writerNo.equals(buyerNo)) {
-            // 구매자 → 판매자에게 후기
-            targetNo = sellerNo;
+            targetNo   = sellerNo;
+            writerRole = "BUYER";
         } else if (writerNo.equals(sellerNo)) {
-            // 판매자 → 구매자에게 후기
-            targetNo = buyerNo;
+            targetNo   = buyerNo;
+            writerRole = "SELLER";
         } else {
             throw new IllegalStateException("해당 거래의 구매자 또는 판매자만 후기를 작성할 수 있습니다.");
         }
 
-        // 5. 태그 → 콤마 구분 문자열 변환
-        String tagsStr = (dto.getTags() != null && !dto.getTags().isEmpty())
-                ? String.join(",", dto.getTags()) : null;
-
-        // 6. 리뷰 저장
         Review review = Review.builder()
                 .resultNo(dto.getResultNo())
                 .writerNo(writerNo)
                 .targetNo(targetNo)
-                .tags(tagsStr)
+                .writerRole(writerRole)
                 .content(dto.getContent())
                 .isHidden(0)
                 .build();
         reviewRepository.save(review);
 
-        // 7. 판매자에게 알림
+        // 선택된 태그 ID → REVIEW_TAG 저장
+        if (dto.getTagIds() != null && !dto.getTagIds().isEmpty()) {
+            List<ReviewTag> tags = dto.getTagIds().stream()
+                    .map(tagId -> ReviewTag.builder()
+                            .reviewNo(review.getReviewNo())
+                            .tagId(tagId)
+                            .build())
+                    .toList();
+            reviewTagRepository.saveAll(tags);
+        }
+
         Member writer = memberRepository.findById(writerNo)
                 .orElseThrow(() -> new IllegalArgumentException("작성자 정보를 찾을 수 없습니다."));
         try {
@@ -100,7 +109,8 @@ public class ReviewService {
             log.warn("[ReviewService] 리뷰 알림 전송 실패: {}", e.getMessage());
         }
 
-        return ReviewResponseDto.from(review, writer.getNickname(), product.getProductNo(), product.getTitle());
+        List<String> tagNames = reviewTagDefRepository.findTagNamesByReviewNo(review.getReviewNo());
+        return ReviewResponseDto.from(review, writer.getNickname(), product.getProductNo(), product.getTitle(), tagNames);
     }
 
     /**
@@ -126,7 +136,8 @@ public class ReviewService {
                             }
                         }
                     } catch (Exception ignored) {}
-                    return ReviewResponseDto.from(review, nickname, productNo, productTitle);
+                    List<String> tagNames = reviewTagDefRepository.findTagNamesByReviewNo(review.getReviewNo());
+                    return ReviewResponseDto.from(review, nickname, productNo, productTitle, tagNames);
                 }).toList();
     }
 
@@ -153,7 +164,8 @@ public class ReviewService {
                             }
                         }
                     } catch (Exception ignored) {}
-                    return ReviewResponseDto.from(review, writer.getNickname(), productNo, productTitle);
+                    List<String> tagNames = reviewTagDefRepository.findTagNamesByReviewNo(review.getReviewNo());
+                    return ReviewResponseDto.from(review, writer.getNickname(), productNo, productTitle, tagNames);
                 }).toList();
     }
 
@@ -165,8 +177,38 @@ public class ReviewService {
     }
 
     /**
-     * 리뷰 숨김 처리
-     * 수신자(판매자) 본인만 가능
+     * 현재 사용자의 해당 거래 역할 반환 (BUYER / SELLER)
+     */
+    public String getWriterRole(Long memberNo, Long resultNo) {
+        AuctionResult result = auctionResultRepository.findById(resultNo)
+                .orElseThrow(() -> new IllegalArgumentException("낙찰 결과를 찾을 수 없습니다."));
+        BidHistory bid = bidHistoryRepository.findById(result.getBidNo())
+                .orElseThrow(() -> new IllegalArgumentException("입찰 기록을 찾을 수 없습니다."));
+        Product product = productRepository.findById(bid.getProductNo())
+                .orElseThrow(() -> new IllegalArgumentException("상품 정보를 찾을 수 없습니다."));
+
+        if (memberNo.equals(bid.getMemberNo())) return "BUYER";
+        if (memberNo.equals(product.getSellerNo())) return "SELLER";
+        throw new IllegalStateException("해당 거래의 참여자가 아닙니다.");
+    }
+
+    /**
+     * 역할별 사용 가능한 태그 목록 반환
+     * role = "BUYER" → BUYER + ALL 태그
+     * role = "SELLER" → SELLER + ALL 태그
+     * role 미입력 → 전체 태그
+     */
+    public List<ReviewTagDefResponseDto> getAvailableTags(String role) {
+        if (role == null || role.isBlank()) {
+            return reviewTagDefRepository.findAll().stream()
+                    .map(ReviewTagDefResponseDto::from).toList();
+        }
+        return reviewTagDefRepository.findByApplicableRoleIn(List.of(role.toUpperCase(), "ALL"))
+                .stream().map(ReviewTagDefResponseDto::from).toList();
+    }
+
+    /**
+     * 리뷰 숨김 처리 (수신자 본인만 가능)
      */
     @Transactional
     public void hideReview(Long memberNo, Long reviewNo) {
@@ -179,5 +221,4 @@ public class ReviewService {
 
         review.setIsHidden(1);
     }
-
 }

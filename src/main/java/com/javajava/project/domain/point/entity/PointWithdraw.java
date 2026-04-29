@@ -40,9 +40,6 @@ public class PointWithdraw {
     @Column(name = "ADMIN_NO")
     private Long adminNo;
 
-    @Column(name = "ADMIN_NICKNAME", length = 15)
-    private String adminNickname;
-
     @Column(name = "REJECT_REASON", length = 200)
     private String rejectReason;
 

@@ -45,15 +45,10 @@ public class WithdrawAdminController {
             @RequestBody Map<String, String> body) {
 
         Long adminNo = getCurrentMemberNo();
-
-        // 관리자 닉네임 조회 (SecurityContext에 nickname이 없으면 memberNo로 조회 필요)
-        String adminNickname = body.getOrDefault("adminNickname", "관리자");
-
         withdrawAdminService.processWithdraw(
                 withdrawNo,
                 body.get("action"),
                 adminNo,
-                adminNickname,
                 body.get("rejectReason")
         );
         return ResponseEntity.ok().build();

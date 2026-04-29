@@ -27,8 +27,9 @@ public class Review {
     @Column(name = "TARGET_NO", nullable = false)
     private Long targetNo; // 리뷰 대상 회원번호 (FK - MEMBER 참조)
 
-    @Column(name = "TAGS", length = 500)
-    private String tags; // 태그 (콤마 구분, 예: "응답이 빨라요,친절하고 매너가 좋아요")
+    /** 작성자 역할: BUYER(구매자→판매자 후기), SELLER(판매자→구매자 후기) */
+    @Column(name = "WRITER_ROLE", nullable = false, length = 10)
+    private String writerRole;
 
     @Column(name = "CONTENT", length = 1000)
     private String content; // 후기내용 (선택)

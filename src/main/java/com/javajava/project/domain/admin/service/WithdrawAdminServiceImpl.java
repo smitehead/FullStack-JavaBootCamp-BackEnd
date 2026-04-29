@@ -38,16 +38,19 @@ public class WithdrawAdminServiceImpl implements WithdrawAdminService {
                 : pointWithdrawRepository.findByStatusOrderByCreatedAtDesc(status, pageable);
 
         return withdrawPage.map(w -> {
-            String nickname = memberRepository.findById(w.getMemberNo())
+            String memberNickname = memberRepository.findById(w.getMemberNo())
                     .map(Member::getNickname).orElse("알 수 없음");
-            return WithdrawAdminResponseDto.from(w, nickname);
+            String adminNickname = w.getAdminNo() != null
+                    ? memberRepository.findById(w.getAdminNo()).map(Member::getNickname).orElse(null)
+                    : null;
+            return WithdrawAdminResponseDto.from(w, memberNickname, adminNickname);
         });
     }
 
     @Override
     @Transactional
     public void processWithdraw(Long withdrawNo, String action,
-                                 Long adminNo, String adminNickname, String rejectReason) {
+                                 Long adminNo, String rejectReason) {
         PointWithdraw withdraw = pointWithdrawRepository.findById(withdrawNo)
                 .orElseThrow(() -> new IllegalArgumentException("출금 신청을 찾을 수 없습니다."));
 
@@ -56,7 +59,6 @@ public class WithdrawAdminServiceImpl implements WithdrawAdminService {
 
         withdraw.setStatus(action);
         withdraw.setAdminNo(adminNo);
-        withdraw.setAdminNickname(adminNickname);
         withdraw.setProcessedAt(LocalDateTime.now());
 
         if ("완료".equals(action)) {
@@ -86,7 +88,7 @@ public class WithdrawAdminServiceImpl implements WithdrawAdminService {
         // 거절은 포인트 차감 안 했으므로 환불도 없음
     }
 
-    log.info("[WithdrawAdmin] 처리 완료. withdrawNo={}, action={}, admin={}",
-            withdrawNo, action, adminNickname);
+    log.info("[WithdrawAdmin] 처리 완료. withdrawNo={}, action={}, adminNo={}",
+            withdrawNo, action, adminNo);
     }
 }
