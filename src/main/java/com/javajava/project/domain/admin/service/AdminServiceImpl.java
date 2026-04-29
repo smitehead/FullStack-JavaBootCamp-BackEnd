@@ -195,6 +195,12 @@ public class AdminServiceImpl implements AdminService {
 
         long previousPoints = member.getPoints();
         long newBalance = previousPoints + pointAmount;
+
+        if (newBalance < 0) {
+            throw new IllegalArgumentException(
+                "포인트가 부족합니다. 현재 보유: " + previousPoints + "P, 차감 요청: " + Math.abs(pointAmount) + "P");
+        }
+
         member.setPoints(newBalance);
 
         // 포인트 이력(PointHistory) 기록
