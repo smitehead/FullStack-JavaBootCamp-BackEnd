@@ -58,6 +58,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.HashSet;
 
 @Slf4j
 @Service
@@ -137,7 +138,6 @@ public class ProductServiceImpl implements ProductService {
                                                         : product.getTradeAddrDetail())
                                         .endTime(product.getEndTime())
                                         .status(product.getStatus()) // [수정] isActive → status
-                                        .mainImageUrl(imageUrl)
                                         .build();
                 }).toList();
         }
@@ -145,8 +145,7 @@ public class ProductServiceImpl implements ProductService {
         @Override
         public Page<ProductListResponseDto> getProductList(int page, int size, Long large, Long medium, Long small,
                         Long minPrice, Long maxPrice, String city, String district, String neighborhood,
-                        Boolean delivery, Boolean face, String sortOption, String keyword, Long memberNo) {
-
+                        Boolean delivery, Boolean face, Boolean buyoutOnly, String sortOption, String keyword, Long memberNo) {
                 // 리액트는 1페이지부터 보내므로 백엔드용(0-index)으로 보정
                 int pageNumber = page > 0 ? page - 1 : 0;
 
@@ -239,6 +238,11 @@ public class ProductServiceImpl implements ProductService {
                                 predicates.add(cb.in(root.get("tradeType")).value(Arrays.asList(TradeType.SHIPPING, TradeType.BOTH)));
                         else if (Boolean.TRUE.equals(face))
                                 predicates.add(cb.in(root.get("tradeType")).value(Arrays.asList(TradeType.DIRECT, TradeType.BOTH)));
+
+                        // 즉시 구매 가능 필터 추가
+                        if (Boolean.TRUE.equals(buyoutOnly)) {
+                                predicates.add(cb.isNotNull(root.get("buyoutPrice")));
+                        }
 
                         return cb.and(predicates.toArray(new Predicate[0]));
                 };
@@ -578,7 +582,7 @@ public class ProductServiceImpl implements ProductService {
                 java.util.Map<Long, Long> topBidderMap = new java.util.HashMap<>();
                 if (!activeProductNos.isEmpty()) {
                         bidHistoryRepository.findTopBidderByProductNos(activeProductNos)
-                                        .forEach(row -> topBidderMap.putIfAbsent((Long) row[0], (Long) row[1]));
+                                        .forEach(row -> topBidderMap.putIfAbsent(toLong(row[0]), toLong(row[1])));
                 }
 
                 List<ProductListResponseDto> dtos = toProductListDtosWithBidStatus(products, memberNo, wonProductNos, topBidderMap, auctionStatusMap);
@@ -799,7 +803,7 @@ public class ProductServiceImpl implements ProductService {
                 // 참여자 수 배치 조회
                 Map<Long, Long> participantCountMap = bidHistoryRepository
                                 .countDistinctParticipantsByProductNos(productNos).stream()
-                                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+                                .collect(Collectors.toMap(row -> toLong(row[0]), row -> toLong(row[1])));
 
                 return products.stream().map(product -> {
                         ProductImage mainImg = mainImageMap.get(product.getProductNo());
@@ -1000,14 +1004,14 @@ public class ProductServiceImpl implements ProductService {
                 }
 
                 List<Product> relatedProducts = new ArrayList<>();
-                java.util.Set<Long> excludeIds = new java.util.HashSet<>();
+                Set<Long> excludeIds = new HashSet<>();
                 excludeIds.add(productNo);
 
                 int targetSize = 12;
+                LocalDateTime now = LocalDateTime.now();
 
-                // 1순위: 소분류 일치
                 if (small != null) {
-                        List<Product> list = productRepository.findRelatedBySmallCategory(small, excludeIds, org.springframework.data.domain.PageRequest.of(0, targetSize));
+                        List<Product> list = productRepository.findRelatedBySmallCategory(small, excludeIds, now, PageRequest.of(0, targetSize));
                         relatedProducts.addAll(list);
                         list.forEach(p -> excludeIds.add(p.getProductNo()));
                 }
@@ -1016,7 +1020,7 @@ public class ProductServiceImpl implements ProductService {
                 if (medium != null && relatedProducts.size() < targetSize) {
                         int remain = targetSize - relatedProducts.size();
                         List<Product> list = productRepository.findRelatedByMediumCategory(
-                                        medium, medium * 100L, (medium + 1) * 100L, excludeIds, org.springframework.data.domain.PageRequest.of(0, remain));
+                                        medium, medium * 100L, (medium + 1) * 100L, excludeIds, now, PageRequest.of(0, remain));
                         relatedProducts.addAll(list);
                         list.forEach(p -> excludeIds.add(p.getProductNo()));
                 }
@@ -1025,7 +1029,7 @@ public class ProductServiceImpl implements ProductService {
                 if (large != null && relatedProducts.size() < targetSize) {
                         int remain = targetSize - relatedProducts.size();
                         List<Product> list = productRepository.findRelatedByLargeCategory(
-                                        large, large * 100L, (large + 1) * 100L, large * 10000L, (large + 1) * 10000L, excludeIds, org.springframework.data.domain.PageRequest.of(0, remain));
+                                        large, large * 100L, (large + 1) * 100L, large * 10000L, (large + 1) * 10000L, excludeIds, now, PageRequest.of(0, remain));
                         relatedProducts.addAll(list);
                 }
 
@@ -1139,10 +1143,10 @@ public class ProductServiceImpl implements ProductService {
                                         .build();
                 }).toList();
         }
-	private Long toLong(Object val) {
-		if (val == null) return null;
-		if (val instanceof Number) return ((Number) val).longValue();
-		if (val instanceof String) return Long.parseLong((String) val);
-		return null;
-	}
+        private Long toLong(Object val) {
+                if (val == null) return null;
+                if (val instanceof Number) return ((Number) val).longValue();
+                if (val instanceof String) return Long.parseLong((String) val);
+                return null;
+        }
 }
