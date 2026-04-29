@@ -11,8 +11,8 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     // 특정 회원이 받은 모든 리뷰 조회 (최신순)
     List<Review> findByTargetNoOrderByCreatedAtDesc(Long targetNo);
 
-    // 특정 회원이 작성한 리뷰 목록 조회
-    List<Review> findByWriterNo(Long writerNo);
+    // 특정 회원이 작성한 리뷰 목록 조회 (최신순)
+    List<Review> findByWriterNoOrderByCreatedAtDesc(Long writerNo);
 
     // 특정 낙찰 결과에 대한 리뷰 조회 (거래 1건당 리뷰 1개 원칙)
     Optional<Review> findByResultNo(Long resultNo);

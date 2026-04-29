@@ -14,6 +14,6 @@ public interface InquiryService {
     InquiryResponseDto getDetail(Long inquiryNo, Long memberNo);
     // 관리자
     Page<InquiryResponseDto> getAll(Integer status, int page, int size);
-    void answer(Long inquiryNo, Long adminNo, String adminNickname, InquiryAnswerDto dto);
+    void answer(Long inquiryNo, Long adminNo, InquiryAnswerDto dto);
     void delete(Long inquiryNo);
 }

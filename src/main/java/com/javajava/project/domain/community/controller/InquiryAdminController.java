@@ -3,8 +3,6 @@ package com.javajava.project.domain.community.controller;
 import com.javajava.project.domain.community.dto.InquiryAnswerDto;
 import com.javajava.project.domain.community.dto.InquiryResponseDto;
 import com.javajava.project.domain.community.service.InquiryService;
-import com.javajava.project.domain.member.entity.Member;
-import com.javajava.project.domain.member.repository.MemberRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -18,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 public class InquiryAdminController {
 
     private final InquiryService inquiryService;
-    private final MemberRepository memberRepository;
 
     private Long getCurrentMemberNo() {
         return (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -45,10 +42,7 @@ public class InquiryAdminController {
             @PathVariable Long inquiryNo,
             @Valid @RequestBody InquiryAnswerDto dto) {
         Long adminNo = getCurrentMemberNo();
-        Member admin = memberRepository.findById(adminNo)
-            .orElseThrow(() -> new IllegalArgumentException("관리자를 찾을 수 없습니다."));
-        
-        inquiryService.answer(inquiryNo, adminNo, admin.getNickname(), dto);
+        inquiryService.answer(inquiryNo, adminNo, dto);
         return ResponseEntity.ok().build();
     }
 

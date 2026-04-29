@@ -30,7 +30,7 @@ public class ProductQnaServiceImpl implements ProductQnaService {
     @Override
     @Transactional(readOnly = true)
     public List<ProductQnaResponseDto> getQnaList(Long productNo) {
-        List<ProductQna> qnas = productQnaRepository.findByProductNoOrderByCreatedAtAsc(productNo);
+        List<ProductQna> qnas = productQnaRepository.findByProductNoOrderByCreatedAtDesc(productNo);
 
         List<Long> memberNos = qnas.stream().map(ProductQna::getMemberNo).distinct().toList();
         Map<Long, String> nicknameMap = memberRepository.findAllById(memberNos).stream()

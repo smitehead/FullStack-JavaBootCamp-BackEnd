@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface ProductQnaRepository extends JpaRepository<ProductQna, Long> {
 
-    List<ProductQna> findByProductNoOrderByCreatedAtAsc(Long productNo);
+    List<ProductQna> findByProductNoOrderByCreatedAtDesc(Long productNo);
 
     long countByProductNo(Long productNo);
 }

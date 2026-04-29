@@ -88,18 +88,26 @@ public class InquiryServiceImpl implements InquiryService {
             result = inquiryRepository.findByMemberNoOrderByCreatedAtDesc(memberNo, pageable);
         }
 
-        return result.map(i -> enrichWithImages(InquiryResponseDto.from(i,
-                memberRepository.findById(i.getMemberNo())
-                        .map(Member::getNickname).orElse("알 수 없음"))));
+        return result.map(i -> {
+            String memberNickname = memberRepository.findById(i.getMemberNo())
+                    .map(Member::getNickname).orElse("알 수 없음");
+            String adminNickname = i.getAdminNo() != null
+                    ? memberRepository.findById(i.getAdminNo()).map(Member::getNickname).orElse(null)
+                    : null;
+            return enrichWithImages(InquiryResponseDto.from(i, memberNickname, adminNickname));
+        });
     }
 
     @Override
     public InquiryResponseDto getDetail(Long inquiryNo, Long memberNo) {
         Inquiry inquiry = inquiryRepository.findById(inquiryNo)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 문의입니다."));
-        String nick = memberRepository.findById(inquiry.getMemberNo())
+        String memberNickname = memberRepository.findById(inquiry.getMemberNo())
                 .map(Member::getNickname).orElse("알 수 없음");
-        return enrichWithImages(InquiryResponseDto.from(inquiry, nick));
+        String adminNickname = inquiry.getAdminNo() != null
+                ? memberRepository.findById(inquiry.getAdminNo()).map(Member::getNickname).orElse(null)
+                : null;
+        return enrichWithImages(InquiryResponseDto.from(inquiry, memberNickname, adminNickname));
     }
 
     @Override
@@ -108,9 +116,14 @@ public class InquiryServiceImpl implements InquiryService {
         Page<Inquiry> result = (status == null)
                 ? inquiryRepository.findAllByOrderByCreatedAtDesc(pageable)
                 : inquiryRepository.findByStatusOrderByCreatedAtDesc(status, pageable);
-        return result.map(i -> enrichWithImages(InquiryResponseDto.from(i,
-                memberRepository.findById(i.getMemberNo())
-                        .map(Member::getNickname).orElse("알 수 없음"))));
+        return result.map(i -> {
+            String memberNickname = memberRepository.findById(i.getMemberNo())
+                    .map(Member::getNickname).orElse("알 수 없음");
+            String adminNickname = i.getAdminNo() != null
+                    ? memberRepository.findById(i.getAdminNo()).map(Member::getNickname).orElse(null)
+                    : null;
+            return enrichWithImages(InquiryResponseDto.from(i, memberNickname, adminNickname));
+        });
     }
 
     /** 문의 응답 DTO에 첨부 이미지 URL 세팅 */
@@ -125,7 +138,7 @@ public class InquiryServiceImpl implements InquiryService {
 
     @Override
     @Transactional
-    public void answer(Long inquiryNo, Long adminNo, String adminNickname, InquiryAnswerDto dto) {
+    public void answer(Long inquiryNo, Long adminNo, InquiryAnswerDto dto) {
         Inquiry inquiry = inquiryRepository.findById(inquiryNo)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 문의입니다."));
 
@@ -133,7 +146,6 @@ public class InquiryServiceImpl implements InquiryService {
         inquiry.setStatus(1);
         inquiry.setAnsweredAt(LocalDateTime.now());
         inquiry.setAdminNo(adminNo);
-        inquiry.setAdminNickname(adminNickname);
 
         // 사용자에게 답변 완료 알림 전송
         try {

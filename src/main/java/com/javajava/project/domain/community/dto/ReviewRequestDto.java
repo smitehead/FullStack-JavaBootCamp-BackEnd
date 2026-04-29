@@ -15,9 +15,7 @@ public class ReviewRequestDto {
     @NotNull(message = "낙찰 결과 번호는 필수입니다.")
     private Long resultNo;
 
-    private List<String> tags; // 태그 목록 (선택)
+    private List<Long> tagIds; // 선택한 태그 ID 목록 (REVIEW_TAG_DEF.TAG_ID)
 
     private String content; // 후기 내용 (선택)
-
-    private String role; // 작성자 역할: "buyer" | "seller" (선택, 서버에서 재검증)
 }

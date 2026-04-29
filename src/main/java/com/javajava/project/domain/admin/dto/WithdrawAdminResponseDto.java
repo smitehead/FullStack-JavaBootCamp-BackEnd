@@ -20,7 +20,7 @@ public class WithdrawAdminResponseDto {
     private LocalDateTime createdAt;
     private LocalDateTime processedAt;
 
-    public static WithdrawAdminResponseDto from(PointWithdraw w, String memberNickname) {
+    public static WithdrawAdminResponseDto from(PointWithdraw w, String memberNickname, String adminNickname) {
         return WithdrawAdminResponseDto.builder()
                 .withdrawNo(w.getWithdrawNo())
                 .memberNo(w.getMemberNo())
@@ -30,7 +30,7 @@ public class WithdrawAdminResponseDto {
                 .accountNumber(w.getAccountNumber())
                 .accountHolder(w.getAccountHolder())
                 .status(w.getStatus())
-                .adminNickname(w.getAdminNickname())
+                .adminNickname(adminNickname)
                 .rejectReason(w.getRejectReason())
                 .createdAt(w.getCreatedAt())
                 .processedAt(w.getProcessedAt())

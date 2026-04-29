@@ -25,11 +25,11 @@ public class InquiryResponseDto {
     private String adminNickname;
     private List<String> imageUrls; // 첨부 이미지 URL 목록
 
-    public static InquiryResponseDto from(Inquiry i, String nickname) {
+    public static InquiryResponseDto from(Inquiry i, String memberNickname, String adminNickname) {
         return InquiryResponseDto.builder()
                 .inquiryNo(i.getInquiryNo())
                 .memberNo(i.getMemberNo())
-                .memberNickname(nickname)
+                .memberNickname(memberNickname)
                 .type(i.getType())
                 .bugType(i.getBugType())
                 .title(i.getTitle())
@@ -39,7 +39,7 @@ public class InquiryResponseDto {
                 .answeredAt(i.getAnsweredAt())
                 .createdAt(i.getCreatedAt())
                 .adminNo(i.getAdminNo())
-                .adminNickname(i.getAdminNickname())
+                .adminNickname(adminNickname)
                 .build();
     }
 }

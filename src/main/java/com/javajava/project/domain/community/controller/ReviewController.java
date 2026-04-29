@@ -2,6 +2,7 @@ package com.javajava.project.domain.community.controller;
 
 import com.javajava.project.domain.community.dto.ReviewRequestDto;
 import com.javajava.project.domain.community.dto.ReviewResponseDto;
+import com.javajava.project.domain.community.dto.ReviewTagDefResponseDto;
 import com.javajava.project.domain.community.service.ReviewService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -62,6 +63,29 @@ public class ReviewController {
         Long memberNo = getMemberNo(authentication);
         boolean exists = reviewService.existsByResultNoAndWriterNo(resultNo, memberNo);
         return ResponseEntity.ok(Map.of("exists", exists));
+    }
+
+    /**
+     * 현재 사용자의 해당 거래 역할 조회 (BUYER / SELLER)
+     * GET /api/reviews/role?resultNo={resultNo}
+     */
+    @GetMapping("/role")
+    public ResponseEntity<Map<String, String>> getRole(
+            Authentication authentication,
+            @RequestParam Long resultNo) {
+        Long memberNo = getMemberNo(authentication);
+        String role = reviewService.getWriterRole(memberNo, resultNo);
+        return ResponseEntity.ok(Map.of("role", role));
+    }
+
+    /**
+     * 역할별 사용 가능한 태그 목록 조회
+     * GET /api/reviews/tags?role=BUYER  (BUYER / SELLER / 미입력 = 전체)
+     */
+    @GetMapping("/tags")
+    public ResponseEntity<List<ReviewTagDefResponseDto>> getTags(
+            @RequestParam(required = false) String role) {
+        return ResponseEntity.ok(reviewService.getAvailableTags(role));
     }
 
     /**
