@@ -136,7 +136,7 @@ public class ReviewService {
     public List<ReviewResponseDto> getMyReviews(Long writerNo) {
         Member writer = memberRepository.findById(writerNo)
                 .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
-        return reviewRepository.findByWriterNo(writerNo).stream()
+        return reviewRepository.findByWriterNoOrderByCreatedAtDesc(writerNo).stream()
                 .map(review -> {
                     Long productNo = null;
                     String productTitle = null;
