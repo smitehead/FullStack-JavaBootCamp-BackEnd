@@ -13,6 +13,8 @@ import com.javajava.project.domain.point.entity.PointHistory;
 import com.javajava.project.domain.point.entity.PointHistoryType;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
 import com.javajava.project.domain.product.entity.Product;
+import com.javajava.project.domain.product.entity.ProductImage;
+import com.javajava.project.domain.product.repository.ProductImageRepository;
 import com.javajava.project.domain.product.repository.ProductRepository;
 import com.javajava.project.global.sse.SseService;
 import lombok.RequiredArgsConstructor;
@@ -67,6 +69,7 @@ public class BidCancelService {
     private final MemberRepository memberRepository;
     private final PointHistoryRepository pointHistoryRepository;
     private final PlatformRevenueRepository platformRevenueRepository;
+    private final ProductImageRepository productImageRepository;
     private final SseService sseService;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -301,8 +304,12 @@ public class BidCancelService {
 
         final Long finalSuccessorNo = successorBidderNo;
         final long finalNewPrice = newPrice;
+        final String title = product.getTitle();
+        ProductImage mainImg = productImageRepository.findFirstByProductNoAndIsMainOrderByImageNoAsc(productNo, 1);
+        final String imageUrl = (mainImg != null) ? "/api/images/" + mainImg.getUuidName() : "";
+
         try {
-            sseService.broadcastBidCancelled(productNo, finalNewPrice, finalSuccessorNo);
+            sseService.broadcastBidCancelled(productNo, finalNewPrice, finalSuccessorNo, title, imageUrl);
         } catch (Exception e) {
             log.warn("[BidCancel] 가격 하락 SSE 브로드캐스트 실패: {}", e.getMessage());
         }

@@ -136,13 +136,17 @@ public class SseService {
      * @param productNo         상품 번호
      * @param newPrice          차순위 입찰가 (2등 가격). 2등이 없으면 시작가.
      * @param successorBidderNo 차순위 입찰자 memberNo. 없으면 null.
+     * @param title             상품 제목
+     * @param imageUrl          상품 대표 이미지 URL
      */
-    public void broadcastBidCancelled(Long productNo, Long newPrice, Long successorBidderNo) {
+    public void broadcastBidCancelled(Long productNo, Long newPrice, Long successorBidderNo, String title, String imageUrl) {
         Map<String, Object> data = new HashMap<>();
         data.put("productNo", productNo);
         data.put("currentPrice", newPrice);
         data.put("bidderNo", successorBidderNo);
         data.put("bidCancelled", true);
+        data.put("title", title);
+        data.put("imageUrl", imageUrl);
         emitterMap.forEach((clientId, emitter) ->
             sendSafe(clientId, emitter, SseEmitter.event().name("priceUpdate").data(data))
         );
