@@ -37,4 +37,7 @@ public class ChatRoomListDto {
 
     // 약속 일시
     private LocalDateTime appointmentAt;
+
+    // 신규 생성 여부 (true: 방금 생성된 방, false: 기존 방)
+    private Boolean isNew;
 }

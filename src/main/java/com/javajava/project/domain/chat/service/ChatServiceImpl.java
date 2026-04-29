@@ -47,7 +47,9 @@ public class ChatServiceImpl implements ChatService {
                     } else if (myNo.equals(existingRoom.getSellerNo()) && existingRoom.getSellerLeft() == 1) {
                         existingRoom.setSellerLeft(0);
                     }
-                    return buildRoomListDto(existingRoom, myNo);
+                    ChatRoomListDto dto = buildRoomListDto(existingRoom, myNo);
+                    dto.setIsNew(false);
+                    return dto;
                 })
                 .orElseGet(() -> {
                     // 2) 없으면 새로 생성
@@ -58,7 +60,9 @@ public class ChatServiceImpl implements ChatService {
                                 .productNo(request.getProductNo())
                                 .build();
                         chatRoomRepository.save(newRoom);
-                        return buildRoomListDto(newRoom, myNo);
+                        ChatRoomListDto dto = buildRoomListDto(newRoom, myNo);
+                        dto.setIsNew(true);
+                        return dto;
                     } catch (DataIntegrityViolationException e) {
                         // 동시 요청 대응
                         ChatRoom room = chatRoomRepository
@@ -66,11 +70,13 @@ public class ChatServiceImpl implements ChatService {
                                         request.getBuyerNo(), request.getSellerNo(),
                                         request.getProductNo(), "ACTIVE")
                                 .orElseThrow(() -> new IllegalStateException("채팅방 생성에 실패했습니다."));
-                        
+
                         if (myNo.equals(room.getBuyerNo())) room.setBuyerLeft(0);
                         else if (myNo.equals(room.getSellerNo())) room.setSellerLeft(0);
-                        
-                        return buildRoomListDto(room, myNo);
+
+                        ChatRoomListDto dto = buildRoomListDto(room, myNo);
+                        dto.setIsNew(false);
+                        return dto;
                     }
                 });
     }
