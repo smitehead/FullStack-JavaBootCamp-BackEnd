@@ -17,6 +17,9 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     // 특정 낙찰 결과에 대한 리뷰 조회 (거래 1건당 리뷰 1개 원칙)
     Optional<Review> findByResultNo(Long resultNo);
 
+    // 특정 낙찰 결과에 대한 리뷰 존재 여부 (중복 레코드 있어도 안전)
+    boolean existsByResultNo(Long resultNo);
+
     // 특정 작성자가 해당 거래에 이미 후기를 작성했는지 확인
     boolean existsByResultNoAndWriterNo(Long resultNo, Long writerNo);
 

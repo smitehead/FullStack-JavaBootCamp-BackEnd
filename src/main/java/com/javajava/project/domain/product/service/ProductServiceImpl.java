@@ -667,7 +667,7 @@ public class ProductServiceImpl implements ProductService {
                 Map<Long, Boolean> hasReviewMap = new HashMap<>();
                 for (Map.Entry<Long, Long> entry : resultNoMap.entrySet()) {
                         hasReviewMap.put(entry.getKey(),
-                                        reviewRepository.findByResultNo(entry.getValue()).isPresent());
+                                        reviewRepository.existsByResultNo(entry.getValue()));
                 }
 
                 return toPage(toProductListDtosWithReview(confirmedProducts, memberNo, resultNoMap, hasReviewMap), page, size);
