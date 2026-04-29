@@ -101,6 +101,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleException(Exception ex) {
         log.error("[500] 처리되지 않은 예외: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", ex.getClass().getSimpleName() + ": " + ex.getMessage()));
+                .body(Map.of("error", "서버 오류가 발생했습니다."));
     }
 }
