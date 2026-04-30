@@ -19,17 +19,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class EmailService {
 
     private final JavaMailSender mailSender;
-    private final MemberRepository memberRepository; // ⭐ DB 조회용 레포지토리 의존성 주입
+    private final MemberRepository memberRepository;
 
     // 이메일 → {인증번호, 만료시각} 저장 (서버 메모리)
     private final Map<String, CodeEntry> codeStore = new ConcurrentHashMap<>();
 
     private static final int EXPIRE_MINUTES = 3;
 
-    /**
-     * ⭐ [신규 추가] 컨트롤러에서는 이제 이 메서드를 호출해야 함!
-     * 메일 발송 전 이메일 중복 검증 (동기 처리)
-     */
     public void checkDuplicateAndSendCode(String email) throws MessagingException {
         // 아까 수정한 레포지토리 메서드 호출 (isActive=1 인 현역 회원만 검사)
         if (memberRepository.existsByEmail(email)) {
