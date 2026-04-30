@@ -1,5 +1,6 @@
 package com.javajava.project.domain.member.service;
 
+import com.javajava.project.domain.member.repository.MemberRepository; // ⭐ 이거 추가됨
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -18,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class EmailService {
 
     private final JavaMailSender mailSender;
+    private final MemberRepository memberRepository; // ⭐ DB 조회용 레포지토리 의존성 주입
 
     // 이메일 → {인증번호, 만료시각} 저장 (서버 메모리)
     private final Map<String, CodeEntry> codeStore = new ConcurrentHashMap<>();
@@ -25,7 +27,22 @@ public class EmailService {
     private static final int EXPIRE_MINUTES = 3;
 
     /**
+     * ⭐ [신규 추가] 컨트롤러에서는 이제 이 메서드를 호출해야 함!
+     * 메일 발송 전 이메일 중복 검증 (동기 처리)
+     */
+    public void checkDuplicateAndSendCode(String email) throws MessagingException {
+        // 아까 수정한 레포지토리 메서드 호출 (isActive=1 인 현역 회원만 검사)
+        if (memberRepository.existsByEmail(email)) {
+            throw new IllegalStateException("이미 가입된 이메일입니다.");
+        }
+        
+        // 검증 통과하면 아래 비동기 메일 발송 로직 실행
+        sendVerificationCode(email);
+    }
+
+    /**
      * 6자리 인증번호 생성 후 이메일 발송
+     * (외부 직접 호출 방지를 위해 가급적 protected나 private으로 두는 게 좋음, 일단 냅둠)
      */
     @Async
     public void sendVerificationCode(String email) throws MessagingException {
@@ -50,7 +67,6 @@ public class EmailService {
 
     /**
      * 인증번호 검증
-     * @return true: 인증 성공 / false: 틀리거나 만료
      */
     public boolean verifyCode(String email, String code) {
         CodeEntry entry = codeStore.get(email);
