@@ -136,12 +136,9 @@ public class MemberServiceImpl implements MemberService {
             // 입찰 상태 정보 조회 (조회자가 있는 경우)
             Map<Long, String> viewerBidStatusMap = new HashMap<>();
             if (viewerNo != null) {
-                // 1. 해당 상품들에 대한 조회자의 모든 입찰 조회
                 List<BidHistory> viewerBids = bidHistoryRepository.findByMemberNoAndProductNoIn(viewerNo, productNos);
                 Set<Long> bidProductNos = viewerBids.stream().map(BidHistory::getProductNo).collect(Collectors.toSet());
                 
-                // 2. 낙찰 결과 직접 조회 (viewerNo가 낙찰자인 경우)
-                // bidHistoryNos 추출
                 List<Long> bidHistoryNos = viewerBids.stream().map(BidHistory::getBidNo).toList();
                 Set<Long> wonBidNos = auctionResultRepository.findByBidNos(bidHistoryNos).stream()
                         .map(AuctionResult::getBidNo)
@@ -159,7 +156,6 @@ public class MemberServiceImpl implements MemberService {
                     if (wonProductNos.contains(pNo)) {
                         viewerBidStatusMap.put(pNo, "won");
                     } else if (bidProductNos.contains(pNo)) {
-                        // 경매 종료 여부에 따라 lost 또는 bidding
                         Product p = products.stream().filter(prod -> prod.getProductNo().equals(pNo)).findFirst().orElse(null);
                         boolean isFinished = p != null && (p.getEndTime().isBefore(LocalDateTime.now()) || p.getStatus() != 0);
                         viewerBidStatusMap.put(pNo, isFinished ? "lost" : "bidding");
@@ -225,7 +221,6 @@ public class MemberServiceImpl implements MemberService {
         Member member = memberRepository.findById(memberNo)
                 .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
 
-        // 닉네임 변경 시 중복 확인
         if (!member.getNickname().equals(dto.getNickname())
                 && memberRepository.existsByNickname(dto.getNickname())) {
             throw new IllegalStateException("이미 사용 중인 닉네임입니다.");
@@ -286,12 +281,20 @@ public class MemberServiceImpl implements MemberService {
             throw new IllegalStateException("진행 중인 경매가 있어 탈퇴할 수 없습니다.");
         }
 
+        // ⭐ [핵심 추가 로직] DB 유니크 제약조건 회피 & 탈퇴 유저 정보 재사용 방지를 위한 쓰레기값 처리 ⭐
+        String deletedSuffix = "_deleted_" + System.currentTimeMillis();
+        
+        member.setUserId(member.getUserId() + deletedSuffix);
+        member.setEmail(member.getEmail() + deletedSuffix);
+        member.setNickname(member.getNickname() + deletedSuffix);
+
+        // 상태값 변경
         member.setIsActive(0);
         member.setWithdrawReason(dto.getReason());
         member.setWithdrawnAt(LocalDateTime.now());
         member.setCurrentToken(null); // 토큰 무효화
 
-        log.info("[Member] 회원 탈퇴. memberNo={}", memberNo);
+        log.info("[Member] 회원 탈퇴. memberNo={}, 훼손된 계정ID={}", memberNo, member.getUserId());
     }
 
     @Override
@@ -345,7 +348,7 @@ public class MemberServiceImpl implements MemberService {
     @Override
     @Transactional
     public void blockUser(Long memberNo, Long targetMemberNo) {
-        // ... 생략 (Controller에서 직접 구현되어 있을 수 있음)
+        // ... 생략
     }
 
     @Override
