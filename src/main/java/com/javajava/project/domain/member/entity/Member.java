@@ -21,16 +21,16 @@ public class Member {
     @Column(name = "MEMBER_NO")
     private Long memberNo;
 
-    @Column(name = "USER_ID", nullable = false, unique = true, length = 20)
+    @Column(name = "USER_ID", nullable = false, length = 20)
     private String userId;
 
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false, unique = true, length = 15)
+    @Column(nullable = false, length = 15)
     private String nickname;
 
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(nullable = false, length = 50)
     private String email;
 
     @Column(name = "PHONE_NUM", nullable = false, length = 15)
