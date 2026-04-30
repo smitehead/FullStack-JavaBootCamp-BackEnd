@@ -73,7 +73,7 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public List<AdminMemberResponseDto> getAllMembers() {
-        return memberRepository.findAllByOrderByJoinedAtDesc()
+        return memberRepository.findByIsActiveOrderByJoinedAtDesc(1)
                 .stream()
                 .map(m -> {
                     AdminMemberResponseDto dto = AdminMemberResponseDto.from(m);

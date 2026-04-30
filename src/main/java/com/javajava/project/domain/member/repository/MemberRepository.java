@@ -11,12 +11,12 @@ import org.springframework.data.jpa.repository.Lock;
 
 public interface MemberRepository extends JpaRepository<Member, Long> {
 
-    // 관리자용: 전체 회원 목록 (가입일 최신순)
-    List<Member> findAllByOrderByJoinedAtDesc();
+    // 관리자용: 활성 회원 목록 (가입일 최신순, 탈퇴 회원 제외)
+    List<Member> findByIsActiveOrderByJoinedAtDesc(Integer isActive);
 
-    // 관리자용: 닉네임 또는 이메일로 검색
-    @Query("SELECT m FROM Member m WHERE LOWER(m.nickname) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-           "OR LOWER(m.email) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY m.joinedAt DESC")
+    // 관리자용: 닉네임 또는 이메일로 검색 (탈퇴 회원 제외)
+    @Query("SELECT m FROM Member m WHERE m.isActive = 1 AND (LOWER(m.nickname) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "OR LOWER(m.email) LIKE LOWER(CONCAT('%', :keyword, '%'))) ORDER BY m.joinedAt DESC")
     List<Member> searchByKeyword(@Param("keyword") String keyword);
 
     // 닉네임으로 회원 조회
