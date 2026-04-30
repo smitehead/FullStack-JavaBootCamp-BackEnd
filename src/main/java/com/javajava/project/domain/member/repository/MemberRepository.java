@@ -28,15 +28,17 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     Optional<Member> findByIdWithLock(@Param("memberNo") Long memberNo);
 
     // Oracle 11g는 FETCH FIRST 문법 미지원 → COUNT 기반 커스텀 쿼리로 대체
-    @Query("SELECT COUNT(m) > 0 FROM Member m WHERE m.userId = :userId")
+    // [수정 완료] 탈퇴한 회원(isActive=0)은 중복 검사에서 제외
+    @Query("SELECT COUNT(m) > 0 FROM Member m WHERE m.userId = :userId AND m.isActive = 1")
     boolean existsByUserId(@Param("userId") String userId);
 
-    @Query("SELECT COUNT(m) > 0 FROM Member m WHERE m.nickname = :nickname")
+    @Query("SELECT COUNT(m) > 0 FROM Member m WHERE m.nickname = :nickname AND m.isActive = 1")
     boolean existsByNickname(@Param("nickname") String nickname);
 
-    @Query("SELECT COUNT(m) > 0 FROM Member m WHERE m.email = :email")
+    @Query("SELECT COUNT(m) > 0 FROM Member m WHERE m.email = :email AND m.isActive = 1")
     boolean existsByEmail(@Param("email") String email);
 
+    // 아래 조회용 메서드들도 필요에 따라 isActive=1 조건을 추가하는 것을 권장함
     Optional<Member> findByEmail(String email);
 
     Optional<Member> findByUserIdAndEmail(String userId, String email);
