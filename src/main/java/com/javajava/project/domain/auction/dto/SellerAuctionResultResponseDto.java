@@ -14,6 +14,7 @@ public class SellerAuctionResultResponseDto {
     private String status; // 배송대기 | 취소요청 | 결제완료 | 구매확정 | 거래취소
 
     private LocalDateTime confirmedAt;
+    private LocalDateTime endTime;     // 경매 종료(낙찰) 시각
 
     // 상품 정보
     private Long productNo;

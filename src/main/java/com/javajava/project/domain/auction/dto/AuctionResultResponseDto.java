@@ -12,6 +12,7 @@ public class AuctionResultResponseDto {
     private Long resultNo; // 낙찰 결과 번호
     private String status; // 거래 상태 (배송대기, 구매확정 등)
     private LocalDateTime confirmedAt; // 구매 확정 시각
+    private LocalDateTime endTime;     // 경매 종료(낙찰) 시각
 
     // 상품 정보
     private Long productNo;
