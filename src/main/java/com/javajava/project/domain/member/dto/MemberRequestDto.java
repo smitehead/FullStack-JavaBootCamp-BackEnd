@@ -19,13 +19,15 @@ public class MemberRequestDto {
     @Pattern(regexp = "^[a-zA-Z0-9]+$", message = "아이디는 영문+숫자 조합만 가능합니다.")
     private String userId;
 
-    // 비밀번호: 8~20자 (서비스 레이어에서 BCrypt로 암호화됨)
+    // 비밀번호: 8~20자, 공백 불허 (서비스 레이어에서 BCrypt로 암호화됨)
     @NotBlank(message = "비밀번호는 필수입니다.")
     @Size(min = 8, max = 20, message = "비밀번호는 8~20자여야 합니다.")
+    @Pattern(regexp = "^\\S+$", message = "비밀번호에 공백은 허용되지 않습니다.")
     private String password;
 
     @NotBlank(message = "닉네임은 필수입니다.")
     @Size(min = 2, max = 10, message = "닉네임은 2~10자여야 합니다.")
+    @Pattern(regexp = "^\\S+$", message = "닉네임에 공백은 허용되지 않습니다.")
     private String nickname;
 
     @NotBlank(message = "이메일은 필수입니다.")
