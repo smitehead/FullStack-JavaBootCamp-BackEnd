@@ -14,11 +14,11 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class MemberScheduler {
 
-    private static final int ARCHIVE_AFTER_DAYS = 0; // TODO: 테스트 후 30으로 복원
+    private static final int ARCHIVE_AFTER_DAYS = 30;
 
     private final MemberRepository memberRepository;
 
-    @Scheduled(cron = "0 * * * * *") // TODO: 테스트 후 "0 0 3 * * *" 으로 복원
+    @Scheduled(cron = "0 0 3 * * *")
     @Transactional
     public void archiveWithdrawnMembers() {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(ARCHIVE_AFTER_DAYS);
