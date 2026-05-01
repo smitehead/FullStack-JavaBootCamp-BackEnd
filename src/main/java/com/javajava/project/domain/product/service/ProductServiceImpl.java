@@ -30,6 +30,8 @@ import com.javajava.project.domain.member.entity.MannerHistory;
 import com.javajava.project.domain.member.repository.MannerHistoryRepository;
 import com.javajava.project.domain.point.entity.PointHistory;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
+import com.javajava.project.domain.platform.entity.PlatformRevenue;
+import com.javajava.project.domain.platform.repository.PlatformRevenueRepository;
 import com.javajava.project.domain.bid.entity.AutoBid;
 import com.javajava.project.domain.bid.repository.AutoBidRepository;
 import com.javajava.project.domain.community.repository.ReviewRepository;
@@ -81,6 +83,7 @@ public class ProductServiceImpl implements ProductService {
         private final AutoBidRepository autoBidRepository;
         private final SseService sseService;
         private final ReviewRepository reviewRepository;
+        private final PlatformRevenueRepository platformRevenueRepository;
 
         @Override
         @Transactional
@@ -913,6 +916,12 @@ public class ProductServiceImpl implements ProductService {
                                         .amount(-penalty)
                                         .balance(seller.getPoints())
                                         .reason("[" + product.getTitle() + "] 경매 취소 패널티")
+                                        .build());
+                        platformRevenueRepository.save(PlatformRevenue.builder()
+                                        .amount(penalty)
+                                        .reason("상품 등록 취소 위약금")
+                                        .sourceMemberNo(memberNo)
+                                        .relatedProductNo(productNo)
                                         .build());
                         try { sseService.sendPointUpdate(memberNo, seller.getPoints()); }
                         catch (Exception e) { log.warn("[AuctionCancel] 판매자 포인트 SSE 실패: {}", e.getMessage()); }
