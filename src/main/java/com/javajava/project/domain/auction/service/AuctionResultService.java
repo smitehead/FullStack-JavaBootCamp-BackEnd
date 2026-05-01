@@ -15,6 +15,9 @@ public interface AuctionResultService {
     // 기존 '결제완료' 상태 주문과의 하위 호환을 위해 결제완료 → 구매확정도 처리.
     void confirmPurchase(Long resultNo, Long memberNo, String address, String addressDetail);
 
+    // 7일 경과 자동 구매 확정 (스케줄러 전용 — 소유자 검증 없음)
+    void autoConfirmPurchase(Long resultNo);
+
     // 강제 승계 낙찰자 단독 취소 (isForcePromoted=1, 패널티 없음)
     void cancelTransaction(Long resultNo, Long memberNo);
 

@@ -594,6 +594,86 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         log.info("[AuctionResult] 판매자 배송지 업데이트: productNo={}, sellerNo={}", productNo, sellerNo);
     }
 
+    // ────────────────────────────────────────────────────────────────────────────
+    // 7일 경과 자동 구매 확정 (스케줄러 전용)
+    // ────────────────────────────────────────────────────────────────────────────
+    @Override
+    @Transactional
+    public void autoConfirmPurchase(Long resultNo) {
+        AuctionResult result = auctionResultRepository.findById(resultNo)
+                .orElseThrow(() -> new IllegalArgumentException("AuctionResult를 찾을 수 없습니다: " + resultNo));
+
+        if (!AuctionResultStatus.AWAITING_SHIPMENT.equals(result.getStatus())) {
+            log.info("[AutoConfirm] resultNo={} 이미 처리됨 (status={}), 건너뜁니다.", resultNo, result.getStatus());
+            return;
+        }
+
+        BidHistory bid = bidHistoryRepository.findById(result.getBidNo())
+                .orElseThrow(() -> new IllegalArgumentException("입찰 기록을 찾을 수 없습니다. bidNo=" + result.getBidNo()));
+        Product product = productRepository.findById(bid.getProductNo())
+                .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. productNo=" + bid.getProductNo()));
+        Member seller = memberRepository.findById(product.getSellerNo())
+                .orElseThrow(() -> new IllegalArgumentException("판매자를 찾을 수 없습니다. sellerNo=" + product.getSellerNo()));
+        Member buyer = memberRepository.findById(bid.getMemberNo())
+                .orElseThrow(() -> new IllegalArgumentException("구매자를 찾을 수 없습니다. memberNo=" + bid.getMemberNo()));
+
+        double feeRate = FeePolicy.rateFor(product.getTradeType());
+        String feeLabel = FeePolicy.labelFor(product.getTradeType());
+        long fee = Math.round(bid.getBidPrice() * feeRate);
+        long settlementAmount = bid.getBidPrice() - fee;
+
+        seller.chargePoints(settlementAmount);
+        pointHistoryRepository.save(PointHistory.builder()
+                .memberNo(seller.getMemberNo())
+                .type(PointHistoryType.SETTLEMENT)
+                .amount(settlementAmount)
+                .balance(seller.getPoints())
+                .reason("[" + product.getTitle() + "] 판매 정산금 (수수료 " + feeLabel + " 제외) — 7일 자동 구매 확정")
+                .build());
+
+        platformRevenueRepository.save(PlatformRevenue.builder()
+                .amount(fee)
+                .reason("낙찰 수수료 (플랫폼 이용료)")
+                .sourceMemberNo(seller.getMemberNo())
+                .relatedProductNo(product.getProductNo())
+                .build());
+
+        result.setStatus(AuctionResultStatus.PURCHASE_CONFIRMED);
+        result.setConfirmedAt(LocalDateTime.now());
+        product.markCompleted();
+
+        buyer.setMannerTemp(Math.min(100.0, buyer.getMannerTemp() + 0.2));
+        seller.setMannerTemp(Math.min(100.0, seller.getMannerTemp() + 0.2));
+
+        try {
+            sseService.sendPointUpdate(seller.getMemberNo(), seller.getPoints());
+        } catch (Exception e) {
+            log.warn("[AutoConfirm] 판매자 포인트 SSE 실패 (resultNo={}): {}", resultNo, e.getMessage());
+        }
+
+        try {
+            notificationService.sendAndSaveNotification(
+                    seller.getMemberNo(), "activity",
+                    "[" + product.getTitle() + "] 상품이 7일 자동 구매 확정되어 "
+                            + String.format("%,d", settlementAmount) + "P가 정산되었습니다.",
+                    "/products/" + product.getProductNo());
+        } catch (Exception e) {
+            log.warn("[AutoConfirm] 판매자 알림 실패 (resultNo={}): {}", resultNo, e.getMessage());
+        }
+
+        try {
+            notificationService.sendAndSaveNotification(
+                    buyer.getMemberNo(), "activity",
+                    "상품을 받으셨나요? [" + product.getTitle() + "] 거래에 대한 후기를 남겨주세요!",
+                    "/review/" + resultNo);
+        } catch (Exception e) {
+            log.warn("[AutoConfirm] 구매자 후기 권장 알림 실패 (resultNo={}): {}", resultNo, e.getMessage());
+        }
+
+        log.info("[AutoConfirm] 자동 구매 확정 완료: resultNo={}, buyerNo={}, sellerNo={}, price={}P, settlement={}P",
+                resultNo, buyer.getMemberNo(), seller.getMemberNo(), bid.getBidPrice(), settlementAmount);
+    }
+
     /**
          * AuctionResult를 조회하고 낙찰자 본인인지 검증
          */

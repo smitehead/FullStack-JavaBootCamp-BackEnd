@@ -70,8 +70,8 @@ public class AuctionClosingService {
             auctionResultRepository.save(AuctionResult.builder()
                     .bidNo(winningBid.getBidNo())
                     .status(AuctionResultStatus.AWAITING_SHIPMENT)
-                    // ⚠️ [테스트 모드] 30초 후 자동 확정 — 운영 배포 전 plusDays(7) 으로 원복 필요
-                    .paymentDueDate(LocalDateTime.now().plusSeconds(30))
+                    // ⚠️ [테스트 모드] 5초 후 자동 확정 — 운영 배포 전 plusDays(7) 으로 원복 필요
+                    .paymentDueDate(LocalDateTime.now().plusSeconds(5))
                     .build());
 
             log.info("[Scheduler] 상품 번호 {} 낙찰 완료 (입찰번호: {}, 낙찰자: {})",
@@ -125,8 +125,8 @@ public class AuctionClosingService {
         auctionResultRepository.save(AuctionResult.builder()
                 .bidNo(winningBid.getBidNo())
                 .status(AuctionResultStatus.AWAITING_SHIPMENT)
-                // ⚠️ [테스트 모드] 30초 후 자동 확정 — 운영 배포 전 plusDays(7) 으로 원복 필요
-                .paymentDueDate(LocalDateTime.now().plusSeconds(30))
+                // ⚠️ [테스트 모드] 5초 후 자동 확정 — 운영 배포 전 plusDays(7) 으로 원복 필요
+                .paymentDueDate(LocalDateTime.now().plusSeconds(5))
                 .build());
 
         log.info("[Buyout] 즉시구매 경매 종료: productNo={}, winner={}, price={}",
