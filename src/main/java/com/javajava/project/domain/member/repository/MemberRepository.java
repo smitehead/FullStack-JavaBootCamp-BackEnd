@@ -2,8 +2,10 @@ package com.javajava.project.domain.member.repository;
 
 import com.javajava.project.domain.member.entity.Member;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import jakarta.persistence.LockModeType;
@@ -42,4 +44,23 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     Optional<Member> findByEmail(String email);
 
     Optional<Member> findByUserIdAndEmail(String userId, String email);
+
+    @Modifying
+    @Query(value = """
+            INSERT INTO MEMBER_ARCHIVE
+            SELECT * FROM MEMBER
+            WHERE IS_ACTIVE = 0
+              AND WITHDRAWN_AT < :cutoff
+              AND MEMBER_NO NOT IN (SELECT MEMBER_NO FROM MEMBER_ARCHIVE)
+            """, nativeQuery = true)
+    int insertWithdrawnToArchive(@Param("cutoff") LocalDateTime cutoff);
+
+    @Modifying
+    @Query(value = """
+            DELETE FROM MEMBER
+            WHERE IS_ACTIVE = 0
+              AND WITHDRAWN_AT < :cutoff
+              AND MEMBER_NO IN (SELECT MEMBER_NO FROM MEMBER_ARCHIVE)
+            """, nativeQuery = true)
+    int deleteArchivedMembers(@Param("cutoff") LocalDateTime cutoff);
 }

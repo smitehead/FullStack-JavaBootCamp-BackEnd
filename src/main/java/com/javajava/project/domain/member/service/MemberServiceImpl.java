@@ -281,9 +281,8 @@ public class MemberServiceImpl implements MemberService {
             throw new IllegalStateException("진행 중인 경매가 있어 탈퇴할 수 없습니다.");
         }
 
-        // ⭐ [핵심 추가 로직] DB 유니크 제약조건 회피 & 탈퇴 유저 정보 재사용 방지를 위한 쓰레기값 처리 ⭐
-        String deletedSuffix = "_deleted_" + System.currentTimeMillis();
-        
+        String deletedSuffix = "_d" + (System.currentTimeMillis() % 1000000);
+
         member.setUserId(member.getUserId() + deletedSuffix);
         member.setEmail(member.getEmail() + deletedSuffix);
         member.setNickname(member.getNickname() + deletedSuffix);
