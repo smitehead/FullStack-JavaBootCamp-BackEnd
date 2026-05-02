@@ -128,7 +128,7 @@ public class ReportServiceImpl implements ReportService {
             notificationService.sendAndSaveNotification(
                     report.getReporterNo(),
                     "신고처리",
-                    "접수하신 신고(#" + reportNo + ")가 " + status + " 처리되었습니다.",
+                    "접수하신 신고(\"" + report.getContent() + "\")가 " + status + " 처리되었습니다.",
                     null
             );
         } catch (Exception e) {
