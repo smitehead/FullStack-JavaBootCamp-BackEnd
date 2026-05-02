@@ -893,7 +893,7 @@ public class ProductServiceImpl implements ProductService {
 
                         // 매너온도 패널티: -10점 (최저 0점)
                         double prevTemp = seller.getMannerTemp();
-                        double newTemp = Math.max(0.0, prevTemp - 10.0);
+                        double newTemp = Math.max(0.0, prevTemp - 3.0);
                         seller.setMannerTemp(newTemp);
                         mannerHistoryRepository.save(MannerHistory.builder()
                                         .memberNo(memberNo)
