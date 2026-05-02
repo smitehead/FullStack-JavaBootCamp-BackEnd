@@ -132,12 +132,12 @@ public class ReportServiceImpl implements ReportService {
                 String productTitle = productRepository.findById(report.getTargetProductNo())
                         .map(p -> p.getTitle())
                         .orElse("#" + report.getTargetProductNo());
-                notifyMsg = "[" + productTitle + "] 상품에 대한 " + report.getType() + " 신고가 " + status + " 처리되었습니다.";
+                notifyMsg = "'" + productTitle + "' 상품에 대한 " + report.getType() + " 신고가 " + status + " 처리되었습니다.";
             } else {
                 String targetNickname = memberRepository.findById(report.getTargetMemberNo())
                         .map(m -> m.getNickname())
                         .orElse("#" + report.getTargetMemberNo());
-                notifyMsg = "[" + targetNickname + "]님에 대한 " + report.getType() + " 신고가 " + status + " 처리되었습니다.";
+                notifyMsg = "'" + targetNickname + "'님에 대한 " + report.getType() + " 신고가 " + status + " 처리되었습니다.";
             }
             notificationService.sendAndSaveNotification(
                     report.getReporterNo(),
