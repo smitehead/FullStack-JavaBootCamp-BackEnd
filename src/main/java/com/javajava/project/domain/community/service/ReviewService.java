@@ -15,6 +15,8 @@ import com.javajava.project.domain.community.repository.ReviewTagDefRepository;
 import com.javajava.project.domain.community.repository.ReviewTagRepository;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.member.repository.MemberRepository;
+import com.javajava.project.domain.member.entity.MannerHistory;
+import com.javajava.project.domain.member.repository.MannerHistoryRepository;
 import com.javajava.project.domain.notification.service.NotificationService;
 import com.javajava.project.domain.product.entity.Product;
 import com.javajava.project.domain.product.repository.ProductRepository;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -31,12 +34,18 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class ReviewService {
 
+    private static final Set<String> NEGATIVE_TAG_NAMES = Set.of(
+            "응답이 느렸어요", "불친절했어요", "약속을 지키지 않았어요",
+            "상품 상태가 설명과 달랐어요", "결제가 늦었어요", "연락이 되지 않았어요"
+    );
+
     private final ReviewRepository reviewRepository;
     private final ReviewTagDefRepository reviewTagDefRepository;
     private final ReviewTagRepository reviewTagRepository;
     private final AuctionResultRepository auctionResultRepository;
     private final BidHistoryRepository bidHistoryRepository;
     private final MemberRepository memberRepository;
+    private final MannerHistoryRepository mannerHistoryRepository;
     private final ProductRepository productRepository;
     private final NotificationService notificationService;
 
@@ -87,7 +96,7 @@ public class ReviewService {
                 .build();
         reviewRepository.save(review);
 
-        // 선택된 태그 ID → REVIEW_TAG 저장
+        // 선택된 태그 ID → REVIEW_TAG 저장 + 매너온도 반영
         if (dto.getTagIds() != null && !dto.getTagIds().isEmpty()) {
             List<ReviewTag> tags = dto.getTagIds().stream()
                     .map(tagId -> ReviewTag.builder()
@@ -96,6 +105,26 @@ public class ReviewService {
                             .build())
                     .toList();
             reviewTagRepository.saveAll(tags);
+
+            List<String> selectedTagNames = reviewTagDefRepository.findAllById(dto.getTagIds()).stream()
+                    .map(com.javajava.project.domain.community.entity.ReviewTagDef::getTagName)
+                    .toList();
+            long negativeCount = selectedTagNames.stream().filter(NEGATIVE_TAG_NAMES::contains).count();
+            long positiveCount = selectedTagNames.size() - negativeCount;
+
+            double delta = Math.min(positiveCount * 0.1, 0.3) - Math.min(negativeCount * 0.2, 0.5);
+            if (delta != 0) {
+                Member target = memberRepository.findById(targetNo)
+                        .orElseThrow(() -> new IllegalArgumentException("대상 회원을 찾을 수 없습니다."));
+                double prevTemp = target.getMannerTemp();
+                target.setMannerTemp(prevTemp + delta);
+                mannerHistoryRepository.save(MannerHistory.builder()
+                        .memberNo(targetNo)
+                        .previousTemp(prevTemp)
+                        .newTemp(target.getMannerTemp())
+                        .reason("거래 후기 평가 (" + (delta > 0 ? "+" : "") + String.format("%.1f", delta) + ")")
+                        .build());
+            }
         }
 
         Member writer = memberRepository.findById(writerNo)
