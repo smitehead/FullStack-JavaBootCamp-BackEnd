@@ -846,7 +846,7 @@ public class ProductServiceImpl implements ProductService {
                                 notificationService.sendAndSaveNotification(
                                                 bidderNo, "bid",
                                                 "[" + product.getTitle() + "] 경매가 판매자 사정으로 취소되었습니다.",
-                                                "/", "auctionEnd");
+                                                "/products/" + productNo, "auctionEnd");
                         }
                 } catch (Exception e) {
                         log.warn("[ProductService] 경매 취소 알림 전송 실패: {}", e.getMessage());
@@ -966,7 +966,7 @@ public class ProductServiceImpl implements ProductService {
                         try {
                                 notificationService.sendAndSaveNotification(
                                                 bidderNo, "bid",
-                                                "[" + product.getTitle() + "] 판매자의 사정으로 경매가 취소되었습니다.",
+                                                "[" + product.getTitle() + "] 경매가 판매자 사정으로 취소되었습니다.",
                                                 "/products/" + productNo, "auctionEnd");
                         } catch (Exception e) {
                                 log.warn("[AuctionCancel] 알림 전송 실패 (bidderNo={}): {}", bidderNo, e.getMessage());

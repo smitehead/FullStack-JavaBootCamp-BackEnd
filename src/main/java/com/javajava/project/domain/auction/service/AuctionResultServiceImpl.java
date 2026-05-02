@@ -664,7 +664,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         try {
             notificationService.sendAndSaveNotification(
                     buyer.getMemberNo(), "activity",
-                    "상품을 받으셨나요? [" + product.getTitle() + "] 거래에 대한 후기를 남겨주세요!",
+                    "[" + product.getTitle() + "] 거래가 자동으로 구매 확정되었습니다. 후기를 남겨주세요!",
                     "/review/" + resultNo);
         } catch (Exception e) {
             log.warn("[AutoConfirm] 구매자 후기 권장 알림 실패 (resultNo={}): {}", resultNo, e.getMessage());
