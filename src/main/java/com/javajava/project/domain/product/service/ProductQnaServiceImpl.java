@@ -56,6 +56,9 @@ public class ProductQnaServiceImpl implements ProductQnaService {
         if (blockedUserRepository.existsByIdMemberNoAndIdBlockedMemberNo(product.getSellerNo(), memberNo)) {
             throw new IllegalStateException("해당 판매자에게 차단되어 문의를 작성할 수 없습니다.");
         }
+        if (blockedUserRepository.existsByIdMemberNoAndIdBlockedMemberNo(memberNo, product.getSellerNo())) {
+            throw new IllegalStateException("차단한 판매자의 상품에는 문의를 작성할 수 없습니다.");
+        }
 
         ProductQna qna = ProductQna.builder()
                 .productNo(productNo)
