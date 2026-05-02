@@ -49,10 +49,10 @@ public class MemberServiceImpl implements MemberService {
         }
 
         Member member = Member.builder()
-                .userId(dto.getUserId())
-                .password(passwordEncoder.encode(dto.getPassword()))
-                .nickname(dto.getNickname())
-                .email(dto.getEmail())
+                .userId(dto.getUserId().trim())
+                .password(passwordEncoder.encode(dto.getPassword().trim()))
+                .nickname(dto.getNickname().trim())
+                .email(dto.getEmail().trim())
                 .phoneNum(dto.getPhoneNum())
                 .addrRoad(dto.getAddrRoad())
                 .addrDetail(dto.getAddrDetail())
