@@ -3,6 +3,7 @@ package com.javajava.project.global.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -100,10 +101,14 @@ public class SecurityConfig {
                         .requestMatchers("/ws-stomp/**").permitAll()
                         .requestMatchers("/api/chat/**").authenticated()
                         .requestMatchers("/api/inquiries/**").authenticated()
-                        .requestMatchers("/api/admin/inquiries/**").authenticated()
+                        // 공지사항: 관리자 전용 쓰기 엔드포인트 (GET은 공개)
+                        .requestMatchers(HttpMethod.POST, "/api/notices/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/notices/**").hasRole("ADMIN")
+                        .requestMatchers("/api/notices/all").hasRole("ADMIN")
                         // 포인트 API
                         .requestMatchers("/api/points/**").authenticated()
-                        .requestMatchers("/api/admin/**").authenticated()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().permitAll())
 
                 // 4-1. 보안 헤더 설정
