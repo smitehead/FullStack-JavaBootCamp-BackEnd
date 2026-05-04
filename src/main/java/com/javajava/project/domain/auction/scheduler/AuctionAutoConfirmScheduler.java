@@ -51,8 +51,7 @@ public class AuctionAutoConfirmScheduler {
      * 단건별 독립 트랜잭션({@code REQUIRES_NEW})으로 처리.
      * 개별 건 실패가 다른 건에 영향을 주지 않는다.
      */
-    // ⚠️ [테스트 모드] 30초마다 실행 — 운영 배포 전 "0 0 * * * *" (매시간 정각) 으로 원복 필요
-    @Scheduled(cron = "0/30 * * * * *")
+    @Scheduled(cron = "0 0 * * * *")
     public void checkAutoConfirm() {
         LocalDateTime now = LocalDateTime.now();
         List<AuctionResult> targets = auctionResultRepository.findExpiredPendingPayments(now);
