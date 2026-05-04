@@ -1,6 +1,7 @@
 package com.javajava.project.domain.product.service;
 
 import com.javajava.project.domain.member.entity.Member;
+import com.javajava.project.domain.member.repository.BlockedUserRepository;
 import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.domain.notification.service.NotificationService;
 import com.javajava.project.domain.product.dto.ProductQnaRequestDto;
@@ -25,6 +26,7 @@ public class ProductQnaServiceImpl implements ProductQnaService {
     private final ProductQnaRepository productQnaRepository;
     private final ProductRepository productRepository;
     private final MemberRepository memberRepository;
+    private final BlockedUserRepository blockedUserRepository;
     private final NotificationService notificationService;
 
     @Override
@@ -50,6 +52,13 @@ public class ProductQnaServiceImpl implements ProductQnaService {
 
         Product product = productRepository.findById(productNo)
                 .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다."));
+
+        if (blockedUserRepository.existsByIdMemberNoAndIdBlockedMemberNo(product.getSellerNo(), memberNo)) {
+            throw new IllegalStateException("해당 판매자에게 차단되어 문의를 작성할 수 없습니다.");
+        }
+        if (blockedUserRepository.existsByIdMemberNoAndIdBlockedMemberNo(memberNo, product.getSellerNo())) {
+            throw new IllegalStateException("차단한 판매자의 상품에는 문의를 작성할 수 없습니다.");
+        }
 
         ProductQna qna = ProductQna.builder()
                 .productNo(productNo)

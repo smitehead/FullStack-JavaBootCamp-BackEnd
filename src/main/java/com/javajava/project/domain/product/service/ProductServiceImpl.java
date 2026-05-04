@@ -846,7 +846,7 @@ public class ProductServiceImpl implements ProductService {
                                 notificationService.sendAndSaveNotification(
                                                 bidderNo, "bid",
                                                 "[" + product.getTitle() + "] 경매가 판매자 사정으로 취소되었습니다.",
-                                                "/", "auctionEnd");
+                                                "/products/" + productNo, "auctionEnd");
                         }
                 } catch (Exception e) {
                         log.warn("[ProductService] 경매 취소 알림 전송 실패: {}", e.getMessage());
@@ -893,7 +893,7 @@ public class ProductServiceImpl implements ProductService {
 
                         // 매너온도 패널티: -10점 (최저 0점)
                         double prevTemp = seller.getMannerTemp();
-                        double newTemp = Math.max(0.0, prevTemp - 10.0);
+                        double newTemp = Math.max(0.0, prevTemp - 3.0);
                         seller.setMannerTemp(newTemp);
                         mannerHistoryRepository.save(MannerHistory.builder()
                                         .memberNo(memberNo)
@@ -966,7 +966,7 @@ public class ProductServiceImpl implements ProductService {
                         try {
                                 notificationService.sendAndSaveNotification(
                                                 bidderNo, "bid",
-                                                "[" + product.getTitle() + "] 판매자의 사정으로 경매가 취소되었습니다.",
+                                                "[" + product.getTitle() + "] 경매가 판매자 사정으로 취소되었습니다.",
                                                 "/products/" + productNo, "auctionEnd");
                         } catch (Exception e) {
                                 log.warn("[AuctionCancel] 알림 전송 실패 (bidderNo={}): {}", bidderNo, e.getMessage());

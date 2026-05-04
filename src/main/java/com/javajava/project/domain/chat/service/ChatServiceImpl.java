@@ -7,6 +7,7 @@ import com.javajava.project.domain.chat.entity.ChatRoom;
 import com.javajava.project.domain.chat.repository.ChatImageRepository;
 import com.javajava.project.domain.chat.repository.ChatMessageRepository;
 import com.javajava.project.domain.chat.repository.ChatRoomRepository;
+import com.javajava.project.domain.member.repository.BlockedUserRepository;
 import com.javajava.project.global.util.FileStore;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -27,6 +28,7 @@ public class ChatServiceImpl implements ChatService {
     private final ChatRoomRepository chatRoomRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final ChatImageRepository chatImageRepository;
+    private final BlockedUserRepository blockedUserRepository;
     private final FileStore fileStore;
 
     // ──────────────────────────────────────────────
@@ -35,6 +37,16 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public ChatRoomListDto createOrGetRoom(ChatRoomCreateRequest request, Long myNo) {
+        Long buyerNo = request.getBuyerNo();
+        Long sellerNo = request.getSellerNo();
+
+        if (blockedUserRepository.existsByIdMemberNoAndIdBlockedMemberNo(sellerNo, buyerNo)) {
+            throw new IllegalStateException("판매자에게 차단되어 채팅을 시작할 수 없습니다.");
+        }
+        if (blockedUserRepository.existsByIdMemberNoAndIdBlockedMemberNo(buyerNo, sellerNo)) {
+            throw new IllegalStateException("차단한 사용자와는 채팅을 시작할 수 없습니다.");
+        }
+
         // 1) 이미 ACTIVE인 방이 있는지 확인 (사용자간 + 상품별 유니크)
         return chatRoomRepository
                 .findByBuyerNoAndSellerNoAndProductNoAndStatus(

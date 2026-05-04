@@ -7,6 +7,7 @@ import com.javajava.project.domain.report.entity.Report;
 import com.javajava.project.domain.report.entity.ReportImage;
 import com.javajava.project.domain.admin.repository.ActivityLogRepository;
 import com.javajava.project.domain.member.repository.MemberRepository;
+import com.javajava.project.domain.product.repository.ProductRepository;
 import com.javajava.project.domain.report.repository.ReportImageRepository;
 import com.javajava.project.domain.report.repository.ReportRepository;
 import com.javajava.project.domain.notification.service.NotificationService;
@@ -28,6 +29,7 @@ public class ReportServiceImpl implements ReportService {
     private final ReportRepository reportRepository;
     private final ReportImageRepository reportImageRepository;
     private final MemberRepository memberRepository;
+    private final ProductRepository productRepository;
     private final ActivityLogRepository activityLogRepository;
     private final NotificationService notificationService;
     private final FileStore fileStore;
@@ -125,10 +127,22 @@ public class ReportServiceImpl implements ReportService {
 
         // 신고자에게 처리 결과 알림 (탈퇴 회원이면 무시)
         try {
+            String notifyMsg;
+            if (report.getTargetProductNo() != null) {
+                String productTitle = productRepository.findById(report.getTargetProductNo())
+                        .map(p -> p.getTitle())
+                        .orElse("#" + report.getTargetProductNo());
+                notifyMsg = "'" + productTitle + "' 상품에 대한 " + report.getType() + " 신고가 " + status + " 처리되었습니다.";
+            } else {
+                String targetNickname = memberRepository.findById(report.getTargetMemberNo())
+                        .map(m -> m.getNickname())
+                        .orElse("#" + report.getTargetMemberNo());
+                notifyMsg = "'" + targetNickname + "'님에 대한 " + report.getType() + " 신고가 " + status + " 처리되었습니다.";
+            }
             notificationService.sendAndSaveNotification(
                     report.getReporterNo(),
                     "신고처리",
-                    "접수하신 신고(#" + reportNo + ")가 " + status + " 처리되었습니다.",
+                    notifyMsg,
                     null
             );
         } catch (Exception e) {

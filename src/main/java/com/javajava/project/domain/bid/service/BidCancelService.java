@@ -5,7 +5,9 @@ import com.javajava.project.domain.bid.entity.BidHistory;
 import com.javajava.project.domain.bid.event.BidCancelledEvent;
 import com.javajava.project.domain.bid.repository.AutoBidRepository;
 import com.javajava.project.domain.bid.repository.BidHistoryRepository;
+import com.javajava.project.domain.member.entity.MannerHistory;
 import com.javajava.project.domain.member.entity.Member;
+import com.javajava.project.domain.member.repository.MannerHistoryRepository;
 import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.domain.platform.entity.PlatformRevenue;
 import com.javajava.project.domain.platform.repository.PlatformRevenueRepository;
@@ -67,6 +69,7 @@ public class BidCancelService {
     private final BidHistoryRepository bidHistoryRepository;
     private final AutoBidRepository autoBidRepository;
     private final MemberRepository memberRepository;
+    private final MannerHistoryRepository mannerHistoryRepository;
     private final PointHistoryRepository pointHistoryRepository;
     private final PlatformRevenueRepository platformRevenueRepository;
     private final ProductImageRepository productImageRepository;
@@ -208,6 +211,16 @@ public class BidCancelService {
                 .amount(-penalty)
                 .balance(bidder.getPoints())
                 .reason("[" + product.getTitle() + "] 입찰 취소 위약금 (입찰가의 5%)")
+                .build());
+
+        // 8-2-1. 매너온도 패널티 -0.5
+        double prevTemp = bidder.getMannerTemp();
+        bidder.setMannerTemp(prevTemp - 0.5);
+        mannerHistoryRepository.save(MannerHistory.builder()
+                .memberNo(bidder.getMemberNo())
+                .previousTemp(prevTemp)
+                .newTemp(bidder.getMannerTemp())
+                .reason("[" + product.getTitle() + "] 최고 입찰자 입찰 취소 패널티")
                 .build());
 
         // 8-3. 위약금 → 플랫폼 수익 테이블에 즉시 INSERT

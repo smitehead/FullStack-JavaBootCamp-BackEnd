@@ -42,10 +42,7 @@ public class AuctionNotificationListener {
         try {
             notificationService.sendAndSaveNotification(
                     event.winnerMemberNo(), "bid",
-                    "축하합니다! [" + event.productTitle() + "] 경매에 최종 낙찰되었습니다.", wonLink, "auctionEnd");
-            notificationService.sendAndSaveNotification(
-                    event.winnerMemberNo(), "bid",
-                    "낙찰받으신 [" + event.productTitle() + "]의 결제를 진행해 주세요. (24시간 내 미결제 시 취소 가능)", wonLink, "auctionEnd");
+                    "축하합니다! [" + event.productTitle() + "] 경매에 최종 낙찰되었습니다. 24시간 내 결제를 진행해 주세요. (미결제 시 낙찰이 취소됩니다)", wonLink, "auctionEnd");
         } catch (Exception e) {
             log.warn("[Notification] 낙찰자 알림 전송 실패 (상품 {}): {}", event.productNo(), e.getMessage());
         }
