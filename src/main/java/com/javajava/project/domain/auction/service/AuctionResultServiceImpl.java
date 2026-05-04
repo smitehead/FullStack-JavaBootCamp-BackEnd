@@ -15,6 +15,8 @@ import com.javajava.project.domain.product.entity.Product;
 import com.javajava.project.domain.product.entity.ProductImage;
 import com.javajava.project.domain.auction.repository.AuctionResultRepository;
 import com.javajava.project.domain.bid.repository.BidHistoryRepository;
+import com.javajava.project.domain.member.entity.MannerHistory;
+import com.javajava.project.domain.member.repository.MannerHistoryRepository;
 import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.domain.community.repository.ReviewRepository;
 import com.javajava.project.domain.notification.service.NotificationService;
@@ -43,6 +45,7 @@ public class AuctionResultServiceImpl implements AuctionResultService {
     private final ProductImageRepository productImageRepository;
     private final PointHistoryRepository pointHistoryRepository;
     private final PlatformRevenueRepository platformRevenueRepository;
+    private final MannerHistoryRepository mannerHistoryRepository;
     private final NotificationService notificationService;
     private final SseService sseService;
     private final ReviewRepository reviewRepository;
@@ -178,8 +181,23 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         result.setConfirmedAt(LocalDateTime.now());
         product.markCompleted();
 
-        buyer.setMannerTemp(Math.min(100, buyer.getMannerTemp() + 0.2));
-        seller.setMannerTemp(Math.min(100, seller.getMannerTemp() + 0.2));
+        double buyerPrevTemp = buyer.getMannerTemp();
+        buyer.setMannerTemp(Math.min(100, buyerPrevTemp + 0.2));
+        mannerHistoryRepository.save(MannerHistory.builder()
+                .memberNo(buyer.getMemberNo())
+                .previousTemp(buyerPrevTemp)
+                .newTemp(buyer.getMannerTemp())
+                .reason("[" + product.getTitle() + "] 구매 확정 보상")
+                .build());
+
+        double sellerPrevTemp = seller.getMannerTemp();
+        seller.setMannerTemp(Math.min(100, sellerPrevTemp + 0.2));
+        mannerHistoryRepository.save(MannerHistory.builder()
+                .memberNo(seller.getMemberNo())
+                .previousTemp(sellerPrevTemp)
+                .newTemp(seller.getMannerTemp())
+                .reason("[" + product.getTitle() + "] 구매 확정 보상")
+                .build());
 
         double feeRateForNotif = FeePolicy.rateFor(product.getTradeType());
         long settlementForNotif = bid.getBidPrice() - Math.round(bid.getBidPrice() * feeRateForNotif);
@@ -642,8 +660,23 @@ public class AuctionResultServiceImpl implements AuctionResultService {
         result.setConfirmedAt(LocalDateTime.now());
         product.markCompleted();
 
-        buyer.setMannerTemp(Math.min(100.0, buyer.getMannerTemp() + 0.2));
-        seller.setMannerTemp(Math.min(100.0, seller.getMannerTemp() + 0.2));
+        double autoConfirmBuyerPrev = buyer.getMannerTemp();
+        buyer.setMannerTemp(Math.min(100.0, autoConfirmBuyerPrev + 0.2));
+        mannerHistoryRepository.save(MannerHistory.builder()
+                .memberNo(buyer.getMemberNo())
+                .previousTemp(autoConfirmBuyerPrev)
+                .newTemp(buyer.getMannerTemp())
+                .reason("[" + product.getTitle() + "] 7일 자동 구매 확정 보상")
+                .build());
+
+        double autoConfirmSellerPrev = seller.getMannerTemp();
+        seller.setMannerTemp(Math.min(100.0, autoConfirmSellerPrev + 0.2));
+        mannerHistoryRepository.save(MannerHistory.builder()
+                .memberNo(seller.getMemberNo())
+                .previousTemp(autoConfirmSellerPrev)
+                .newTemp(seller.getMannerTemp())
+                .reason("[" + product.getTitle() + "] 7일 자동 구매 확정 보상")
+                .build());
 
         try {
             sseService.sendPointUpdate(seller.getMemberNo(), seller.getPoints());

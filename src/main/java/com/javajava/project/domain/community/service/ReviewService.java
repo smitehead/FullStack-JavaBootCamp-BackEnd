@@ -122,7 +122,7 @@ public class ReviewService {
                         .memberNo(targetNo)
                         .previousTemp(prevTemp)
                         .newTemp(target.getMannerTemp())
-                        .reason("거래 후기 평가 (" + (delta > 0 ? "+" : "") + String.format("%.1f", delta) + ")")
+                        .reason("[" + product.getTitle() + "] 거래 후기 평가 (" + (delta > 0 ? "+" : "") + String.format("%.1f", delta) + ")")
                         .build());
             }
         }
