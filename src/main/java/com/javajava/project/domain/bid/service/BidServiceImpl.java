@@ -5,12 +5,14 @@ import com.javajava.project.domain.bid.dto.BidResultDto;
 import com.javajava.project.domain.product.dto.ProductDetailResponseDto;
 import com.javajava.project.domain.auction.scheduler.AuctionClosingService;
 import com.javajava.project.domain.auction.scheduler.AuctionExpiryWatchdog;
+import com.javajava.project.domain.bid.entity.AutoBid;
 import com.javajava.project.domain.bid.entity.BidHistory;
 import com.javajava.project.domain.bid.event.AutoBidTriggerEvent;
 import com.javajava.project.domain.member.entity.Member;
 import com.javajava.project.domain.point.entity.PointHistory;
 import com.javajava.project.domain.point.entity.PointHistoryType;
 import com.javajava.project.domain.product.entity.Product;
+import com.javajava.project.domain.bid.repository.AutoBidRepository;
 import com.javajava.project.domain.bid.repository.BidHistoryRepository;
 import com.javajava.project.domain.member.repository.MemberRepository;
 import com.javajava.project.domain.point.repository.PointHistoryRepository;
@@ -36,6 +38,7 @@ public class BidServiceImpl implements BidService {
     private final MemberRepository memberRepository;
     private final BidHistoryRepository bidHistoryRepository;
     private final PointHistoryRepository pointHistoryRepository;
+    private final AutoBidRepository autoBidRepository;
     private final SseService sseService;
     private final NotificationService notificationService;
     private final AuctionClosingService auctionClosingService;
@@ -244,17 +247,24 @@ public class BidServiceImpl implements BidService {
     // ── processBuyout 이하 메서드 — Phase 3 스코프 외 (변경 없음) ──────────────
 
     /**
-     * 즉시구매 처리 (버튼 직접 클릭)
-     * 비관적 락 + 경매 즉시 종료 + 포인트 차감/환불 + 알림/SSE
+     * 즉시구매 처리 — Buyout Priority Rule.
+     *
+     * <p>즉시구매는 경매의 '트럼프 카드'이므로 활성 자동입찰 레코드를
+     * 같은 트랜잭션 내에서 즉시 비활성화한다. 이렇게 하면:
+     * <ol>
+     *   <li>커밋 후 {@link AutoBidEventListener}가 깨어나도 활성 AutoBid 가 없어
+     *       {@code triggerAutoBids}가 즉시 반환되므로 Product 재락 경쟁이 사라진다.</li>
+     *   <li>자동입찰 참여자들이 즉시 알림을 받아 UX가 개선된다.</li>
+     * </ol>
      */
     @Override
     @Transactional
     public String processBuyout(Long productNo, Long memberNo) {
-        // 1. 상품 비관적 락
+        // 1. 상품 비관적 락 (SELECT FOR UPDATE — 이후 모든 검증·변경 직렬화)
         Product product = productRepository.findByIdWithLock(productNo)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상품입니다."));
 
-        // 2. 유효성 검증
+        // 2. 기본 유효성 검증
         if (product.getStatus() != 0 || product.getEndTime().isBefore(LocalDateTime.now())) {
             return "이미 종료된 경매입니다.";
         }
@@ -264,19 +274,34 @@ public class BidServiceImpl implements BidService {
         if (product.getSellerNo().equals(memberNo)) {
             return "본인이 등록한 상품은 즉시 구매할 수 없습니다.";
         }
-        // 재구매 차단: 이 상품에 취소 이력이 있는 회원은 즉시구매도 차단
         if (bidHistoryRepository.existsByProductNoAndMemberNoAndIsCancelled(productNo, memberNo, 1)) {
             return "입찰을 취소한 상품에는 즉시 구매할 수 없습니다.";
         }
 
         long buyoutPrice = product.getBuyoutPrice();
 
-        // 3. 현재 최고 입찰자 확인
+        // 3. 활성 자동입찰 전체 취소 (동일 트랜잭션 내 — Buyout Priority Rule 핵심)
+        //    취소 후 커밋되면 AutoBidEventListener 가 triggerAutoBids 를 호출해도
+        //    활성 레코드가 없으므로 Product 재락 없이 즉시 반환된다.
+        List<AutoBid> activeAutoBids = autoBidRepository.findActiveByProductNo(productNo);
+        for (AutoBid ab : activeAutoBids) {
+            ab.setIsActive(0);
+            ab.setUpdatedAt(LocalDateTime.now());
+            autoBidRepository.save(ab);
+            try {
+                notificationService.sendAndSaveNotification(
+                        ab.getMemberNo(), "bid",
+                        "[" + product.getTitle() + "] 즉시구매가 발생하여 자동입찰이 취소되었습니다.",
+                        "/products/" + productNo, "auctionEnd");
+            } catch (Exception e) { log.warn("[Buyout] 자동입찰 취소 알림 실패: {}", e.getMessage()); }
+        }
+
+        // 4. 현재 최고 입찰자 확인 (환불 대상)
         Optional<BidHistory> lastBidOpt = bidHistoryRepository
                 .findFirstByProductNoAndIsCancelledOrderByBidPriceDesc(productNo, 0);
         Long previousBidderNo = lastBidOpt.map(BidHistory::getMemberNo).orElse(null);
 
-        // 4. 비관적 락 순서 고정 (memberNo 오름차순 — 데드락 방지)
+        // 5. 비관적 락 순서 고정 (memberNo 오름차순 — 데드락 방지)
         Member buyer;
         Member previousBidder = null;
 
@@ -297,12 +322,12 @@ public class BidServiceImpl implements BidService {
                     .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
         }
 
-        // 5. 포인트 잔액 검증
+        // 6. 포인트 잔액 검증
         if (buyer.getPoints() < buyoutPrice) {
             return "보유 포인트가 부족합니다. 즉시 구매가: " + buyoutPrice + "원";
         }
 
-        // 6. 이전 최고 입찰자 환불
+        // 7. 이전 최고 입찰자 에스크로 환불
         if (previousBidder != null && lastBidOpt.isPresent()) {
             BidHistory lastBid = lastBidOpt.get();
             previousBidder.refundPoints(lastBid.getBidPrice());
@@ -324,7 +349,7 @@ public class BidServiceImpl implements BidService {
             } catch (Exception e) { log.warn("[Buyout] 환불 알림 실패: {}", e.getMessage()); }
         }
 
-        // 7. 구매자 포인트 차감
+        // 8. 구매자 포인트 차감
         buyer.usePoints(buyoutPrice);
         pointHistoryRepository.save(PointHistory.builder()
                 .memberNo(memberNo)
@@ -333,11 +358,10 @@ public class BidServiceImpl implements BidService {
                 .balance(buyer.getPoints())
                 .reason("[" + product.getTitle() + "] 즉시 구매")
                 .build());
-        final long buyerPoints = buyer.getPoints();
-        try { sseService.sendPointUpdate(memberNo, buyerPoints); }
+        try { sseService.sendPointUpdate(memberNo, buyer.getPoints()); }
         catch (Exception e) { log.warn("[Buyout] SSE 포인트 전송 실패: {}", e.getMessage()); }
 
-        // 8. 입찰 기록 생성 (IS_WINNER=1)
+        // 9. 입찰 기록 생성 (IS_WINNER=1) + 경매 상태 종료
         BidHistory buyoutBid = bidHistoryRepository.save(BidHistory.builder()
                 .productNo(productNo)
                 .memberNo(memberNo)
@@ -348,20 +372,17 @@ public class BidServiceImpl implements BidService {
                 .isWinner(1)
                 .build());
 
-        // 9. 상품 및 입찰 상태 최종 업데이트 (AuctionClosingService 위임)
-        // - status=3(PENDING_PAYMENT), endTime=now(), AuctionResult 저장, AuctionClosedEvent 발행 포함
         auctionClosingService.closeDueToBuyout(product, buyoutBid);
 
-        // 10. Watchdog 예약 취소 (즉시구매로 종료됐으므로 endTime 스케줄 불필요)
+        // 10. Watchdog 예약 취소
         auctionExpiryWatchdog.cancel(productNo);
 
-        log.info("[Buyout] 즉시구매 완료: productNo={}, buyer={}, price={}", productNo, memberNo, buyoutPrice);
+        log.info("[Buyout] 즉시구매 완료: productNo={}, buyer={}, price={}, cancelledAutoBids={}",
+                productNo, memberNo, buyoutPrice, activeAutoBids.size());
 
         // 11. SSE 경매 종료 브로드캐스트
-        try {
-            sseService.broadcastBuyoutEnded(productNo, buyoutPrice, memberNo);
-        } catch (Exception e) {
-            log.warn("[Buyout] SSE 브로드캐스트 실패: {}", e.getMessage()); }
+        try { sseService.broadcastBuyoutEnded(productNo, buyoutPrice, memberNo); }
+        catch (Exception e) { log.warn("[Buyout] SSE 브로드캐스트 실패: {}", e.getMessage()); }
 
         return "SUCCESS";
     }
