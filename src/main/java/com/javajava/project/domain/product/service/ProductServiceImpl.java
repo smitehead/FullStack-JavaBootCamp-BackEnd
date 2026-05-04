@@ -712,6 +712,9 @@ public class ProductServiceImpl implements ProductService {
                 if (!product.getSellerNo().equals(memberNo)) {
                         throw new IllegalStateException("본인의 상품만 삭제할 수 있습니다.");
                 }
+                if (product.getStatus() == 0) {
+                        throw new IllegalStateException("진행 중인 경매는 삭제할 수 없습니다. 경매 취소 후 삭제해 주세요.");
+                }
                 product.setIsDeleted(1);
                 product.markCanceled();
                 auctionExpiryWatchdog.cancel(productNo);
