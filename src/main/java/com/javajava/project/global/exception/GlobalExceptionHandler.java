@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -21,6 +22,17 @@ import java.util.Map;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /**
+     * JSON 파싱 실패 처리 (400 Bad Request)
+     * 발생 시점: 날짜 형식 오류 등 Jackson 역직렬화 실패 시
+     * 예: birthDate가 "yyyy-MM-dd" 형식이 아닐 때
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, String>> handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
+        return ResponseEntity.badRequest()
+                .body(Map.of("error", "요청 데이터 형식이 올바르지 않습니다. 입력값을 다시 확인해주세요."));
+    }
 
     /**
      * Bean Validation 실패 처리 (400 Bad Request)

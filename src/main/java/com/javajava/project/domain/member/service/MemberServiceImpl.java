@@ -275,10 +275,16 @@ public class MemberServiceImpl implements MemberService {
             throw new IllegalStateException("포인트를 먼저 출금해 주세요. 현재 잔액: " + member.getPoints() + "P");
         }
 
-        // 진행 중인 경매 확인 (status=0: active, isDeleted=0: not deleted)
+        // 판매자: 진행 중인 경매 확인 (status=0: active, isDeleted=0: not deleted)
         long activeCount = productRepository.countBySellerNoAndStatusAndIsDeleted(memberNo, 0, 0);
         if (activeCount > 0) {
-            throw new IllegalStateException("진행 중인 경매가 있어 탈퇴할 수 없습니다.");
+            throw new IllegalStateException("판매 중인 경매가 " + activeCount + "건 있어 탈퇴할 수 없습니다. 경매를 먼저 취소해 주세요.");
+        }
+
+        // 낙찰자: 배송대기 중인 거래 확인 (구매 확정 전 단계)
+        long pendingAsBuyer = auctionResultRepository.countPendingAsBuyer(memberNo);
+        if (pendingAsBuyer > 0) {
+            throw new IllegalStateException("구매 확정 대기 중인 거래가 " + pendingAsBuyer + "건 있어 탈퇴할 수 없습니다. 거래를 먼저 완료해 주세요.");
         }
 
         String deletedSuffix = "_d" + (System.currentTimeMillis() % 1000000);

@@ -21,6 +21,16 @@ public interface AuctionResultRepository extends JpaRepository<AuctionResult, Lo
     @Query("SELECT ar FROM AuctionResult ar WHERE ar.bidNo IN :bidNos")
     List<AuctionResult> findByBidNos(@Param("bidNos") List<Long> bidNos);
 
+    // 특정 회원이 낙찰자이면서 아직 거래가 완료되지 않은(배송대기) 건 수 — 탈퇴 조건 검증용
+    @Query(value = """
+        SELECT COUNT(*)
+        FROM   AUCTION_RESULT ar
+        JOIN   BID_HISTORY    bh ON ar.BID_NO = bh.BID_NO
+        WHERE  bh.MEMBER_NO = :memberNo
+        AND    ar.STATUS    = '배송대기'
+        """, nativeQuery = true)
+    long countPendingAsBuyer(@Param("memberNo") Long memberNo);
+
     /**
      * 7일 자동 구매 확정 대상 조회 (AuctionAutoConfirmScheduler 전용).
      * paymentDueDate 가 현재 시각 이전인 '배송대기' 건 — 낙찰일로부터 7일 경과.
