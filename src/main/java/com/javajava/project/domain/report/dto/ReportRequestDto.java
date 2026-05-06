@@ -10,7 +10,6 @@ import lombok.*;
 @Builder
 public class ReportRequestDto {
 
-    @NotNull(message = "신고자 회원번호는 필수입니다.")
     private Long reporterNo;
 
     /** 피신고자 회원번호 - 회원 신고 시에만 사용 */

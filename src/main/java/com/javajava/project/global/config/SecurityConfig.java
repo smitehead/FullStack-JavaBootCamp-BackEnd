@@ -1,6 +1,8 @@
 package com.javajava.project.global.config;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -14,6 +16,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -22,6 +25,9 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Value("${cors.allowed-origins}")
+    private String[] allowedOrigins;
 
     /**
      * 비밀번호 단방향 암호화에 사용할 BCrypt 인코더 빈 등록.
@@ -51,7 +57,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
+        config.setAllowedOriginPatterns(Arrays.asList(allowedOrigins));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
@@ -84,32 +90,64 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 // 4. 요청 권한 설정
-                // 현재 개발 단계로 전체 허용.
-                // 관리자 기능 구현 시 아래처럼 세분화 예정:
-                // → Member 엔티티에 role 필드 추가 + JWT 토큰에 role 포함 필요
                 .authorizeHttpRequests(auth -> auth
+                        // 인증 불필요 (공개 API)
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/members/**").permitAll()
-                        .requestMatchers("/api/products/my-selling").authenticated()
-                        .requestMatchers("/api/products/my-bidding").authenticated()
-                        .requestMatchers("/api/products/my-purchased").authenticated()
-                        .requestMatchers("/api/products/**").permitAll()
                         .requestMatchers("/api/sse/**").permitAll()
                         .requestMatchers("/api/images/**").permitAll()
                         .requestMatchers("/api/banners/**").permitAll()
-                        // WebSocket STOMP 엔드포인트 허용
                         .requestMatchers("/ws-stomp/**").permitAll()
+
+                        // Members: /me/** 전체 인증 필수, 프로필 이미지 변경 인증 필수, 나머지 공개
+                        .requestMatchers("/api/members/me/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/members/*/profile-image-url").authenticated()
+                        .requestMatchers("/api/members/**").permitAll()
+
+                        // Products: 내 목록·등록은 인증 필수
+                        .requestMatchers("/api/products/my-selling").authenticated()
+                        .requestMatchers("/api/products/my-bidding").authenticated()
+                        .requestMatchers("/api/products/my-purchased").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/products").authenticated()
+                        // QnA: 목록 조회는 공개, 작성/답변/삭제는 인증 필수
+                        .requestMatchers(HttpMethod.GET, "/api/products/*/qna").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/products/*/qna/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/products/*/qna/**").authenticated()
+                        .requestMatchers("/api/products/**").permitAll()
+
+                        // Bids: 입찰 기록 조회는 공개, 입찰 취소(관리자), 나머지 인증 필수
+                        .requestMatchers(HttpMethod.GET, "/api/bids/product/**").permitAll()
+                        .requestMatchers(HttpMethod.PATCH, "/api/bids/*/cancel").hasRole("ADMIN")
+                        .requestMatchers("/api/bids/**").authenticated()
+
+                        // 자동입찰·위시리스트·알림·낙찰결과: 전체 인증 필수
+                        .requestMatchers("/api/auto-bid/**").authenticated()
+                        .requestMatchers("/api/wishlists/**").authenticated()
+                        .requestMatchers("/api/notifications/**").authenticated()
+                        .requestMatchers("/api/auction-results/**").authenticated()
+
+                        // Reviews: 받은 리뷰 목록·태그 목록은 공개, 나머지 인증 필수
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/target/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/tags").permitAll()
+                        .requestMatchers("/api/reviews/**").authenticated()
+
+                        // Chat·Inquiries·Reports·Points: 전체 인증 필수
                         .requestMatchers("/api/chat/**").authenticated()
                         .requestMatchers("/api/inquiries/**").authenticated()
-                        // 공지사항: 관리자 전용 쓰기 엔드포인트 (GET은 공개)
+                        .requestMatchers("/api/reports/**").authenticated()
+                        .requestMatchers("/api/points/**").authenticated()
+
+                        // Notices: 관리자 전용 쓰기, /all, 나머지 GET은 공개
                         .requestMatchers(HttpMethod.POST, "/api/notices/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/notices/**").hasRole("ADMIN")
                         .requestMatchers("/api/notices/all").hasRole("ADMIN")
-                        // 포인트 API
-                        .requestMatchers("/api/points/**").authenticated()
+                        .requestMatchers("/api/notices/**").permitAll()
+
+                        // Admin: 관리자 전용
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .anyRequest().permitAll())
+
+                        // 명시되지 않은 모든 요청은 인증 필수 (화이트리스트 방식)
+                        .anyRequest().authenticated())
 
                 // 4-1. 보안 헤더 설정
                 // X-Frame-Options: 클릭재킹 방지 (iframe 삽입 차단)
@@ -120,20 +158,34 @@ public class SecurityConfig {
                         .contentTypeOptions(cto -> {})
                         .contentSecurityPolicy(csp -> csp.policyDirectives(
                                 "default-src 'self'; " +
-                                "script-src 'self' 'unsafe-inline'; " +
+                                "script-src 'self'; " +
                                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
                                 "font-src 'self' https://fonts.gstatic.com; " +
                                 "img-src 'self' data: blob:; " +
-                                "connect-src 'self'; " +
+                                "connect-src 'self' ws: wss:; " +
                                 "frame-ancestors 'none'"
                         ))
                 )
 
-                // 5. JWT 필터 등록
+                // 5. 인증/인가 실패 응답 설정
+                // Spring Security 6 기본값: 미인증 요청도 403 반환 → 401로 교정
+                // - authenticationEntryPoint: 토큰 없는 요청 → 401 Unauthorized
+                // - accessDeniedHandler: 인증은 됐지만 권한 부족 → 403 Forbidden
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, e) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.getWriter().write("{\"error\":\"로그인이 필요합니다.\"}");
+                        })
+                        .accessDeniedHandler((request, response, e) -> {
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.getWriter().write("{\"error\":\"접근 권한이 없습니다.\"}");
+                        })
+                )
+
+                // 6. JWT 필터 등록
                 // Spring Security 기본 로그인 필터(UsernamePasswordAuthenticationFilter) 앞에 삽입.
-                // 요청이 들어오면 JWT 필터가 먼저 실행됨:
-                // Authorization 헤더에서 "Bearer " 제거 → 토큰 추출 → 검증 → SecurityContext 등록
-                // 토큰 없으면 그냥 통과 (인증 안 된 상태로 진행, 권한 설정에서 걸림)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

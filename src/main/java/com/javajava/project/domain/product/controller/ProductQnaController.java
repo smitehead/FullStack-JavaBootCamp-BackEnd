@@ -6,6 +6,7 @@ import com.javajava.project.domain.product.dto.ProductQnaResponseDto;
 import com.javajava.project.domain.product.entity.Product;
 import com.javajava.project.domain.product.repository.ProductRepository;
 import com.javajava.project.domain.product.service.ProductQnaService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -31,7 +32,7 @@ public class ProductQnaController {
     @PostMapping
     public ResponseEntity<Long> create(
             @PathVariable Long productNo,
-            @RequestBody ProductQnaRequestDto dto,
+            @Valid @RequestBody ProductQnaRequestDto dto,
             Authentication authentication) {
         Long memberNo = getMemberNo(authentication);
         return ResponseEntity.ok(productQnaService.createQna(productNo, memberNo, dto));
@@ -53,7 +54,7 @@ public class ProductQnaController {
     public ResponseEntity<Void> answer(
             @PathVariable Long productNo,
             @PathVariable Long qnaNo,
-            @RequestBody ProductQnaAnswerDto dto,
+            @Valid @RequestBody ProductQnaAnswerDto dto,
             Authentication authentication) {
         Long sellerNo = getMemberNo(authentication);
         Long productSellerNo = getProductSellerNo(productNo);

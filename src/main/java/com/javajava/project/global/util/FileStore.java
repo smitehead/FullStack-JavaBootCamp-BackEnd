@@ -21,14 +21,14 @@ import java.util.UUID;
 @Component
 public class FileStore {
 
-    // 허용하는 이미지 MIME 타입 목록
+    // 허용하는 이미지 MIME 타입 목록 (SVG 제외 — 내부 <script> 삽입으로 XSS 가능)
     private static final Set<String> ALLOWED_MIME_TYPES = Set.of(
             "image/jpeg", "image/jpg", "image/png", "image/gif",
-            "image/webp", "image/bmp", "image/svg+xml");
+            "image/webp", "image/bmp");
 
     // 허용하는 이미지 확장자 목록
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
-            "jpg", "jpeg", "png", "gif", "webp", "bmp", "svg");
+            "jpg", "jpeg", "png", "gif", "webp", "bmp");
 
     // 최대 파일 크기: 10MB
     private static final long MAX_FILE_SIZE = 100 * 1024 * 1024L;

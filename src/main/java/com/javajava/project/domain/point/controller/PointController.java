@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import java.util.List;
 import java.util.Map;
 
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -35,7 +36,7 @@ public class PointController {
 
     // 카드 등록 (빌링키 저장)
     @PostMapping("/billing-key")
-    public ResponseEntity<Void> registerBillingKey(@RequestBody BillingKeyRegisterRequestDto dto) {
+    public ResponseEntity<Void> registerBillingKey(@Valid @RequestBody BillingKeyRegisterRequestDto dto) {
         pointService.registerBillingKey(getCurrentMemberNo(), dto);
         return ResponseEntity.ok().build();
     }
@@ -55,7 +56,7 @@ public class PointController {
 
     // 포인트 충전
     @PostMapping("/charge")
-    public ResponseEntity<ChargeResponseDto> charge(@RequestBody ChargeRequestDto dto) {
+    public ResponseEntity<ChargeResponseDto> charge(@Valid @RequestBody ChargeRequestDto dto) {
         return ResponseEntity.ok(pointService.charge(getCurrentMemberNo(), dto));
     }
 
@@ -75,7 +76,7 @@ public class PointController {
 
     /** 계좌 추가 */
     @PostMapping("/accounts")
-    public ResponseEntity<Void> addAccount(@RequestBody BankAccountDto dto) {
+    public ResponseEntity<Void> addAccount(@Valid @RequestBody BankAccountDto dto) {
         pointService.addAccount(getCurrentMemberNo(), dto);
         return ResponseEntity.ok().build();
     }
@@ -89,7 +90,7 @@ public class PointController {
 
     /** 출금 신청 */
     @PostMapping("/withdraw")
-    public ResponseEntity<WithdrawResponseDto> withdraw(@RequestBody WithdrawRequestDto dto) {
+    public ResponseEntity<WithdrawResponseDto> withdraw(@Valid @RequestBody WithdrawRequestDto dto) {
         return ResponseEntity.ok(pointService.withdraw(getCurrentMemberNo(), dto));
     }
 }

@@ -71,15 +71,17 @@ public class AutoBidServiceImpl implements AutoBidService {
                 .filter(a -> !a.getMemberNo().equals(memberNo))
                 .findFirst()
                 .ifPresent(existing -> {
-                    if (existing.getMaxPrice() == dto.getMaxPrice()) {
+                    long existingMax = existing.getMaxPrice();   // Long → long 언박싱 (값 비교 보장)
+                    long requestMax  = dto.getMaxPrice();
+                    if (existingMax == requestMax) {
                         throw new IllegalStateException(
-                                "동일한 금액(" + existing.getMaxPrice() + "원)의 자동입찰이 선착순으로 이미 설정되어 있습니다. " +
-                                "자동입찰 한도를 " + (existing.getMaxPrice() + product.getMinBidUnit()) + "원 이상으로 설정해주세요.");
+                                "동일한 금액(" + existingMax + "원)의 자동입찰이 선착순으로 이미 설정되어 있습니다. " +
+                                "자동입찰 한도를 " + (existingMax + product.getMinBidUnit()) + "원 이상으로 설정해주세요.");
                     }
-                    if (existing.getMaxPrice() > dto.getMaxPrice()) {
+                    if (existingMax > requestMax) {
                         throw new IllegalStateException(
-                                "이미 더 높은 자동입찰(" + existing.getMaxPrice() + "원)이 설정되어 있습니다. " +
-                                "자동입찰 한도를 " + (existing.getMaxPrice() + product.getMinBidUnit()) + "원 이상으로 설정해주세요.");
+                                "이미 더 높은 자동입찰(" + existingMax + "원)이 설정되어 있습니다. " +
+                                "자동입찰 한도를 " + (existingMax + product.getMinBidUnit()) + "원 이상으로 설정해주세요.");
                     }
                 });
 

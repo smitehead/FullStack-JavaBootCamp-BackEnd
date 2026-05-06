@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -33,8 +34,10 @@ public class ReportController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Map<String, Long>> submitReport(
             @RequestPart("data") String dataJson,
-            @RequestPart(value = "images", required = false) List<MultipartFile> images) throws Exception {
+            @RequestPart(value = "images", required = false) List<MultipartFile> images,
+            Authentication authentication) throws Exception {
         ReportRequestDto dto = objectMapper.readValue(dataJson, ReportRequestDto.class);
+        dto.setReporterNo((Long) authentication.getPrincipal());
         Long reportNo = reportService.submitReport(dto, images);
         return ResponseEntity.ok(Map.of("reportNo", reportNo));
     }

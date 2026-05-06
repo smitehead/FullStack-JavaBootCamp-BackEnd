@@ -25,8 +25,10 @@ public class ProductController {
     @PostMapping(consumes = { MediaType.MULTIPART_FORM_DATA_VALUE })
     public ResponseEntity<Long> registerProduct(
             @RequestPart("product") ProductRequestDto productDto,
-            @RequestPart(value = "images", required = false) List<MultipartFile> images) throws IOException {
+            @RequestPart(value = "images", required = false) List<MultipartFile> images,
+            Authentication authentication) throws IOException {
 
+        productDto.setSellerNo((Long) authentication.getPrincipal());
         Long productNo = productService.save(productDto);
         if (images != null && !images.isEmpty()) {
             productService.saveImages(productNo, images);
