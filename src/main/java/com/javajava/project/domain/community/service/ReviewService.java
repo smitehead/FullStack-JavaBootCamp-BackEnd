@@ -74,6 +74,10 @@ public class ReviewService {
         Long buyerNo  = bid.getMemberNo();
         Long sellerNo = product.getSellerNo();
 
+        if (buyerNo.equals(sellerNo)) {
+            throw new IllegalStateException("구매자와 판매자가 동일한 거래는 후기를 작성할 수 없습니다.");
+        }
+
         Long targetNo;
         String writerRole;
         if (writerNo.equals(buyerNo)) {
