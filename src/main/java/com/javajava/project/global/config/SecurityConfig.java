@@ -1,5 +1,6 @@
 package com.javajava.project.global.config;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -166,11 +167,25 @@ public class SecurityConfig {
                         ))
                 )
 
-                // 5. JWT 필터 등록
+                // 5. 인증/인가 실패 응답 설정
+                // Spring Security 6 기본값: 미인증 요청도 403 반환 → 401로 교정
+                // - authenticationEntryPoint: 토큰 없는 요청 → 401 Unauthorized
+                // - accessDeniedHandler: 인증은 됐지만 권한 부족 → 403 Forbidden
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, e) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.getWriter().write("{\"error\":\"로그인이 필요합니다.\"}");
+                        })
+                        .accessDeniedHandler((request, response, e) -> {
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType("application/json;charset=UTF-8");
+                            response.getWriter().write("{\"error\":\"접근 권한이 없습니다.\"}");
+                        })
+                )
+
+                // 6. JWT 필터 등록
                 // Spring Security 기본 로그인 필터(UsernamePasswordAuthenticationFilter) 앞에 삽입.
-                // 요청이 들어오면 JWT 필터가 먼저 실행됨:
-                // Authorization 헤더에서 "Bearer " 제거 → 토큰 추출 → 검증 → SecurityContext 등록
-                // 토큰 없으면 그냥 통과 (인증 안 된 상태로 진행, 권한 설정에서 걸림)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
