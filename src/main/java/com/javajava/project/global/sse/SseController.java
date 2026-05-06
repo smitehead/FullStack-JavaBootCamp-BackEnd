@@ -22,7 +22,7 @@ public class SseController {
      * SSE 연결용 일회용 티켓 발급.
      * JWT 인증 필요 (Authorization 헤더) → 10초 유효 ticket 반환.
      */
-    @PostMapping("/ticket")
+    @GetMapping("/ticket")
     public ResponseEntity<Map<String, String>> issueTicket(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return ResponseEntity.status(401).build();
