@@ -139,10 +139,21 @@ public class AuctionResultServiceImpl implements AuctionResultService {
             throw new IllegalStateException("입찰을 취소한 상품은 구매 확정할 수 없습니다.");
         }
 
-        Member seller = memberRepository.findById(product.getSellerNo())
-                .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
-        Member buyer = memberRepository.findById(memberNo)
-                .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
+        // 데드락 방지: memberNo 오름차순으로 락 획득
+        Long sellerNo = product.getSellerNo();
+        Member seller;
+        Member buyer;
+        if (sellerNo < memberNo) {
+            seller = memberRepository.findByIdWithLock(sellerNo)
+                    .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
+            buyer = memberRepository.findByIdWithLock(memberNo)
+                    .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
+        } else {
+            buyer = memberRepository.findByIdWithLock(memberNo)
+                    .orElseThrow(() -> new IllegalArgumentException("구매자 정보를 찾을 수 없습니다."));
+            seller = memberRepository.findByIdWithLock(sellerNo)
+                    .orElseThrow(() -> new IllegalArgumentException("판매자 정보를 찾을 수 없습니다."));
+        }
 
         // ── 배송대기 상태: 에스크로 정산 (구버전 결제완료 상태는 이미 정산 완료) ──
         if (AuctionResultStatus.AWAITING_SHIPMENT.equals(result.getStatus())) {
@@ -630,10 +641,22 @@ public class AuctionResultServiceImpl implements AuctionResultService {
                 .orElseThrow(() -> new IllegalArgumentException("입찰 기록을 찾을 수 없습니다. bidNo=" + result.getBidNo()));
         Product product = productRepository.findById(bid.getProductNo())
                 .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. productNo=" + bid.getProductNo()));
-        Member seller = memberRepository.findById(product.getSellerNo())
-                .orElseThrow(() -> new IllegalArgumentException("판매자를 찾을 수 없습니다. sellerNo=" + product.getSellerNo()));
-        Member buyer = memberRepository.findById(bid.getMemberNo())
-                .orElseThrow(() -> new IllegalArgumentException("구매자를 찾을 수 없습니다. memberNo=" + bid.getMemberNo()));
+        // 데드락 방지: memberNo 오름차순으로 락 획득
+        Long sellerNo = product.getSellerNo();
+        Long buyerNo = bid.getMemberNo();
+        Member seller;
+        Member buyer;
+        if (sellerNo < buyerNo) {
+            seller = memberRepository.findByIdWithLock(sellerNo)
+                    .orElseThrow(() -> new IllegalArgumentException("판매자를 찾을 수 없습니다. sellerNo=" + sellerNo));
+            buyer = memberRepository.findByIdWithLock(buyerNo)
+                    .orElseThrow(() -> new IllegalArgumentException("구매자를 찾을 수 없습니다. memberNo=" + buyerNo));
+        } else {
+            buyer = memberRepository.findByIdWithLock(buyerNo)
+                    .orElseThrow(() -> new IllegalArgumentException("구매자를 찾을 수 없습니다. memberNo=" + buyerNo));
+            seller = memberRepository.findByIdWithLock(sellerNo)
+                    .orElseThrow(() -> new IllegalArgumentException("판매자를 찾을 수 없습니다. sellerNo=" + sellerNo));
+        }
 
         double feeRate = FeePolicy.rateFor(product.getTradeType());
         String feeLabel = FeePolicy.labelFor(product.getTradeType());

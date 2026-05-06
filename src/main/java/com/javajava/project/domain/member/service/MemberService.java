@@ -1,6 +1,8 @@
 package com.javajava.project.domain.member.service;
 
 import com.javajava.project.domain.member.dto.MemberProfileResponseDto;
+import com.javajava.project.domain.member.dto.MemberPublicResponseDto;
+import com.javajava.project.domain.member.dto.MemberSummaryDto;
 import com.javajava.project.domain.member.dto.BlockedUserResponseDto;
 import com.javajava.project.domain.member.dto.MemberProfileUpdateDto;
 import com.javajava.project.domain.member.dto.MemberRequestDto;
@@ -15,6 +17,8 @@ import java.util.List;
 public interface MemberService {
     Long join(MemberRequestDto dto);
     MemberResponseDto findOne(Long memberNo);
+    MemberPublicResponseDto findPublic(Long memberNo);
+    MemberSummaryDto getSummary(Long memberNo);
     
     void updateEmail(Long memberNo, String email);
 

@@ -1,6 +1,8 @@
 package com.javajava.project.domain.member.controller;
 
 import com.javajava.project.domain.member.dto.*;
+import com.javajava.project.domain.member.dto.MemberPublicResponseDto;
+import com.javajava.project.domain.member.dto.MemberSummaryDto;
 import com.javajava.project.domain.member.entity.BlockedUser;
 import com.javajava.project.domain.member.entity.BlockedUserId;
 import com.javajava.project.domain.member.repository.BlockedUserRepository;
@@ -8,6 +10,7 @@ import com.javajava.project.domain.member.service.MemberService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -61,11 +64,16 @@ public class MemberController {
         return ResponseEntity.ok(memberService.join(memberDto));
     }
 
-    // 회원 단건 조회
-    // GET /api/members/{id}
+    // 회원 공개 프로필 조회 (닉네임·매너온도·프로필 이미지·가입일만 반환)
     @GetMapping("/{id}")
-    public ResponseEntity<MemberResponseDto> getMemberInfo(@PathVariable("id") Long memberNo) {
-        return ResponseEntity.ok(memberService.findOne(memberNo));
+    public ResponseEntity<MemberPublicResponseDto> getMemberInfo(@PathVariable("id") Long memberNo) {
+        return ResponseEntity.ok(memberService.findPublic(memberNo));
+    }
+
+    // 본인 요약 정보 조회 (로그인 직후 포인트·권한 등 동기화용)
+    @GetMapping("/me/summary")
+    public ResponseEntity<MemberSummaryDto> getMeSummary() {
+        return ResponseEntity.ok(memberService.getSummary(getCurrentMemberNo()));
     }
 
     // ---- 실시간 중복 확인 API ----
@@ -115,7 +123,12 @@ public class MemberController {
     @PutMapping("/{memberNo}/profile-image-url")
     public ResponseEntity<Void> updateProfileImageUrl(
             @PathVariable("memberNo") Long memberNo,
-            @RequestBody Map<String, String> body) {
+            @RequestBody Map<String, String> body,
+            Authentication authentication) {
+        Long requester = (Long) authentication.getPrincipal();
+        if (!requester.equals(memberNo)) {
+            return ResponseEntity.status(403).build();
+        }
         memberService.updateProfileImage(memberNo, body.get("url"));
         return ResponseEntity.ok().build();
     }

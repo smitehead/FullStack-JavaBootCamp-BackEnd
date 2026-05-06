@@ -37,6 +37,10 @@ public class ReportServiceImpl implements ReportService {
     @Override
     @Transactional
     public Long submitReport(ReportRequestDto dto, List<MultipartFile> images) {
+        if (dto.getTargetMemberNo() != null && dto.getTargetMemberNo().equals(dto.getReporterNo())) {
+            throw new IllegalArgumentException("자기 자신을 신고할 수 없습니다.");
+        }
+
         Report saved = reportRepository.save(Report.builder()
                 .reporterNo(dto.getReporterNo())
                 .targetMemberNo(dto.getTargetMemberNo())

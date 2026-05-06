@@ -10,7 +10,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 7일 자동 구매 확정 단건 처리 서비스.
  *
- * <p>Self-Invocation 방지를 위해 {@link AuctionAutoConfirmScheduler}에서
+ * <p>
+ * Self-Invocation 방지를 위해 {@link AuctionAutoConfirmScheduler}에서
  * 분리된 독립 빈. {@code REQUIRES_NEW}로 스케줄러 호출마다 새 트랜잭션을 보장하여
  * 단건 실패가 다른 건에 영향을 주지 않도록 격리한다.
  */

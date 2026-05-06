@@ -85,6 +85,20 @@ public class MemberServiceImpl implements MemberService {
     }
 
     @Override
+    public MemberPublicResponseDto findPublic(Long memberNo) {
+        return memberRepository.findById(memberNo)
+                .map(MemberPublicResponseDto::from)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+    }
+
+    @Override
+    public MemberSummaryDto getSummary(Long memberNo) {
+        return memberRepository.findById(memberNo)
+                .map(MemberSummaryDto::from)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+    }
+
+    @Override
     public boolean isUserIdDuplicate(String userId) {
         return memberRepository.existsByUserId(userId);
     }

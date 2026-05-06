@@ -1,7 +1,10 @@
 package com.javajava.project.domain.member.controller;
 
+import com.javajava.project.domain.member.dto.EmailCodeVerifyDto;
+import com.javajava.project.domain.member.dto.EmailRequestDto;
 import com.javajava.project.domain.member.dto.LoginRequestDto;
 import com.javajava.project.domain.member.dto.LoginResponseDto;
+import com.javajava.project.domain.member.dto.UserIdEmailRequestDto;
 import com.javajava.project.domain.member.service.AuthService;
 import com.javajava.project.domain.member.service.EmailService;
 import jakarta.mail.MessagingException;
@@ -57,9 +60,8 @@ public class AuthController {
      * 요청: { "email": "user@example.com" }
      */
     @PostMapping("/send-email-code")
-    public ResponseEntity<Void> sendEmailCode(@RequestBody Map<String, String> body) throws MessagingException {
-        String email = body.get("email");
-        emailService.sendVerificationCode(email);
+    public ResponseEntity<Void> sendEmailCode(@Valid @RequestBody EmailRequestDto body) throws MessagingException {
+        emailService.sendVerificationCode(body.getEmail());
         return ResponseEntity.ok().build();
     }
 
@@ -70,10 +72,8 @@ public class AuthController {
      * 응답: { "verified": true/false }
      */
     @PostMapping("/verify-email-code")
-    public ResponseEntity<Map<String, Boolean>> verifyEmailCode(@RequestBody Map<String, String> body) {
-        String email = body.get("email");
-        String code = body.get("code");
-        boolean verified = emailService.verifyCode(email, code);
+    public ResponseEntity<Map<String, Boolean>> verifyEmailCode(@Valid @RequestBody EmailCodeVerifyDto body) {
+        boolean verified = emailService.verifyCode(body.getEmail(), body.getCode());
         return ResponseEntity.ok(Map.of("verified", verified));
     }
 
@@ -84,8 +84,8 @@ public class AuthController {
      * 응답: { "userId": "testuser" }
      */
     @PostMapping("/find-id")
-    public ResponseEntity<Map<String, String>> findId(@RequestBody Map<String, String> body) {
-        String userId = authService.findIdByEmail(body.get("email"));
+    public ResponseEntity<Map<String, String>> findId(@Valid @RequestBody EmailRequestDto body) {
+        String userId = authService.findIdByEmail(body.getEmail());
         return ResponseEntity.ok(Map.of("userId", userId));
     }
 
@@ -95,8 +95,8 @@ public class AuthController {
      * 요청: { "userId": "testuser", "email": "user@example.com" }
      */
     @PostMapping("/send-reset-code")
-    public ResponseEntity<Void> sendResetCode(@RequestBody Map<String, String> body) throws MessagingException {
-        authService.sendResetCode(body.get("userId"), body.get("email"));
+    public ResponseEntity<Void> sendResetCode(@Valid @RequestBody UserIdEmailRequestDto body) throws MessagingException {
+        authService.sendResetCode(body.getUserId(), body.getEmail());
         return ResponseEntity.ok().build();
     }
 
@@ -106,8 +106,8 @@ public class AuthController {
      * 요청: { "userId": "testuser", "email": "user@example.com" }
      */
     @PostMapping("/reset-pw")
-    public ResponseEntity<Void> resetPassword(@RequestBody Map<String, String> body) throws MessagingException {
-        authService.resetPassword(body.get("userId"), body.get("email"));
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody UserIdEmailRequestDto body) throws MessagingException {
+        authService.resetPassword(body.getUserId(), body.getEmail());
         return ResponseEntity.ok().build();
     }
 }
