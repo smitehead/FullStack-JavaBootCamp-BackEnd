@@ -13,7 +13,6 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/sse")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class SseController {
 
     private final SseService sseService;
