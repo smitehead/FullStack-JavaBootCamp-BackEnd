@@ -105,7 +105,7 @@ public class BidServiceImpl implements BidService {
         }
         // 입찰 클릭 시점 가격과 락 획득 후 실제 가격 비교 — 동시 입찰 race condition 감지
         if (dto.getTargetPrice() != null && dto.getTargetPrice() < product.getCurrentPrice()) {
-            throw new IllegalArgumentException("입찰 중 가격이 변동되었습니다. 새로고침 후 다시 시도해 주세요.");
+            throw new IllegalArgumentException("입찰 중 가격이 변동되었습니다. 현재 가격을 확인 후 다시 시도해 주세요.");
         }
         return product;
     }

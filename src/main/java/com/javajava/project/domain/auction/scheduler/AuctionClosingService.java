@@ -119,6 +119,7 @@ public class AuctionClosingService {
         // PENDING_PAYMENT: 즉시구매도 구매자 수령 확인 대기 (7일 후 자동 구매 확정)
         product.markPending();
         product.setWinnerNo(winningBid.getMemberNo());
+        product.setCurrentPrice(winningBid.getBidPrice()); // 즉시구매가로 currentPrice 확정
         product.setEndTime(LocalDateTime.now()); // [추가] 즉시구매 시 종료 시간 업데이트
 
         auctionResultRepository.save(AuctionResult.builder()
