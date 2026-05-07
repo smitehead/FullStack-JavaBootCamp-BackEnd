@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -73,26 +74,39 @@ public class AdminServiceImpl implements AdminService {
 
     @Override
     public List<AdminMemberResponseDto> getAllMembers() {
-        return memberRepository.findByIsActiveOrderByJoinedAtDesc(1)
-                .stream()
+        List<Member> members = memberRepository.findByIsActiveOrderByJoinedAtDesc(1);
+        return attachPostCounts(members);
+    }
+
+    @Override
+    public List<AdminMemberResponseDto> searchMembers(String keyword) {
+        List<Member> members = memberRepository.searchByKeyword(keyword);
+        return attachPostCounts(members);
+    }
+
+    /** 회원 목록 → DTO 변환 + 게시물 수 배치 집계 (N+1 방지) */
+    private List<AdminMemberResponseDto> attachPostCounts(List<Member> members) {
+        if (members.isEmpty()) return List.of();
+        List<Long> memberNos = members.stream().map(Member::getMemberNo).toList();
+        Map<Long, Long> postCountMap = countPostsInChunks(memberNos);
+        return members.stream()
                 .map(m -> {
                     AdminMemberResponseDto dto = AdminMemberResponseDto.from(m);
-                    dto.setPostCount(productRepository.countBySellerNoAndIsDeleted(m.getMemberNo(), 0));
+                    dto.setPostCount(postCountMap.getOrDefault(m.getMemberNo(), 0L));
                     return dto;
                 })
                 .toList();
     }
 
-    @Override
-    public List<AdminMemberResponseDto> searchMembers(String keyword) {
-        return memberRepository.searchByKeyword(keyword)
-                .stream()
-                .map(m -> {
-                    AdminMemberResponseDto dto = AdminMemberResponseDto.from(m);
-                    dto.setPostCount(productRepository.countBySellerNoAndIsDeleted(m.getMemberNo(), 0));
-                    return dto;
-                })
-                .toList();
+    /** Oracle IN절 1000개 제한 대응: memberNos를 1000개씩 나눠 집계 후 합산 */
+    private Map<Long, Long> countPostsInChunks(List<Long> memberNos) {
+        Map<Long, Long> result = new HashMap<>();
+        for (int i = 0; i < memberNos.size(); i += 1000) {
+            List<Long> chunk = memberNos.subList(i, Math.min(i + 1000, memberNos.size()));
+            productRepository.countBySellerNosAndIsDeleted(chunk, 0)
+                    .forEach(row -> result.put((Long) row[0], (Long) row[1]));
+        }
+        return result;
     }
 
     @Override

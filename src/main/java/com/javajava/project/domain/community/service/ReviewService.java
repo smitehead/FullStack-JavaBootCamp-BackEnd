@@ -26,7 +26,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -150,28 +152,9 @@ public class ReviewService {
      * 특정 회원이 받은 리뷰 목록 (프로필용)
      */
     public List<ReviewResponseDto> getReviewsByTarget(Long targetNo) {
-        return reviewRepository.findByTargetNoAndIsHidden(targetNo, 0).stream()
-                .map(review -> {
-                    String nickname = memberRepository.findById(review.getWriterNo())
-                            .map(Member::getNickname).orElse("탈퇴회원");
-                    Long productNo = null;
-                    String productTitle = null;
-                    try {
-                        AuctionResult result = auctionResultRepository.findById(review.getResultNo()).orElse(null);
-                        if (result != null) {
-                            BidHistory bid = bidHistoryRepository.findById(result.getBidNo()).orElse(null);
-                            if (bid != null) {
-                                Product product = productRepository.findById(bid.getProductNo()).orElse(null);
-                                if (product != null) {
-                                    productNo = product.getProductNo();
-                                    productTitle = product.getTitle();
-                                }
-                            }
-                        }
-                    } catch (Exception ignored) {}
-                    List<String> tagNames = reviewTagDefRepository.findTagNamesByReviewNo(review.getReviewNo());
-                    return ReviewResponseDto.from(review, nickname, productNo, productTitle, tagNames);
-                }).toList();
+        List<Review> reviews = reviewRepository.findByTargetNoAndIsHidden(targetNo, 0);
+        if (reviews.isEmpty()) return List.of();
+        return buildReviewDtos(reviews, null);
     }
 
     /**
@@ -180,26 +163,61 @@ public class ReviewService {
     public List<ReviewResponseDto> getMyReviews(Long writerNo) {
         Member writer = memberRepository.findById(writerNo)
                 .orElseThrow(() -> new IllegalArgumentException("회원 정보를 찾을 수 없습니다."));
-        return reviewRepository.findByWriterNoOrderByCreatedAtDesc(writerNo).stream()
-                .map(review -> {
-                    Long productNo = null;
-                    String productTitle = null;
-                    try {
-                        AuctionResult result = auctionResultRepository.findById(review.getResultNo()).orElse(null);
-                        if (result != null) {
-                            BidHistory bid = bidHistoryRepository.findById(result.getBidNo()).orElse(null);
-                            if (bid != null) {
-                                Product product = productRepository.findById(bid.getProductNo()).orElse(null);
-                                if (product != null) {
-                                    productNo = product.getProductNo();
-                                    productTitle = product.getTitle();
-                                }
-                            }
-                        }
-                    } catch (Exception ignored) {}
-                    List<String> tagNames = reviewTagDefRepository.findTagNamesByReviewNo(review.getReviewNo());
-                    return ReviewResponseDto.from(review, writer.getNickname(), productNo, productTitle, tagNames);
-                }).toList();
+        List<Review> reviews = reviewRepository.findByWriterNoOrderByCreatedAtDesc(writerNo);
+        if (reviews.isEmpty()) return List.of();
+        // writerNo가 고정이므로 nicknameMap 대신 writer 닉네임을 직접 전달
+        return buildReviewDtos(reviews, writer.getNickname());
+    }
+
+    /**
+     * 리뷰 목록 → DTO 변환 (배치 조회).
+     * fixedNickname이 null이면 리뷰별 writerNo로 닉네임을 배치 조회한다 (getReviewsByTarget용).
+     * fixedNickname이 non-null이면 모든 리뷰에 동일 닉네임을 사용한다 (getMyReviews용).
+     */
+    private List<ReviewResponseDto> buildReviewDtos(List<Review> reviews, String fixedNickname) {
+        // 1. 작성자 닉네임 배치 조회 (fixedNickname이 없는 경우만)
+        Map<Long, String> nicknameMap = Map.of();
+        if (fixedNickname == null) {
+            Set<Long> writerNos = reviews.stream().map(Review::getWriterNo).collect(Collectors.toSet());
+            nicknameMap = memberRepository.findAllById(writerNos).stream()
+                    .collect(Collectors.toMap(Member::getMemberNo, Member::getNickname));
+        }
+
+        // 2. AuctionResult → BidHistory → Product 배치 조회
+        Set<Long> resultNos = reviews.stream().map(Review::getResultNo).collect(Collectors.toSet());
+        Map<Long, AuctionResult> resultMap = auctionResultRepository.findAllById(resultNos).stream()
+                .collect(Collectors.toMap(AuctionResult::getResultNo, r -> r));
+
+        Set<Long> bidNos = resultMap.values().stream().map(AuctionResult::getBidNo).collect(Collectors.toSet());
+        Map<Long, BidHistory> bidMap = bidHistoryRepository.findAllById(bidNos).stream()
+                .collect(Collectors.toMap(BidHistory::getBidNo, b -> b));
+
+        Set<Long> productNos = bidMap.values().stream().map(BidHistory::getProductNo).collect(Collectors.toSet());
+        Map<Long, Product> productMap = productRepository.findAllById(productNos).stream()
+                .collect(Collectors.toMap(Product::getProductNo, p -> p));
+
+        // 3. 태그명 배치 조회
+        List<Long> reviewNos = reviews.stream().map(Review::getReviewNo).toList();
+        Map<Long, List<String>> tagNamesMap = reviewTagDefRepository.findTagNamesByReviewNos(reviewNos).stream()
+                .collect(Collectors.groupingBy(
+                        row -> (Long) row[0],
+                        Collectors.mapping(row -> (String) row[1], Collectors.toList())
+                ));
+
+        final Map<Long, String> finalNicknameMap = nicknameMap;
+        return reviews.stream().map(review -> {
+            String nickname = fixedNickname != null
+                    ? fixedNickname
+                    : finalNicknameMap.getOrDefault(review.getWriterNo(), "탈퇴회원");
+            AuctionResult result = resultMap.get(review.getResultNo());
+            BidHistory bid = result != null ? bidMap.get(result.getBidNo()) : null;
+            Product product = bid != null ? productMap.get(bid.getProductNo()) : null;
+            List<String> tagNames = tagNamesMap.getOrDefault(review.getReviewNo(), List.of());
+            return ReviewResponseDto.from(review, nickname,
+                    product != null ? product.getProductNo() : null,
+                    product != null ? product.getTitle() : null,
+                    tagNames);
+        }).toList();
     }
 
     /**

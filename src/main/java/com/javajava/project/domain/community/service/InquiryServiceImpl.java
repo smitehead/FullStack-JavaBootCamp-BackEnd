@@ -24,6 +24,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -88,14 +92,7 @@ public class InquiryServiceImpl implements InquiryService {
             result = inquiryRepository.findByMemberNoOrderByCreatedAtDesc(memberNo, pageable);
         }
 
-        return result.map(i -> {
-            String memberNickname = memberRepository.findById(i.getMemberNo())
-                    .map(Member::getNickname).orElse("알 수 없음");
-            String adminNickname = i.getAdminNo() != null
-                    ? memberRepository.findById(i.getAdminNo()).map(Member::getNickname).orElse(null)
-                    : null;
-            return enrichWithImages(InquiryResponseDto.from(i, memberNickname, adminNickname));
-        });
+        return enrichPage(result);
     }
 
     @Override
@@ -116,17 +113,47 @@ public class InquiryServiceImpl implements InquiryService {
         Page<Inquiry> result = (status == null)
                 ? inquiryRepository.findAllByOrderByCreatedAtDesc(pageable)
                 : inquiryRepository.findByStatusOrderByCreatedAtDesc(status, pageable);
-        return result.map(i -> {
-            String memberNickname = memberRepository.findById(i.getMemberNo())
-                    .map(Member::getNickname).orElse("알 수 없음");
-            String adminNickname = i.getAdminNo() != null
-                    ? memberRepository.findById(i.getAdminNo()).map(Member::getNickname).orElse(null)
-                    : null;
-            return enrichWithImages(InquiryResponseDto.from(i, memberNickname, adminNickname));
+        return enrichPage(result);
+    }
+
+    /**
+     * Page<Inquiry>를 배치 조회로 DTO 변환.
+     * member/admin 닉네임과 이미지를 각각 쿼리 1번으로 처리한다.
+     */
+    private Page<InquiryResponseDto> enrichPage(Page<Inquiry> page) {
+        List<Inquiry> content = page.getContent();
+        if (content.isEmpty()) return page.map(i -> InquiryResponseDto.from(i, "알 수 없음", null));
+
+        // 닉네임 배치 조회 (memberNo + adminNo 합산)
+        Set<Long> allMemberNos = content.stream()
+                .flatMap(i -> {
+                    Set<Long> nos = new java.util.HashSet<>();
+                    nos.add(i.getMemberNo());
+                    if (i.getAdminNo() != null) nos.add(i.getAdminNo());
+                    return nos.stream();
+                })
+                .collect(Collectors.toSet());
+        Map<Long, String> nicknameMap = memberRepository.findAllById(allMemberNos).stream()
+                .collect(Collectors.toMap(Member::getMemberNo, Member::getNickname));
+
+        // 이미지 배치 조회
+        List<Long> inquiryNos = content.stream().map(Inquiry::getInquiryNo).toList();
+        Map<Long, List<String>> imagesMap = inquiryImageRepository.findByInquiryNoIn(inquiryNos).stream()
+                .collect(Collectors.groupingBy(
+                        img -> img.getInquiryNo(),
+                        Collectors.mapping(img -> "/api/images/" + img.getUuidName(), Collectors.toList())
+                ));
+
+        return page.map(i -> {
+            String memberNickname = nicknameMap.getOrDefault(i.getMemberNo(), "알 수 없음");
+            String adminNickname = i.getAdminNo() != null ? nicknameMap.get(i.getAdminNo()) : null;
+            InquiryResponseDto dto = InquiryResponseDto.from(i, memberNickname, adminNickname);
+            dto.setImageUrls(imagesMap.getOrDefault(i.getInquiryNo(), List.of()));
+            return dto;
         });
     }
 
-    /** 문의 응답 DTO에 첨부 이미지 URL 세팅 */
+    /** 단건 조회용 — 이미지 URL 세팅 */
     private InquiryResponseDto enrichWithImages(InquiryResponseDto dto) {
         List<String> urls = inquiryImageRepository.findByInquiryNo(dto.getInquiryNo())
                 .stream()

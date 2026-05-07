@@ -58,6 +58,10 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
     long countBySellerNoAndIsDeleted(Long sellerNo, Integer isDeleted);
 
+    /** 여러 판매자의 게시물 수를 한 번에 집계 — N+1 방지용 배치 쿼리 */
+    @Query("SELECT p.sellerNo, COUNT(p) FROM Product p WHERE p.sellerNo IN :sellerNos AND p.isDeleted = :isDeleted GROUP BY p.sellerNo")
+    List<Object[]> countBySellerNosAndIsDeleted(@Param("sellerNos") List<Long> sellerNos, @Param("isDeleted") Integer isDeleted);
+
     // 관리자 대시보드: 대분류별 상품 건수 집계 (depth 1/2/3 모두 대응)
     @Query(value = """
             SELECT

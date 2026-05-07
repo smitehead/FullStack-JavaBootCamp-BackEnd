@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface InquiryImageRepository extends JpaRepository<InquiryImage, Long> {
     List<InquiryImage> findByInquiryNo(Long inquiryNo);
+
+    List<InquiryImage> findByInquiryNoIn(List<Long> inquiryNos);
 }

@@ -17,4 +17,8 @@ public interface ReviewTagDefRepository extends JpaRepository<ReviewTagDef, Long
     @Query("SELECT d.tagName FROM ReviewTagDef d WHERE d.tagId IN " +
            "(SELECT rt.tagId FROM ReviewTag rt WHERE rt.reviewNo = :reviewNo)")
     List<String> findTagNamesByReviewNo(@Param("reviewNo") Long reviewNo);
+
+    /** 여러 리뷰의 태그명을 한 번에 조회 — N+1 방지용 배치 쿼리 */
+    @Query("SELECT rt.reviewNo, d.tagName FROM ReviewTagDef d JOIN ReviewTag rt ON d.tagId = rt.tagId WHERE rt.reviewNo IN :reviewNos")
+    List<Object[]> findTagNamesByReviewNos(@Param("reviewNos") List<Long> reviewNos);
 }
