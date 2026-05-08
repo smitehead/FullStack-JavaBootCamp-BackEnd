@@ -30,6 +30,7 @@ public class ChatServiceImpl implements ChatService {
     private final ChatImageRepository chatImageRepository;
     private final BlockedUserRepository blockedUserRepository;
     private final FileStore fileStore;
+    private final ChatRoomHelper chatRoomHelper;
 
     // ──────────────────────────────────────────────
     // 채팅방 생성 — 동시성 방어 (DB 유니크 인덱스 + 코드 방어)
@@ -64,19 +65,15 @@ public class ChatServiceImpl implements ChatService {
                     return dto;
                 })
                 .orElseGet(() -> {
-                    // 2) 없으면 새로 생성
+                    // 2) 없으면 새로 생성 — REQUIRES_NEW 트랜잭션으로 즉시 INSERT+flush
                     try {
-                        ChatRoom newRoom = ChatRoom.builder()
-                                .buyerNo(request.getBuyerNo())
-                                .sellerNo(request.getSellerNo())
-                                .productNo(request.getProductNo())
-                                .build();
-                        chatRoomRepository.save(newRoom);
+                        ChatRoom newRoom = chatRoomHelper.tryInsert(
+                                request.getBuyerNo(), request.getSellerNo(), request.getProductNo());
                         ChatRoomListDto dto = buildRoomListDto(newRoom, myNo);
                         dto.setIsNew(true);
                         return dto;
                     } catch (DataIntegrityViolationException e) {
-                        // 동시 요청 대응
+                        // 동시 요청 대응 — 독립 트랜잭션이 실패했으므로 이미 커밋된 방 조회
                         ChatRoom room = chatRoomRepository
                                 .findByBuyerNoAndSellerNoAndProductNoAndStatus(
                                         request.getBuyerNo(), request.getSellerNo(),
