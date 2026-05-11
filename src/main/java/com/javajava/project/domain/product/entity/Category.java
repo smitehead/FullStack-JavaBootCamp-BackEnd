@@ -18,7 +18,7 @@ public class Category {
     @Column(name = "PARENT_NO")
     private Long parentNo; // 상위 카테고리번호 (자기참조, 대분류는 Null)
 
-    @Column(name = "NAME", nullable = false, length = 30)
+    @Column(name = "NAME", nullable = false, length = 100)
     private String name;
 
     @Column(name = "DEPTH", nullable = false)
