@@ -6,8 +6,8 @@ import lombok.Getter;
 @Getter
 @Builder
 public class BlockedUserResponseDto {
-    private Long id; // match frontend 'user.id'
+    private Long id;
     private String nickname;
-    private String profileImage; // match frontend 'user.profileImage'
+    private String profileImage;
     private Double mannerTemp;
 }
